@@ -1,6 +1,6 @@
 using MudBlazor;
 
-namespace CA.SegmentationClient.Themes
+namespace Segmentation.Client.Themes
 {
     public static class CATheme
     {

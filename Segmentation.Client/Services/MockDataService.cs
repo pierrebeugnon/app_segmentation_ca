@@ -1,6 +1,6 @@
-using CA.SegmentationClient.Models;
+using Segmentation.Client.Models;
 
-namespace CA.SegmentationClient.Services
+namespace Segmentation.Client.Services
 {
     public class MockDataService
     {

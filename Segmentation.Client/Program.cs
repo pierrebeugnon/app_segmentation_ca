@@ -1,6 +1,6 @@
-using CA.SegmentationClient.Components;
-using CA.SegmentationClient.Services;
-using CA.SegmentationClient.Themes;
+using Segmentation.Client.Components;
+using Segmentation.Client.Services;
+using Segmentation.Client.Themes;
 using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);

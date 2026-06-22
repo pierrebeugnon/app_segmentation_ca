@@ -1,4 +1,4 @@
-namespace CA.SegmentationClient.Models
+namespace Segmentation.Client.Models
 {
     public class KpiGlobal
     {

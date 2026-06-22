@@ -1,6 +1,6 @@
-using CA.SegmentationClient.Models;
+using Segmentation.Client.Models;
 
-namespace CA.SegmentationClient.Services;
+namespace Segmentation.Client.Services;
 
 /// <summary>
 /// Service singleton réactif : quand les règles changent, toutes les pages
