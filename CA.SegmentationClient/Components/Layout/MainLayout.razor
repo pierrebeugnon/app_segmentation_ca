@@ -1,0 +1,27 @@
+﻿@inherits LayoutComponentBase
+
+<div class="ca-app">
+    <header class="ca-header">
+        <div class="ca-header-brand">
+            <div class="ca-logo">
+                <img src="ca_logo.png" alt="Crédit Agricole" style="height:40px;width:auto" />
+            </div>
+            <div class="ca-header-text">
+                <span class="ca-header-name">Crédit Agricole Nord de France</span>
+                <span class="ca-header-sub">Segmentation client</span>
+            </div>
+        </div>
+    </header>
+
+    <NavMenu />
+
+    <main class="ca-main">
+        @Body
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    Une erreur non gérée est survenue.
+    <a href="." class="reload">Recharger</a>
+    <span class="dismiss">✕</span>
+</div>
