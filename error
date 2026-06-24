@@ -1,0 +1,30 @@
+Failed to load resource: net::ERR_CONNECTION_REFUSEDUnderstand this error
+blazor.webassembly.js:1 Debugging hotkey: Shift+Alt+D (when application has focus)
+dotnet.runtime.0j6ezsi0n0.js:sourcemap:3 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/Auth
+dotnet.runtime.0j6ezsi0n0.js:sourcemap:3 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/Auth
+blazor.webassembly.js:1 crit: Microsoft.AspNetCore.Components.WebAssembly.Rendering.WebAssemblyRenderer[100]
+      Unhandled exception rendering component: The following routes are ambiguous:
+      'Error' in 'Segmentation.Client.Shared.Errors.Error'
+      'Error' in 'Segmentation.Client.Pages.Error'
+      
+System.InvalidOperationException: The following routes are ambiguous:
+'Error' in 'Segmentation.Client.Shared.Errors.Error'
+'Error' in 'Segmentation.Client.Pages.Error'
+
+   at Microsoft.AspNetCore.Components.RouteTableFactory.DetectAmbiguousRoutes(TreeRouteBuilder builder)
+   at Microsoft.AspNetCore.Components.RouteTableFactory.Create(Dictionary`2 templatesByHandler, IServiceProvider serviceProvider)
+   at Microsoft.AspNetCore.Components.RouteTableFactory.Create(List`1 componentTypes, IServiceProvider serviceProvider)
+   at Microsoft.AspNetCore.Components.RouteTableFactory.Create(RouteKey routeKey, IServiceProvider serviceProvider)
+   at Microsoft.AspNetCore.Components.Routing.Router.RefreshRouteTable()
+   at Microsoft.AspNetCore.Components.Routing.Router.Refresh(Boolean isNavigationIntercepted)
+   at Microsoft.AspNetCore.Components.Routing.Router.RunOnNavigateAsync(String path, Boolean isNavigationIntercepted)
+   at Microsoft.AspNetCore.Components.Routing.Router.<>c__DisplayClass82_0.<RunOnNavigateAsync>b__1(RenderTreeBuilder builder)
+   at Microsoft.AspNetCore.Components.Rendering.ComponentState.RenderIntoBatch(RenderBatchBuilder batchBuilder, RenderFragment renderFragment, Exception& renderFragmentException)
+Tt @ blazor.webassembly.js:1Understand this error
+dotnet.runtime.0j6ezsi0n0.js:sourcemap:3 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 137.5ms - 200
+dotnet.runtime.0j6ezsi0n0.js:sourcemap:3 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 155.9ms - 200
+:55430/a5f5d62c3b914a1dab9eefddd295ec8a/browserLinkSignalR/negotiate?clientProtocol=2.1&requestUrl=https%3A%2F%2Flocalhost%3A24462%2F&browserName=&userAgent=Mozilla%2F5.0%20(Windows%20NT%2010.0%3B%20Win64%3B%20x64)%20AppleWebKit%2F537.36%20(KHTML%2C%20like%20Gecko)%20Chrome%2F146.0.0.0%20Safari%2F537.36&browserIdKey=window.browserLink.initializationData.browserId&browserId=39e6-9c25&_=1782306822583:1  Failed to load resource: net::ERR_CONNECTION_REFUSEDUnderstand this error
