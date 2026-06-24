@@ -1,25 +1,17 @@
-Chaque package vous est concédé sous licence par son propriétaire. NuGet n'est pas responsable des packages tiers et n'octroie aucune licence les concernant. Certains packages peuvent inclure des dépendances régies par des licences supplémentaires. Suivez l'URL (flux) de la source de packages pour déterminer les dépendances éventuelles.
-
-Version de l’hôte de la Console du Gestionnaire de package 7.0.2.3
-
-Tapez 'get-help NuGet' pour afficher toutes les commandes NuGet disponibles.
-
-PM> Install-Package MudBlazor -Version 9.3.0
-Restauration des packages pour C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\Segmentation.Server.csproj...
-  GET https://api.nuget.org/v3/vulnerabilities/index.json
-  OK https://api.nuget.org/v3/vulnerabilities/index.json 11 ms
-  GET https://api.nuget.org/v3-vulnerabilities/2026.06.19.23.48.43/vulnerability.base.json
-  GET https://api.nuget.org/v3-vulnerabilities/2026.06.19.23.48.43/2026.06.24.05.48.59/vulnerability.update.json
-  OK https://api.nuget.org/v3-vulnerabilities/2026.06.19.23.48.43/vulnerability.base.json 25 ms
-  OK https://api.nuget.org/v3-vulnerabilities/2026.06.19.23.48.43/2026.06.24.05.48.59/vulnerability.update.json 139 ms
+Restauration des packages pour C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Segmentation.Client.csproj...
+  CACHE https://api.nuget.org/v3/vulnerabilities/index.json
+  CACHE https://api.nuget.org/v3-vulnerabilities/2026.06.19.23.48.43/vulnerability.base.json
+  CACHE https://api.nuget.org/v3-vulnerabilities/2026.06.19.23.48.43/2026.06.24.05.48.59/vulnerability.update.json
 Installation du package NuGet MudBlazor 9.3.0.
-Génération du fichier MSBuild C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\obj\Segmentation.Server.csproj.nuget.g.props.
-Génération du fichier MSBuild C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\obj\Segmentation.Server.csproj.nuget.g.targets.
-Écriture du fichier des composants sur le disque. Chemin : C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\obj\project.assets.json
-Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\Segmentation.Server.csproj (en 1,09 sec).
-Installation réussie de « MudBlazor 9.3.0 » sur Segmentation.Server
+Génération du fichier MSBuild C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\obj\Segmentation.Client.csproj.nuget.g.props.
+Génération du fichier MSBuild C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\obj\Segmentation.Client.csproj.nuget.g.targets.
+Écriture du fichier des composants sur le disque. Chemin : C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\obj\project.assets.json
+Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Segmentation.Client.csproj (en 331 ms).
+Installation réussie de « MudBlazor 9.3.0 » sur Segmentation.Client
+Le fichier d'actifs n'a pas changé. Écriture du fichier d'actifs ignorée. Chemin : C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\obj\project.assets.json
+Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\Segmentation.Server.csproj (en 16 ms).
 Le fichier d'actifs n'a pas changé. Écriture du fichier d'actifs ignorée. Chemin : C:\Users\J097179\source\repos\a02t7-segmentation\tests\obj\project.assets.json
-Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\tests\SegmentationTests.csproj (en 14 ms).
+Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\tests\SegmentationTests.csproj (en 17 ms).
 
 Fichiers de configuration NuGet utilisés :
     C:\Users\J097179\AppData\Roaming\NuGet\NuGet.Config
@@ -33,6 +25,5 @@ Flux utilisés :
     https://scm.saas.cagip.group.gca/api/v4/groups/193670/-/packages/nuget/index.json
     C:\Program Files (x86)\Microsoft SDKs\NuGetPackages\
     C:\Program Files\dotnet\library-packs
-L'exécution des actions de nuget a pris 408 ms
-Temps écoulé : 00:00:01.9071966
-PM> 
+L'exécution des actions de nuget a pris 533 ms
+Temps écoulé : 00:00:01.6028635
