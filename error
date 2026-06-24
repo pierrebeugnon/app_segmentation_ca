@@ -1,27 +1,13 @@
-PM> Install-Package MudBlazor -Version 9.3.0 -ProjectName "Segmentation.Client"
-Restauration des packages pour C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Segmentation.Client.csproj...
-  CACHE https://api.nuget.org/v3/vulnerabilities/index.json
-  CACHE https://api.nuget.org/v3-vulnerabilities/2026.06.19.23.48.43/vulnerability.base.json
-  CACHE https://api.nuget.org/v3-vulnerabilities/2026.06.19.23.48.43/2026.06.24.05.48.59/vulnerability.update.json
-Installation du package NuGet MudBlazor 9.3.0.
-Le fichier d'actifs n'a pas changé. Écriture du fichier d'actifs ignorée. Chemin : C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\obj\project.assets.json
-Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Segmentation.Client.csproj (en 249 ms).
-Le fichier d'actifs n'a pas changé. Écriture du fichier d'actifs ignorée. Chemin : C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\obj\project.assets.json
-Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\Segmentation.Server.csproj (en 14 ms).
-Le fichier d'actifs n'a pas changé. Écriture du fichier d'actifs ignorée. Chemin : C:\Users\J097179\source\repos\a02t7-segmentation\tests\obj\project.assets.json
-Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\tests\SegmentationTests.csproj (en 15 ms).
-
-Fichiers de configuration NuGet utilisés :
-    C:\Users\J097179\AppData\Roaming\NuGet\NuGet.Config
-    C:\Program Files (x86)\NuGet\Config\Microsoft.VisualStudio.FallbackLocation.config
-    C:\Program Files (x86)\NuGet\Config\Microsoft.VisualStudio.Offline.config
-
-Flux utilisés :
-    https://api.nuget.org/v3/index.json
-    https://scm.saas.cagip.group.gca/api/v4/groups/145040/-/packages/nuget/index.json
-    https://scm.saas.cagip.group.gca/api/v4/groups/190721/-/packages/nuget/index.json
-    https://scm.saas.cagip.group.gca/api/v4/groups/193670/-/packages/nuget/index.json
-    C:\Program Files (x86)\Microsoft SDKs\NuGetPackages\
-    C:\Program Files\dotnet\library-packs
-L'exécution des actions de nuget a pris 73 ms
-Temps écoulé : 00:00:01.1245990
+Génération démarrée à 16:29...
+1>------ Début de la génération : Projet : Segmentation.Client, Configuration : Debug Any CPU ------
+1>C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Services\Application\S3Service.cs(70,9,70,22): warning CS8602: Déréférencement d'une éventuelle référence null.
+1>  Segmentation.Client -> C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\bin\Debug\net10.0\Segmentation.Client.dll
+1>  Segmentation.Client (Blazor output) -> C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\bin\Debug\net10.0\wwwroot
+2>------ Début de la génération : Projet : Segmentation.Server, Configuration : Debug Any CPU ------
+2>C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\Controllers\Application\RedisController.cs(12,40,12,53): warning CS0108: 'RedisController._redisService' masque le membre hérité 'SegmentationBaseController._redisService'. Utilisez le mot clé new si le masquage est intentionnel.
+2>  Segmentation.Server -> C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Segmentation.Server.dll
+3>------ Début de la génération : Projet : SegmentationTests, Configuration : Debug Any CPU ------
+3>C:\Users\J097179\source\repos\a02t7-segmentation\tests\Controllers\Foundations\UsersControllerUnitTests.cs(153,16,153,36): warning CS8605: Conversion unboxing d'une valeur peut-être null.
+3>  SegmentationTests -> C:\Users\J097179\source\repos\a02t7-segmentation\tests\bin\Debug\net10.0\SegmentationTests.dll
+========== Build : 3 réussite(s), 0 échec(s), 4 à jour, 0 ignorée(s) ==========
+========== Build s’est terminée à 16:29 et a duré 19,640 secondes ==========
