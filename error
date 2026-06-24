@@ -1,17 +1,15 @@
+PM> Install-Package MudBlazor -Version 9.3.0 -ProjectName "Segmentation.Client"
 Restauration des packages pour C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Segmentation.Client.csproj...
   CACHE https://api.nuget.org/v3/vulnerabilities/index.json
   CACHE https://api.nuget.org/v3-vulnerabilities/2026.06.19.23.48.43/vulnerability.base.json
   CACHE https://api.nuget.org/v3-vulnerabilities/2026.06.19.23.48.43/2026.06.24.05.48.59/vulnerability.update.json
 Installation du package NuGet MudBlazor 9.3.0.
-Génération du fichier MSBuild C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\obj\Segmentation.Client.csproj.nuget.g.props.
-Génération du fichier MSBuild C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\obj\Segmentation.Client.csproj.nuget.g.targets.
-Écriture du fichier des composants sur le disque. Chemin : C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\obj\project.assets.json
-Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Segmentation.Client.csproj (en 331 ms).
-Installation réussie de « MudBlazor 9.3.0 » sur Segmentation.Client
+Le fichier d'actifs n'a pas changé. Écriture du fichier d'actifs ignorée. Chemin : C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\obj\project.assets.json
+Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Segmentation.Client.csproj (en 249 ms).
 Le fichier d'actifs n'a pas changé. Écriture du fichier d'actifs ignorée. Chemin : C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\obj\project.assets.json
-Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\Segmentation.Server.csproj (en 16 ms).
+Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\Segmentation.Server.csproj (en 14 ms).
 Le fichier d'actifs n'a pas changé. Écriture du fichier d'actifs ignorée. Chemin : C:\Users\J097179\source\repos\a02t7-segmentation\tests\obj\project.assets.json
-Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\tests\SegmentationTests.csproj (en 17 ms).
+Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\tests\SegmentationTests.csproj (en 15 ms).
 
 Fichiers de configuration NuGet utilisés :
     C:\Users\J097179\AppData\Roaming\NuGet\NuGet.Config
@@ -25,5 +23,5 @@ Flux utilisés :
     https://scm.saas.cagip.group.gca/api/v4/groups/193670/-/packages/nuget/index.json
     C:\Program Files (x86)\Microsoft SDKs\NuGetPackages\
     C:\Program Files\dotnet\library-packs
-L'exécution des actions de nuget a pris 533 ms
-Temps écoulé : 00:00:01.6028635
+L'exécution des actions de nuget a pris 73 ms
+Temps écoulé : 00:00:01.1245990
