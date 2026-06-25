@@ -4,6 +4,10 @@
 @inject IWebAssemblyHostEnvironment HostEnvironment
 @using Segmentation.Client.Components.Layout
 
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
 <div id="header-block">
     <Ribbon />
     <AppBar />
