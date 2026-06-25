@@ -110,25 +110,74 @@ namespace Segmentation.Client.Services
         {
             return new ReglesHypothesesModel
             {
-                CriteresApproche = new List<CritereApproche>
+                // ── Section 1 : Segments et intensité relationnelle
+                SegmentsIntensite = new List<SegmentIntensite>
                 {
-                    new() { Segment = "Faible Potentiel", FrequenceRdvParAn = 2,  DureeRdvMin = 30 },
-                    new() { Segment = "Intermédiaire",    FrequenceRdvParAn = 4,  DureeRdvMin = 45 },
-                    new() { Segment = "Haut de gamme",    FrequenceRdvParAn = 6,  DureeRdvMin = 60 }
+                    new() { LigneMetier = "banque privée",                  Segment = "HDG Premium Potentiel", NombreRdvParAn = 2.5,  DureeRdvHeures = 2    },
+                    new() { LigneMetier = "banque privée",                  Segment = "HDG Premium Standard",  NombreRdvParAn = 2,    DureeRdvHeures = 2    },
+                    new() { LigneMetier = "retail",                         Segment = "HDG Potentiel",         NombreRdvParAn = 2,    DureeRdvHeures = 1.75 },
+                    new() { LigneMetier = "retail",                         Segment = "HDG Senior Epargnant",  NombreRdvParAn = 1.5,  DureeRdvHeures = 1.5  },
+                    new() { LigneMetier = "retail",                         Segment = "HDG Standard",          NombreRdvParAn = 1.5,  DureeRdvHeures = 1.5  },
+                    new() { LigneMetier = "retail",                         Segment = "CI Potentiel",          NombreRdvParAn = 2,    DureeRdvHeures = 1.25 },
+                    new() { LigneMetier = "retail",                         Segment = "CI Standard",           NombreRdvParAn = 1.25, DureeRdvHeures = 1    },
+                    new() { LigneMetier = "retail",                         Segment = "GP Potentiel",          NombreRdvParAn = 1,    DureeRdvHeures = 1.25 },
+                    new() { LigneMetier = "retail",                         Segment = "GP Standard",           NombreRdvParAn = 0.5,  DureeRdvHeures = 0.5  },
+                    new() { LigneMetier = "retail - portefeuille mutualisé", Segment = "Non segmenté",         NombreRdvParAn = 0,    DureeRdvHeures = 0    },
                 },
-                PartTempsCommercial = 75,
+
+                // ── Section 2 : Hypothèses temps de travail + profils
+                HeuresParSemaine = 37.3,
+                NbSemainesParAn  = 42.5,
+                ConseillersProfils = new List<ConseillerTempsProfil>
+                {
+                    new() { LigneMetier = "banque privée", Profil = "DIR. BP",                PartTempsCommercialPct = 60 },
+                    new() { LigneMetier = "banque privée", Profil = "BANQUIER PRIVÉ",          PartTempsCommercialPct = 60 },
+                    new() { LigneMetier = "banque privée", Profil = "CGP",                     PartTempsCommercialPct = 60 },
+                    new() { LigneMetier = "retail",        Profil = "RESP. AGENCE",            PartTempsCommercialPct = 40 },
+                    new() { LigneMetier = "retail",        Profil = "RCP",                     PartTempsCommercialPct = 40 },
+                    new() { LigneMetier = "retail",        Profil = "CONSEILLER CLIENTELE",    PartTempsCommercialPct = 40 },
+                    new() { LigneMetier = "retail",        Profil = "CONSEILLER COMMERCIAL",   PartTempsCommercialPct = 40 },
+                },
+
+                // ── Section 3 : Règles d'affectation des clients par conseiller
+                ReglesAffectationSegments = new List<RegleAffectationSegment>
+                {
+                    new() { Segment = "HDG Premium Potentiel", ConseillerPrioritaire = "BANQUIER PRIVÉ",       ConseillerSecondaire = "DIR. BP"                },
+                    new() { Segment = "HDG Premium Standard",  ConseillerPrioritaire = "CGP",                  ConseillerSecondaire = "BANQUIER PRIVÉ"         },
+                    new() { Segment = "HDG Potentiel",         ConseillerPrioritaire = "RESP. AGENCE",         ConseillerSecondaire = "RCP"                    },
+                    new() { Segment = "HDG Senior Epargnant",  ConseillerPrioritaire = "RCP",                  ConseillerSecondaire = "RESP. AGENCE"           },
+                    new() { Segment = "HDG Standard",          ConseillerPrioritaire = "RESP. AGENCE",         ConseillerSecondaire = "CONSEILLER CLIENTELE"   },
+                    new() { Segment = "CI Potentiel",          ConseillerPrioritaire = "CONSEILLER CLIENTELE", ConseillerSecondaire = "RCP"                    },
+                    new() { Segment = "CI Standard",           ConseillerPrioritaire = "CONSEILLER CLIENTELE", ConseillerSecondaire = "CONSEILLER COMMERCIAL"  },
+                    new() { Segment = "GP Potentiel",          ConseillerPrioritaire = "CONSEILLER CLIENTELE", ConseillerSecondaire = "CONSEILLER CLIENTELE"   },
+                    new() { Segment = "GP Standard",           ConseillerPrioritaire = "CONSEILLER COMMERCIAL",ConseillerSecondaire = "CONSEILLER CLIENTELE"   },
+                    new() { Segment = "Non segmenté",          ConseillerPrioritaire = "CONSEILLER COMMERCIAL",ConseillerSecondaire = "CONSEILLER D'ACCUEIL"   },
+                },
+
+                // ── Section 4 : Config profil→segment (tailles calculées dynamiquement)
+                TaillesTheoretiques = new List<TailleTheoriqueRow>
+                {
+                    new() { LigneMetier = "banque privée",                  Profil = "DIR. BP",                SegmentCouvert = ""                   },
+                    new() { LigneMetier = "banque privée",                  Profil = "BANQUIER PRIVÉ",          SegmentCouvert = "HDG Premium Potentiel" },
+                    new() { LigneMetier = "banque privée",                  Profil = "CGP",                     SegmentCouvert = "HDG Premium Standard"  },
+                    new() { LigneMetier = "retail",                         Profil = "RESP. AGENCE",            SegmentCouvert = "HDG Potentiel"         },
+                    new() { LigneMetier = "retail",                         Profil = "RESP. AGENCE",            SegmentCouvert = "HDG Senior Epargnant"  },
+                    new() { LigneMetier = "retail",                         Profil = "RCP",                     SegmentCouvert = "HDG Standard"          },
+                    new() { LigneMetier = "retail",                         Profil = "CONSEILLER CLIENTELE",    SegmentCouvert = "CI Potentiel"          },
+                    new() { LigneMetier = "retail",                         Profil = "CONSEILLER CLIENTELE",    SegmentCouvert = "CI Standard"           },
+                    new() { LigneMetier = "retail",                         Profil = "CONSEILLER COMMERCIAL",   SegmentCouvert = "GP Potentiel"          },
+                    new() { LigneMetier = "retail - portefeuille mutualisé", Profil = "CONSEILLER COMMERCIAL",  SegmentCouvert = "GP Standard"           },
+                    new() { LigneMetier = "N/A",                            Profil = "",                        SegmentCouvert = "Non segmenté"          },
+                },
+
+                // ── Backward compat
+                PartTempsCommercial = 40,
                 PortefeuillesTheoriques = new List<PortefeuilleTheoriqueCard>
                 {
-                    new() { Profil = "Portefeuilles Mutualisés", ClientsParConseiller = 1560, CssClass = "card-mutualise" },
-                    new() { Profil = "Dédiés",                   ClientsParConseiller =  520, CssClass = "card-dedie"     },
-                    new() { Profil = "Dédiés - Haut de Gamme",   ClientsParConseiller =  260, CssClass = "card-hdg"       }
+                    new() { Profil = "Portefeuilles Mutualisés", ClientsParConseiller = 2536, CssClass = "card-mutualise" },
+                    new() { Profil = "Dédiés",                   ClientsParConseiller =  507, CssClass = "card-dedie"     },
+                    new() { Profil = "Dédiés - Haut de Gamme",   ClientsParConseiller =  190, CssClass = "card-hdg"       },
                 },
-                ReglesAffectation = new List<RegleAffectation>
-                {
-                    new() { ProfilPortefeuille = "Portefeuilles Mutualisés", CorrespondanceIdeale = "Faible Potentiel", AutreCorrespondance = "Intermédiaires", SurchargeMax = 0,  SousChargeMax = 0  },
-                    new() { ProfilPortefeuille = "Dédiés",                   CorrespondanceIdeale = "Intermédiaires",   AutreCorrespondance = "Haut de gamme",   SurchargeMax = 15, SousChargeMax = 5  },
-                    new() { ProfilPortefeuille = "Dédiés - Haut de Gamme",   CorrespondanceIdeale = "Haut de gamme",    AutreCorrespondance = "Intermédiaires",  SurchargeMax = 5,  SousChargeMax = 5  }
-                }
             };
         }
 

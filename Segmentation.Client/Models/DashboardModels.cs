@@ -94,10 +94,61 @@ namespace Segmentation.Client.Models
         public int SousChargeMax { get; set; }
     }
 
+    // ── Section 1 : Segments et intensité relationnelle ──────────────────────
+    public class SegmentIntensite
+    {
+        public string LigneMetier { get; set; } = "";
+        public string Segment { get; set; } = "";
+        public double NombreRdvParAn { get; set; }
+        public double DureeRdvHeures { get; set; }
+        public double IntensiteRelationnelle => Math.Round(NombreRdvParAn * DureeRdvHeures, 2);
+    }
+
+    // ── Section 2 : Conseillers et temps commercial ───────────────────────────
+    public class ConseillerTempsProfil
+    {
+        public string LigneMetier { get; set; } = "";
+        public string Profil { get; set; } = "";
+        public double PartTempsCommercialPct { get; set; }
+        public double PartTempsNonCommercialPct => 100.0 - PartTempsCommercialPct;
+    }
+
+    // ── Section 3 : Règles d'affectation par segment ─────────────────────────
+    public class RegleAffectationSegment
+    {
+        public string Segment { get; set; } = "";
+        public string ConseillerPrioritaire { get; set; } = "";
+        public string ConseillerSecondaire { get; set; } = "";
+    }
+
+    // ── Section 4 : Taille théorique (config fixe, calculs dynamiques) ────────
+    public class TailleTheoriqueRow
+    {
+        public string LigneMetier { get; set; } = "";
+        public string Profil { get; set; } = "";
+        public string SegmentCouvert { get; set; } = "";
+    }
+
     public class ReglesHypothesesModel
     {
+        // ── Section 1
+        public List<SegmentIntensite> SegmentsIntensite { get; set; } = new();
+
+        // ── Section 2
+        public double HeuresParSemaine { get; set; } = 37.3;
+        public double NbSemainesParAn { get; set; } = 42.5;
+        public double HeuresTravailParAn => Math.Round(HeuresParSemaine * NbSemainesParAn, 2);
+        public List<ConseillerTempsProfil> ConseillersProfils { get; set; } = new();
+
+        // ── Section 3
+        public List<RegleAffectationSegment> ReglesAffectationSegments { get; set; } = new();
+
+        // ── Section 4 (config profil→segment, valeurs calculées à l'affichage)
+        public List<TailleTheoriqueRow> TaillesTheoretiques { get; set; } = new();
+
+        // ── Backward compat (utilisés par SegmentationStateService)
         public List<CritereApproche> CriteresApproche { get; set; } = new();
-        public int PartTempsCommercial { get; set; }
+        public int PartTempsCommercial { get; set; } = 40;
         public List<PortefeuilleTheoriqueCard> PortefeuillesTheoriques { get; set; } = new();
         public List<RegleAffectation> ReglesAffectation { get; set; } = new();
     }

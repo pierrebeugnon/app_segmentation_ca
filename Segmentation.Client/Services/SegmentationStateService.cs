@@ -45,31 +45,69 @@ public class SegmentationStateService
         OnChange?.Invoke();
     }
 
+    // Helpers : calculs Section 1+2 → taille théorique
+    private double GetVolumeHoraire(string profil) =>
+        Regles.ConseillersProfils.FirstOrDefault(p => p.Profil == profil) is { } cp
+            ? Math.Round(Regles.HeuresTravailParAn * cp.PartTempsCommercialPct / 100.0, 1)
+            : 0;
+
+    private double GetIntensite(string segment) =>
+        Regles.SegmentsIntensite.FirstOrDefault(s => s.Segment == segment)?.IntensiteRelationnelle ?? 0;
+
+    private int GetTailleTheorique(string profil, string segment)
+    {
+        var intensite = GetIntensite(segment);
+        var volume    = GetVolumeHoraire(profil);
+        return intensite > 0 ? (int)Math.Round(volume / intensite) : 0;
+    }
+
     private void Recalculer()
     {
-        double minutesDispo = MinutesParAn * (Regles.PartTempsCommercial / 100.0);
+        // ── Si nouveau modèle disponible : recalculer PortefeuillesTheoriques depuis Sections 1+2
+        if (Regles.SegmentsIntensite.Any() && Regles.ConseillersProfils.Any())
+        {
+            foreach (var pf in Regles.PortefeuillesTheoriques)
+            {
+                pf.ClientsParConseiller = pf.Profil switch
+                {
+                    "Portefeuilles Mutualisés" => GetTailleTheorique("CONSEILLER COMMERCIAL", "GP Standard"),
+                    "Dédiés"                   => GetTailleTheorique("CONSEILLER CLIENTELE",  "CI Standard"),
+                    "Dédiés - Haut de Gamme"  => GetTailleTheorique("BANQUIER PRIVÉ",         "HDG Premium Potentiel"),
+                    _                          => pf.ClientsParConseiller
+                };
+            }
+        }
+        else
+        {
+            // ── Fallback legacy
+            double minutesDispo = MinutesParAn * (Regles.PartTempsCommercial / 100.0);
+            var critIndex = Regles.CriteresApproche.ToDictionary(c => c.Segment);
+            var profilToSeg = new Dictionary<string, string>
+            {
+                ["Portefeuilles Mutualisés"] = "Faible Potentiel",
+                ["Dédiés"]                   = "Intermédiaire",
+                ["Dédiés - Haut de Gamme"]  = "Haut de gamme",
+            };
+            foreach (var pf in Regles.PortefeuillesTheoriques)
+            {
+                if (profilToSeg.TryGetValue(pf.Profil, out var seg) &&
+                    critIndex.TryGetValue(seg, out var crit) &&
+                    crit.FrequenceRdvParAn > 0 && crit.DureeRdvMin > 0)
+                    pf.ClientsParConseiller = (int)(minutesDispo / (crit.FrequenceRdvParAn * crit.DureeRdvMin));
+            }
+        }
 
-        var critIndex = Regles.CriteresApproche.ToDictionary(c => c.Segment);
-        var profilToSeg = new Dictionary<string, string>
+        var profilToSeg2 = new Dictionary<string, string>
         {
             ["Portefeuilles Mutualisés"] = "Faible Potentiel",
             ["Dédiés"]                   = "Intermédiaire",
             ["Dédiés - Haut de Gamme"]  = "Haut de gamme",
         };
 
-        // Recalculer les tailles théoriques dans le modèle
-        foreach (var pf in Regles.PortefeuillesTheoriques)
-        {
-            if (profilToSeg.TryGetValue(pf.Profil, out var seg) &&
-                critIndex.TryGetValue(seg, out var crit) &&
-                crit.FrequenceRdvParAn > 0 && crit.DureeRdvMin > 0)
-                pf.ClientsParConseiller = (int)(minutesDispo / (crit.FrequenceRdvParAn * crit.DureeRdvMin));
-        }
-
         // Taille portefeuille par profil
         TaillesPortefeuilles = Regles.PortefeuillesTheoriques.Select(pf =>
         {
-            var seg     = profilToSeg.GetValueOrDefault(pf.Profil, "");
+            var seg     = profilToSeg2.GetValueOrDefault(pf.Profil, "");
             var clients = ClientsFixe.GetValueOrDefault(seg, 0);
             var etp     = pf.ClientsParConseiller > 0 ? (double)clients / pf.ClientsParConseiller : 0;
             // ETP actuel fixe (basé sur 1 200 conseillers totaux proportionnellement)
@@ -89,9 +127,9 @@ public class SegmentationStateService
         }).ToList();
 
         // ETP requis par profil (réseau entier)
-        double etpMut = Etp("Portefeuilles Mutualisés", profilToSeg);
-        double etpDed = Etp("Dédiés",                   profilToSeg);
-        double etpHDG = Etp("Dédiés - Haut de Gamme",  profilToSeg);
+        double etpMut = Etp("Portefeuilles Mutualisés", profilToSeg2);
+        double etpDed = Etp("Dédiés",                   profilToSeg2);
+        double etpHDG = Etp("Dédiés - Haut de Gamme",  profilToSeg2);
         double totalEtp = etpMut + etpDed + etpHDG;
 
         TotalConseillersCible   = (int)Math.Ceiling(totalEtp);

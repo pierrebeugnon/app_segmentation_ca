@@ -9,7 +9,7 @@
     <div class="ca-page-header">
         <div>
             <MudText Typo="Typo.h5" Class="ca-page-title">Règles &amp; Hypothèses</MudText>
-            <MudText Typo="Typo.caption" Class="ca-page-subtitle">Configuration des règles de dimensionnement du réseau</MudText>
+            <MudText Typo="Typo.caption" Class="ca-page-subtitle">Configuration des paramètres de dimensionnement du réseau</MudText>
         </div>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Medium"
                    StartIcon="@Icons.Material.Filled.Save" OnClick="Enregistrer">
@@ -19,117 +19,192 @@
 
     @if (model != null)
     {
-        <!-- Section 1 : Critères d'approche relationnelle -->
+        <!-- ════════════════════════════════════════════════════════
+             Section 1 : Segments et intensité relationnelle
+             Jaune = saisie utilisateur | Gris = calculé
+        ════════════════════════════════════════════════════════ -->
         <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden" Class="mb-4">
             <div class="ca-section-header">
                 <span class="ca-section-badge">1</span>
-                Critères d'approche relationnelle
+                Segments et intensité relationnelle
             </div>
-            <div class="pa-4">
-                <MudGrid Spacing="3" Class="mb-4">
-                    @foreach (var c in model.CriteresApproche)
-                    {
-                        <MudItem xs="12" sm="4">
-                            <MudPaper Elevation="0" Style="background:#F7F9FB;border:1px solid #D8DCE0;border-radius:6px;padding:16px">
-                                <MudText Typo="Typo.subtitle2" Style="color:#1A4E6B;border-bottom:2px solid #005B2B;padding-bottom:8px;margin-bottom:12px;display:block">
-                                    @c.Segment
-                                </MudText>
-                                <MudNumericField T="int" Label="Fréquence des RDV (par an)" Variant="Variant.Outlined"
-                                                 Margin="Margin.Dense" Min="1" Max="52" Class="mb-3"
-                                                 @bind-Value="c.FrequenceRdvParAn" />
-                                <MudNumericField T="int" Label="Durée des RDV (min)" Variant="Variant.Outlined"
-                                                 Margin="Margin.Dense" Min="5" Max="180"
-                                                 @bind-Value="c.DureeRdvMin"
-                                                 @bind-Value:after="RecalculerPortefeuilles" />
-                            </MudPaper>
-                        </MudItem>
-                    }
-                </MudGrid>
-
-                <!-- Part de temps commercial -->
-                <MudPaper Elevation="0" Style="background:#F7F9FB;border:1px solid #D8DCE0;border-radius:6px;padding:16px" Class="mb-4">
-                    <div class="d-flex align-center gap-4 flex-wrap">
-                        <MudText Typo="Typo.subtitle2" Style="color:#1A4E6B;min-width:220px">
-                            Part de temps commercial (%)
-                        </MudText>
-                        <MudNumericField T="int" Label="%" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                         Min="0" Max="100" Style="max-width:120px"
-                                         @bind-Value="model.PartTempsCommercial"
-                                         @bind-Value:after="RecalculerPortefeuilles" />
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            % du temps conseiller alloué aux activités commerciales
-                        </MudText>
-                    </div>
-                </MudPaper>
-
-                <!-- Portefeuilles théoriques par profil -->
-                <MudText Typo="Typo.caption" Style="text-transform:uppercase;letter-spacing:.5px;color:#6C7A89;display:block;margin-bottom:10px">
-                    Portefeuilles théoriques par profil
-                </MudText>
-                <MudGrid Spacing="3">
-                    @foreach (var pf in model.PortefeuillesTheoriques)
-                    {
-                        var (bg, border) = pf.CssClass switch
-                        {
-                            "card-mutualise" => ("#EAF4EC", "#005B2B"),
-                            "card-dedie"     => ("#E8EFF5", "#1A4E6B"),
-                            _                => ("#FEF3E2", "#E87722")
-                        };
-                        <MudItem xs="12" sm="4">
-                            <MudPaper Elevation="1" Style="@($"background:{bg};border:1px solid {border};border-radius:8px;padding:16px;text-align:center")">
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">@pf.Profil</MudText>
-                                <MudText Typo="Typo.h4" Style="font-weight:700;color:#12374C">@pf.ClientsParConseiller.ToString("N0")</MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">clients / conseiller</MudText>
-                            </MudPaper>
-                        </MudItem>
-                    }
-                </MudGrid>
-            </div>
+            <MudTable Items="@model.SegmentsIntensite" Dense="true" Hover="true" Elevation="0" Striped="true">
+                <HeaderContent>
+                    <MudTh>Ligne métier</MudTh>
+                    <MudTh>Segments distributifs</MudTh>
+                    <MudTh Style="text-align:center">Nombre de RDV / CC / an</MudTh>
+                    <MudTh Style="text-align:center">Durée du RDV (en heures)</MudTh>
+                    <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">Intensité relationnelle</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd Style="color:#6C7A89;font-style:italic;font-size:12px">@context.LigneMetier</MudTd>
+                    <MudTd Style="font-weight:600;color:#1A4E6B">@context.Segment</MudTd>
+                    <MudTd Style="text-align:center;background:#FFFDE7">
+                        <MudNumericField T="double" @bind-Value="context.NombreRdvParAn"
+                                         Variant="Variant.Outlined" Margin="Margin.Dense"
+                                         Min="0" Max="52" Step="0.25" Format="F2"
+                                         Style="max-width:110px;margin:0 auto" HideSpinButtons="true" />
+                    </MudTd>
+                    <MudTd Style="text-align:center;background:#FFFDE7">
+                        <MudNumericField T="double" @bind-Value="context.DureeRdvHeures"
+                                         Variant="Variant.Outlined" Margin="Margin.Dense"
+                                         Min="0" Max="8" Step="0.25" Format="F2"
+                                         Style="max-width:110px;margin:0 auto" HideSpinButtons="true" />
+                    </MudTd>
+                    <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B">
+                        @context.IntensiteRelationnelle.ToString("F2")
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
         </MudPaper>
 
-        <!-- Section 2 : Règles d'affectation des clients -->
+        <!-- ════════════════════════════════════════════════════════
+             Section 2 : Conseillers et temps commercial
+        ════════════════════════════════════════════════════════ -->
         <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden" Class="mb-4">
             <div class="ca-section-header">
                 <span class="ca-section-badge">2</span>
-                Règles d'affectation des clients
+                Conseillers et temps commercial
             </div>
-            <MudTable Items="@model.ReglesAffectation" Dense="true" Hover="true" Elevation="0">
+            <div class="pa-4">
+                <!-- Hypothèses temps de travail -->
+                <MudText Typo="Typo.subtitle2" Style="color:#1A4E6B;margin-bottom:12px">
+                    Hypothèse temps de travail des conseillers
+                </MudText>
+                <MudGrid Spacing="3" Class="mb-4">
+                    <MudItem xs="12" sm="4">
+                        <MudPaper Elevation="0" Style="background:#FFFDE7;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Heures par semaine</MudText>
+                            <MudNumericField T="double" @bind-Value="model.HeuresParSemaine"
+                                             Variant="Variant.Outlined" Margin="Margin.Dense"
+                                             Min="1" Max="50" Step="0.1" Format="F1" />
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudPaper Elevation="0" Style="background:#FFFDE7;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Nb semaines par an</MudText>
+                            <MudNumericField T="double" @bind-Value="model.NbSemainesParAn"
+                                             Variant="Variant.Outlined" Margin="Margin.Dense"
+                                             Min="1" Max="52" Step="0.5" Format="F1" />
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudPaper Elevation="0" Style="background:#E8EDF2;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Heures de travail par an</MudText>
+                            <MudText Typo="Typo.h6" Style="font-weight:700;color:#1A4E6B;margin-top:4px">
+                                @model.HeuresTravailParAn.ToString("F2") h
+                            </MudText>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </div>
+
+            <!-- Table profils conseillers -->
+            <MudTable Items="@model.ConseillersProfils" Dense="true" Hover="true" Elevation="0" Striped="true">
                 <HeaderContent>
-                    <MudTh>Portefeuille</MudTh>
-                    <MudTh>Correspondance idéale</MudTh>
-                    <MudTh>Autre correspondance possible</MudTh>
-                    <MudTh Style="text-align:right">Surcharge max. (%)</MudTh>
-                    <MudTh Style="text-align:right">Sous-charge max. (%)</MudTh>
+                    <MudTh>Ligne métier</MudTh>
+                    <MudTh>Profil conseiller</MudTh>
+                    <MudTh Style="text-align:center">Part du temps commercial (%)</MudTh>
+                    <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">Part du temps non commercial (%)</MudTh>
+                    <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">Volume horaire / conseiller (h/an)</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd Style="font-weight:600;color:#1A4E6B">@context.ProfilPortefeuille</MudTd>
-                    <MudTd>
-                        <MudSelect T="string" @bind-Value="context.CorrespondanceIdeale"
-                                   Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:160px">
-                            <MudSelectItem Value="@("Faible Potentiel")">Faible Potentiel</MudSelectItem>
-                            <MudSelectItem Value="@("Intermédiaires")">Intermédiaires</MudSelectItem>
-                            <MudSelectItem Value="@("Haut de gamme")">Haut de gamme</MudSelectItem>
+                    <MudTd Style="color:#6C7A89;font-style:italic;font-size:12px">@context.LigneMetier</MudTd>
+                    <MudTd Style="font-weight:600;color:#1A4E6B">@context.Profil</MudTd>
+                    <MudTd Style="text-align:center;background:#FFFDE7">
+                        <MudNumericField T="double" @bind-Value="context.PartTempsCommercialPct"
+                                         Variant="Variant.Outlined" Margin="Margin.Dense"
+                                         Min="0" Max="100" Step="5" Format="F0"
+                                         Adornment="Adornment.End" AdornmentText="%"
+                                         Style="max-width:110px;margin:0 auto" HideSpinButtons="true" />
+                    </MudTd>
+                    <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89">
+                        @context.PartTempsNonCommercialPct.ToString("F0")%
+                    </MudTd>
+                    <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B">
+                        @GetVolumeHoraire(context).ToString("F1")
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+
+        <!-- ════════════════════════════════════════════════════════
+             Section 3 : Règles d'affectation des clients par conseiller
+        ════════════════════════════════════════════════════════ -->
+        <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden" Class="mb-4">
+            <div class="ca-section-header">
+                <span class="ca-section-badge">3</span>
+                Règles d'affectation des clients par conseiller
+            </div>
+            <MudTable Items="@model.ReglesAffectationSegments" Dense="true" Hover="true" Elevation="0" Striped="true">
+                <HeaderContent>
+                    <MudTh>Segments distributifs</MudTh>
+                    <MudTh>Conseiller Prioritaire</MudTh>
+                    <MudTh>Conseiller Secondaire</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd Style="font-weight:600;color:#1A4E6B">@context.Segment</MudTd>
+                    <MudTd Style="background:#FFFDE7">
+                        <MudSelect T="string" @bind-Value="context.ConseillerPrioritaire"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:200px">
+                            @foreach (var p in ProfilsDisponibles)
+                            {
+                                <MudSelectItem Value="@p">@p</MudSelectItem>
+                            }
                         </MudSelect>
                     </MudTd>
-                    <MudTd>
-                        <MudSelect T="string" @bind-Value="context.AutreCorrespondance"
-                                   Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:160px">
-                            <MudSelectItem Value="@("Faible Potentiel")">Faible Potentiel</MudSelectItem>
-                            <MudSelectItem Value="@("Intermédiaires")">Intermédiaires</MudSelectItem>
-                            <MudSelectItem Value="@("Haut de gamme")">Haut de gamme</MudSelectItem>
+                    <MudTd Style="background:#FFFDE7">
+                        <MudSelect T="string" @bind-Value="context.ConseillerSecondaire"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:200px">
+                            @foreach (var p in ProfilsDisponibles)
+                            {
+                                <MudSelectItem Value="@p">@p</MudSelectItem>
+                            }
                         </MudSelect>
                     </MudTd>
-                    <MudTd Style="text-align:right">
-                        <MudNumericField T="int" @bind-Value="context.SurchargeMax"
-                                         Variant="Variant.Outlined" Margin="Margin.Dense"
-                                         Min="0" Max="100" Adornment="Adornment.End" AdornmentText="%"
-                                         Style="max-width:90px;margin-left:auto" />
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+
+        <!-- ════════════════════════════════════════════════════════
+             Section 4 : Taille théorique de portefeuille par conseiller
+             (lecture seule — calculé depuis sections 1 et 2)
+        ════════════════════════════════════════════════════════ -->
+        <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden" Class="mb-4">
+            <div class="ca-section-header">
+                <span class="ca-section-badge">4</span>
+                Taille théorique de portefeuille par conseiller
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                         Style="color:white;border-color:rgba(255,255,255,.5);margin-left:auto;font-size:11px">
+                    Lecture seule — calculé automatiquement
+                </MudChip>
+            </div>
+            <MudTable Items="@model.TaillesTheoretiques" Dense="true" Hover="true" Elevation="0" Striped="true">
+                <HeaderContent>
+                    <MudTh>Ligne métier</MudTh>
+                    <MudTh>Profil conseiller</MudTh>
+                    <MudTh>Segment couvert</MudTh>
+                    <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">Intensité relationnelle</MudTh>
+                    <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">Volume horaire (h/an)</MudTh>
+                    <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">Taille théorique de portefeuille</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd Style="color:#6C7A89;font-style:italic;font-size:12px">@context.LigneMetier</MudTd>
+                    <MudTd Style="font-weight:600;color:#1A4E6B">@context.Profil</MudTd>
+                    <MudTd>@context.SegmentCouvert</MudTd>
+                    @{
+                        var intensite = GetIntensite(context.SegmentCouvert);
+                        var volume    = GetVolumeHoraireByProfil(context.Profil);
+                        var taille    = intensite > 0 ? (int)Math.Round(volume / intensite) : 0;
+                    }
+                    <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89">
+                        @(string.IsNullOrEmpty(context.SegmentCouvert) ? "?" : intensite.ToString("F2"))
                     </MudTd>
-                    <MudTd Style="text-align:right">
-                        <MudNumericField T="int" @bind-Value="context.SousChargeMax"
-                                         Variant="Variant.Outlined" Margin="Margin.Dense"
-                                         Min="0" Max="100" Adornment="Adornment.End" AdornmentText="%"
-                                         Style="max-width:90px;margin-left:auto" />
+                    <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89">
+                        @(string.IsNullOrEmpty(context.Profil) ? "0" : volume.ToString("F1"))
+                    </MudTd>
+                    <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B;font-size:15px">
+                        @(string.IsNullOrEmpty(context.SegmentCouvert) || intensite == 0 ? "—" : taille.ToString("N0"))
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -142,39 +217,32 @@
 @code {
     private ReglesHypothesesModel? model;
 
-    protected override void OnInitialized()
+    private static readonly List<string> ProfilsDisponibles = new()
     {
-        // Charger depuis le state singleton pour conserver les changements entre navigations
-        model = StateService.Regles;
+        "DIR. BP", "BANQUIER PRIVÉ", "CGP", "RESP. AGENCE", "RCP",
+        "CONSEILLER CLIENTELE", "CONSEILLER COMMERCIAL", "CONSEILLER D'ACCUEIL"
+    };
+
+    protected override void OnInitialized() => model = StateService.Regles;
+
+    private double GetVolumeHoraire(ConseillerTempsProfil p) =>
+        model != null ? Math.Round(model.HeuresTravailParAn * p.PartTempsCommercialPct / 100.0, 1) : 0;
+
+    private double GetVolumeHoraireByProfil(string profil)
+    {
+        if (model == null || string.IsNullOrEmpty(profil)) return 0;
+        var p = model.ConseillersProfils.FirstOrDefault(c => c.Profil == profil);
+        return p != null ? Math.Round(model.HeuresTravailParAn * p.PartTempsCommercialPct / 100.0, 1) : 0;
     }
 
-    private void RecalculerPortefeuilles()
+    private double GetIntensite(string segment)
     {
-        if (model == null) return;
-        int minutesParAn   = 220 * 8 * 60;
-        double tempsCommercial = model.PartTempsCommercial / 100.0;
-        var criteres = model.CriteresApproche;
-        foreach (var pf in model.PortefeuillesTheoriques)
-        {
-            var crit = pf.Profil switch
-            {
-                "Portefeuilles Mutualisés" => criteres.FirstOrDefault(c => c.Segment == "Faible Potentiel"),
-                "Dédiés"                   => criteres.FirstOrDefault(c => c.Segment == "Intermédiaire"),
-                "Dédiés - Haut de Gamme"  => criteres.FirstOrDefault(c => c.Segment == "Haut de gamme"),
-                _                          => null
-            };
-            if (crit != null && crit.FrequenceRdvParAn > 0 && crit.DureeRdvMin > 0)
-            {
-                pf.ClientsParConseiller = (int)(minutesParAn * tempsCommercial
-                                              / (crit.FrequenceRdvParAn * crit.DureeRdvMin));
-            }
-        }
+        if (model == null || string.IsNullOrEmpty(segment)) return 0;
+        return model.SegmentsIntensite.FirstOrDefault(s => s.Segment == segment)?.IntensiteRelationnelle ?? 0;
     }
 
     private void Enregistrer()
     {
-        RecalculerPortefeuilles();
-        // Propager les nouvelles règles à toutes les pages abonnées
         StateService.UpdateRegles(model!);
         Snackbar.Add("Modifications enregistrées — statistiques recalculées.", Severity.Success,
                      cfg => { cfg.Icon = Icons.Material.Filled.CheckCircle; cfg.VisibleStateDuration = 3000; });
