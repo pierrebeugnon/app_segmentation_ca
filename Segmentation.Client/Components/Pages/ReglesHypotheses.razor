@@ -3,12 +3,12 @@
 @inject ISnackbar Snackbar
 @inject SegmentationStateService StateService
 
-<PageTitle>Règles &amp; Hypothèses — CA Segmentation</PageTitle>
+<PageTitle>Règles & Hypothèses — CA Segmentation</PageTitle>
 
 <div class="ca-page">
     <div class="ca-page-header">
         <div>
-            <MudText Typo="Typo.h5" Class="ca-page-title">Règles &amp; Hypothèses</MudText>
+            <MudText Typo="Typo.h5" Class="ca-page-title">Règles & Hypothèses</MudText>
             <MudText Typo="Typo.caption" Class="ca-page-subtitle">Configuration des paramètres de dimensionnement du réseau</MudText>
         </div>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Medium"
@@ -28,6 +28,7 @@
                 <span class="ca-section-badge">1</span>
                 Segments et intensité relationnelle
             </div>
+
             <MudTable Items="@model.SegmentsIntensite" Dense="true" Hover="true" Elevation="0" Striped="true">
                 <HeaderContent>
                     <MudTh>Ligne métier</MudTh>
@@ -36,23 +37,42 @@
                     <MudTh Style="text-align:center">Durée du RDV (en heures)</MudTh>
                     <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">Intensité relationnelle</MudTh>
                 </HeaderContent>
+
                 <RowTemplate>
                     <MudTd Style="color:#6C7A89;font-style:italic;font-size:12px">@context.LigneMetier</MudTd>
+
                     <MudTd Style="font-weight:600;color:#1A4E6B">@context.Segment</MudTd>
+
                     <MudTd Style="text-align:center;background:#FFFDE7">
-                        <MudNumericField T="double" @bind-Value="context.NombreRdvParAn"
-                                         Variant="Variant.Outlined" Margin="Margin.Dense"
-                                         Min="0" Max="52" Step="0.25" Format="F2"
-                                         Style="max-width:110px;margin:0 auto" HideSpinButtons="true" />
+                        <MudNumericField T="double"
+                                         @bind-Value="context.NombreRdvParAn"
+                                         Immediate="true"
+                                         Variant="Variant.Outlined"
+                                         Margin="Margin.Dense"
+                                         Min="0"
+                                         Max="52"
+                                         Step="0.25"
+                                         Format="F2"
+                                         Style="max-width:110px;margin:0 auto"
+                                         HideSpinButtons="true" />
                     </MudTd>
+
                     <MudTd Style="text-align:center;background:#FFFDE7">
-                        <MudNumericField T="double" @bind-Value="context.DureeRdvHeures"
-                                         Variant="Variant.Outlined" Margin="Margin.Dense"
-                                         Min="0" Max="8" Step="0.25" Format="F2"
-                                         Style="max-width:110px;margin:0 auto" HideSpinButtons="true" />
+                        <MudNumericField T="double"
+                                         @bind-Value="context.DureeRdvHeures"
+                                         Immediate="true"
+                                         Variant="Variant.Outlined"
+                                         Margin="Margin.Dense"
+                                         Min="0"
+                                         Max="8"
+                                         Step="0.25"
+                                         Format="F2"
+                                         Style="max-width:110px;margin:0 auto"
+                                         HideSpinButtons="true" />
                     </MudTd>
+
                     <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B">
-                        @context.IntensiteRelationnelle.ToString("F2")
+                        @GetIntensite(context).ToString("F2")
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -66,40 +86,54 @@
                 <span class="ca-section-badge">2</span>
                 Conseillers et temps commercial
             </div>
+
             <div class="pa-4">
-                <!-- Hypothèses temps de travail -->
                 <MudText Typo="Typo.subtitle2" Style="color:#1A4E6B;margin-bottom:12px">
                     Hypothèse temps de travail des conseillers
                 </MudText>
+
                 <MudGrid Spacing="3" Class="mb-4">
                     <MudItem xs="12" sm="4">
                         <MudPaper Elevation="0" Style="background:#FFFDE7;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px">
                             <MudText Typo="Typo.caption" Color="Color.Secondary">Heures par semaine</MudText>
-                            <MudNumericField T="double" @bind-Value="model.HeuresParSemaine"
-                                             Variant="Variant.Outlined" Margin="Margin.Dense"
-                                             Min="1" Max="50" Step="0.1" Format="F1" />
+                            <MudNumericField T="double"
+                                             @bind-Value="model.HeuresParSemaine"
+                                             Immediate="true"
+                                             Variant="Variant.Outlined"
+                                             Margin="Margin.Dense"
+                                             Min="1"
+                                             Max="50"
+                                             Step="0.1"
+                                             Format="F1" />
                         </MudPaper>
                     </MudItem>
+
                     <MudItem xs="12" sm="4">
                         <MudPaper Elevation="0" Style="background:#FFFDE7;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px">
                             <MudText Typo="Typo.caption" Color="Color.Secondary">Nb semaines par an</MudText>
-                            <MudNumericField T="double" @bind-Value="model.NbSemainesParAn"
-                                             Variant="Variant.Outlined" Margin="Margin.Dense"
-                                             Min="1" Max="52" Step="0.5" Format="F1" />
+                            <MudNumericField T="double"
+                                             @bind-Value="model.NbSemainesParAn"
+                                             Immediate="true"
+                                             Variant="Variant.Outlined"
+                                             Margin="Margin.Dense"
+                                             Min="1"
+                                             Max="52"
+                                             Step="0.5"
+                                             Format="F1" />
                         </MudPaper>
                     </MudItem>
+
                     <MudItem xs="12" sm="4">
                         <MudPaper Elevation="0" Style="background:#E8EDF2;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px">
                             <MudText Typo="Typo.caption" Color="Color.Secondary">Heures de travail par an</MudText>
                             <MudText Typo="Typo.h6" Style="font-weight:700;color:#1A4E6B;margin-top:4px">
-                                @model.HeuresTravailParAn.ToString("F2") h
+                                @GetHeuresTravailParAn().ToString("F2") h
                             </MudText>
                         </MudPaper>
                     </MudItem>
                 </MudGrid>
             </div>
 
-            <!-- Table profils conseillers -->
             <MudTable Items="@model.ConseillersProfils" Dense="true" Hover="true" Elevation="0" Striped="true">
                 <HeaderContent>
                     <MudTh>Ligne métier</MudTh>
@@ -108,19 +142,33 @@
                     <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">Part du temps non commercial (%)</MudTh>
                     <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">Volume horaire / conseiller (h/an)</MudTh>
                 </HeaderContent>
+
                 <RowTemplate>
                     <MudTd Style="color:#6C7A89;font-style:italic;font-size:12px">@context.LigneMetier</MudTd>
+
                     <MudTd Style="font-weight:600;color:#1A4E6B">@context.Profil</MudTd>
+
                     <MudTd Style="text-align:center;background:#FFFDE7">
-                        <MudNumericField T="double" @bind-Value="context.PartTempsCommercialPct"
-                                         Variant="Variant.Outlined" Margin="Margin.Dense"
-                                         Min="0" Max="100" Step="5" Format="F0"
-                                         Adornment="Adornment.End" AdornmentText="%"
-                                         Style="max-width:110px;margin:0 auto" HideSpinButtons="true" />
+                        <MudNumericField T="double"
+                                         Value="@GetPartTempsCommercialPctDisplay(context)"
+                                         ValueChanged="@(v => SetPartTempsCommercialPctFromDisplay(context, v))"
+                                         Immediate="true"
+                                         Variant="Variant.Outlined"
+                                         Margin="Margin.Dense"
+                                         Min="0"
+                                         Max="100"
+                                         Step="5"
+                                         Format="F0"
+                                         Adornment="Adornment.End"
+                                         AdornmentText="%"
+                                         Style="max-width:110px;margin:0 auto"
+                                         HideSpinButtons="true" />
                     </MudTd>
+
                     <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89">
-                        @context.PartTempsNonCommercialPct.ToString("F0")%
+                        @GetPartTempsNonCommercialPctDisplay(context).ToString("F0")%
                     </MudTd>
+
                     <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B">
                         @GetVolumeHoraire(context).ToString("F1")
                     </MudTd>
@@ -136,29 +184,41 @@
                 <span class="ca-section-badge">3</span>
                 Règles d'affectation des clients par conseiller
             </div>
+
             <MudTable Items="@model.ReglesAffectationSegments" Dense="true" Hover="true" Elevation="0" Striped="true">
                 <HeaderContent>
                     <MudTh>Segments distributifs</MudTh>
                     <MudTh>Conseiller Prioritaire</MudTh>
                     <MudTh>Conseiller Secondaire</MudTh>
                 </HeaderContent>
+
                 <RowTemplate>
                     <MudTd Style="font-weight:600;color:#1A4E6B">@context.Segment</MudTd>
+
                     <MudTd Style="background:#FFFDE7">
-                        <MudSelect T="string" @bind-Value="context.ConseillerPrioritaire"
-                                   Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:200px">
-                            @foreach (var p in ProfilsDisponibles)
+                        <MudSelect T="string"
+                                   @bind-Value="context.ConseillerPrioritaire"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense"
+                                   Style="min-width:200px">
+                            <MudSelectItem T="string" Value="@string.Empty">—</MudSelectItem>
+                            @foreach (var p in GetProfilsDisponiblesPourSegment(context.Segment, context.ConseillerPrioritaire))
                             {
-                                <MudSelectItem Value="@p">@p</MudSelectItem>
+                                <MudSelectItem T="string" Value="@p">@p</MudSelectItem>
                             }
                         </MudSelect>
                     </MudTd>
+
                     <MudTd Style="background:#FFFDE7">
-                        <MudSelect T="string" @bind-Value="context.ConseillerSecondaire"
-                                   Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:200px">
-                            @foreach (var p in ProfilsDisponibles)
+                        <MudSelect T="string"
+                                   @bind-Value="context.ConseillerSecondaire"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense"
+                                   Style="min-width:200px">
+                            <MudSelectItem T="string" Value="@string.Empty">—</MudSelectItem>
+                            @foreach (var p in GetProfilsDisponiblesPourSegment(context.Segment, context.ConseillerSecondaire))
                             {
-                                <MudSelectItem Value="@p">@p</MudSelectItem>
+                                <MudSelectItem T="string" Value="@p">@p</MudSelectItem>
                             }
                         </MudSelect>
                     </MudTd>
@@ -168,7 +228,7 @@
 
         <!-- ════════════════════════════════════════════════════════
              Section 4 : Taille théorique de portefeuille par conseiller
-             (lecture seule — calculé depuis sections 1 et 2)
+             Lecture seule — calculé depuis sections 1, 2 et règles d'affectation
         ════════════════════════════════════════════════════════ -->
         <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden" Class="mb-4">
             <div class="ca-section-header">
@@ -179,6 +239,7 @@
                     Lecture seule — calculé automatiquement
                 </MudChip>
             </div>
+
             <MudTable Items="@model.TaillesTheoretiques" Dense="true" Hover="true" Elevation="0" Striped="true">
                 <HeaderContent>
                     <MudTh>Ligne métier</MudTh>
@@ -188,23 +249,31 @@
                     <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">Volume horaire (h/an)</MudTh>
                     <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">Taille théorique de portefeuille</MudTh>
                 </HeaderContent>
+
                 <RowTemplate>
-                    <MudTd Style="color:#6C7A89;font-style:italic;font-size:12px">@context.LigneMetier</MudTd>
-                    <MudTd Style="font-weight:600;color:#1A4E6B">@context.Profil</MudTd>
-                    <MudTd>@context.SegmentCouvert</MudTd>
                     @{
-                        var intensite = GetIntensite(context.SegmentCouvert);
-                        var volume    = GetVolumeHoraireByProfil(context.Profil);
-                        var taille    = intensite > 0 ? (int)Math.Round(volume / intensite) : 0;
+                        var segmentNonRenseigne = IsSegmentNonRenseigne(context.SegmentCouvert);
+                        var intensite = segmentNonRenseigne ? 0 : GetIntensiteBySegment(context.SegmentCouvert);
+                        var volume = GetVolumeHoraireByProfil(context.Profil);
+                        var taille = intensite > 0 ? volume / intensite : 0;
                     }
+
+                    <MudTd Style="color:#6C7A89;font-style:italic;font-size:12px">@context.LigneMetier</MudTd>
+
+                    <MudTd Style="font-weight:600;color:#1A4E6B">@context.Profil</MudTd>
+
+                    <MudTd>@context.SegmentCouvert</MudTd>
+
                     <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89">
-                        @(string.IsNullOrEmpty(context.SegmentCouvert) ? "?" : intensite.ToString("F2"))
+                        @(segmentNonRenseigne ? "?" : intensite.ToString("F2"))
                     </MudTd>
+
                     <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89">
-                        @(string.IsNullOrEmpty(context.Profil) ? "0" : volume.ToString("F1"))
+                        @(string.IsNullOrWhiteSpace(context.Profil) ? "0.0" : volume.ToString("F1"))
                     </MudTd>
+
                     <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B;font-size:15px">
-                        @(string.IsNullOrEmpty(context.SegmentCouvert) || intensite == 0 ? "—" : taille.ToString("N0"))
+                        @(segmentNonRenseigne || intensite == 0 ? "—" : taille.ToString("N2"))
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -217,34 +286,179 @@
 @code {
     private ReglesHypothesesModel? model;
 
-    private static readonly List<string> ProfilsDisponibles = new()
+    private static readonly List<string> ProfilsBanquePrivee = new()
     {
-        "DIR. BP", "BANQUIER PRIVÉ", "CGP", "RESP. AGENCE", "RCP",
-        "CONSEILLER CLIENTELE", "CONSEILLER COMMERCIAL", "CONSEILLER D'ACCUEIL"
+        "DIR. BP",
+        "BANQUIER PRIVÉ",
+        "CGP"
     };
 
-    protected override void OnInitialized() => model = StateService.Regles;
+    private static readonly List<string> ProfilsRetail = new()
+    {
+        "RESP. AGENCE",
+        "RCP",
+        "CONSEILLER CLIENTELE",
+        "CONSEILLER COMMERCIAL"
+    };
 
-    private double GetVolumeHoraire(ConseillerTempsProfil p) =>
-        model != null ? Math.Round(model.HeuresTravailParAn * p.PartTempsCommercialPct / 100.0, 1) : 0;
+    private static readonly HashSet<string> SegmentsBanquePrivee = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "HDG Premium Potentiel",
+        "HDG Premium Standard"
+    };
+
+    protected override void OnInitialized()
+    {
+        model = StateService.Regles;
+    }
+
+    private double GetIntensite(SegmentIntensite segment)
+    {
+        if (segment == null)
+            return 0;
+
+        return segment.NombreRdvParAn * segment.DureeRdvHeures;
+    }
+
+    private double GetHeuresTravailParAn()
+    {
+        if (model == null)
+            return 0;
+
+        return model.HeuresParSemaine * model.NbSemainesParAn;
+    }
+
+    private double GetPartTempsCommercialRatio(ConseillerTempsProfil profil)
+    {
+        if (profil == null)
+            return 0;
+
+        var valeur = profil.PartTempsCommercialPct;
+
+        if (double.IsNaN(valeur) || double.IsInfinity(valeur))
+            return 0;
+
+        if (valeur < 0)
+            return 0;
+
+        /*
+         * Sécurisation de l'unité :
+         * - Si la donnée source vaut 0,6 ou 0,4 comme dans Excel, on l'interprète comme un ratio.
+         * - Si la donnée vaut 60 ou 40 côté application, on l'interprète comme un pourcentage.
+         */
+        return valeur > 1 ? valeur / 100.0 : valeur;
+    }
+
+    private double GetPartTempsCommercialPctDisplay(ConseillerTempsProfil profil)
+    {
+        return GetPartTempsCommercialRatio(profil) * 100.0;
+    }
+
+    private double GetPartTempsNonCommercialPctDisplay(ConseillerTempsProfil profil)
+    {
+        return 100.0 - GetPartTempsCommercialPctDisplay(profil);
+    }
+
+    private void SetPartTempsCommercialPctFromDisplay(ConseillerTempsProfil profil, double valeurPct)
+    {
+        if (profil == null)
+            return;
+
+        profil.PartTempsCommercialPct = Math.Clamp(valeurPct, 0, 100);
+
+        /*
+         * Force le recalcul immédiat des colonnes dépendantes :
+         * - part non commerciale
+         * - volume horaire
+         * - tailles théoriques de portefeuille
+         */
+        StateHasChanged();
+    }
+
+    private double GetVolumeHoraire(ConseillerTempsProfil profil)
+    {
+        if (model == null || profil == null)
+            return 0;
+
+        return Math.Round(GetHeuresTravailParAn() * GetPartTempsCommercialRatio(profil), 1);
+    }
 
     private double GetVolumeHoraireByProfil(string profil)
     {
-        if (model == null || string.IsNullOrEmpty(profil)) return 0;
-        var p = model.ConseillersProfils.FirstOrDefault(c => c.Profil == profil);
-        return p != null ? Math.Round(model.HeuresTravailParAn * p.PartTempsCommercialPct / 100.0, 1) : 0;
+        if (model == null || string.IsNullOrWhiteSpace(profil))
+            return 0;
+
+        var conseiller = model.ConseillersProfils
+            .FirstOrDefault(c => string.Equals(c.Profil?.Trim(), profil.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        return conseiller != null ? GetVolumeHoraire(conseiller) : 0;
     }
 
-    private double GetIntensite(string segment)
+    private double GetIntensiteBySegment(string segment)
     {
-        if (model == null || string.IsNullOrEmpty(segment)) return 0;
-        return model.SegmentsIntensite.FirstOrDefault(s => s.Segment == segment)?.IntensiteRelationnelle ?? 0;
+        if (model == null || IsSegmentNonRenseigne(segment))
+            return 0;
+
+        var segmentTrouve = model.SegmentsIntensite
+            .FirstOrDefault(s => string.Equals(s.Segment?.Trim(), segment.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        return segmentTrouve != null ? GetIntensite(segmentTrouve) : 0;
+    }
+
+    private static bool IsSegmentNonRenseigne(string? segment)
+    {
+        return string.IsNullOrWhiteSpace(segment) || segment.Trim() == "?";
+    }
+
+    private IEnumerable<string> GetProfilsDisponiblesPourSegment(string segment, string? valeurCourante)
+    {
+        var segmentNormalise = segment?.Trim() ?? string.Empty;
+
+        var profils = SegmentsBanquePrivee.Contains(segmentNormalise)
+            ? ProfilsBanquePrivee.ToList()
+            : ProfilsRetail.ToList();
+
+        /*
+         * Le fichier Excel contient CONSEILLER D'ACCUEIL sur GP Standard en conseiller secondaire.
+         * On l'ajoute donc uniquement si la ligne courante l'utilise déjà ou si le segment est GP Standard.
+         * Cela évite de perdre la valeur existante tout en conservant une liste retail resserrée.
+         */
+        if (string.Equals(segmentNormalise, "GP Standard", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(segmentNormalise, "GP Standard ", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(valeurCourante?.Trim(), "CONSEILLER D'ACCUEIL", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!profils.Contains("CONSEILLER D'ACCUEIL"))
+                profils.Add("CONSEILLER D'ACCUEIL");
+        }
+
+        /*
+         * Sécurisation : si une valeur déjà présente dans le modèle n'est pas dans la liste,
+         * on la conserve pour ne pas vider l'écran au chargement.
+         */
+        if (!string.IsNullOrWhiteSpace(valeurCourante)
+            && !profils.Any(p => string.Equals(p.Trim(), valeurCourante.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            profils.Add(valeurCourante.Trim());
+        }
+
+        return profils;
     }
 
     private void Enregistrer()
     {
-        StateService.UpdateRegles(model!);
-        Snackbar.Add("Modifications enregistrées — statistiques recalculées.", Severity.Success,
-                     cfg => { cfg.Icon = Icons.Material.Filled.CheckCircle; cfg.VisibleStateDuration = 3000; });
+        if (model == null)
+            return;
+
+        StateService.UpdateRegles(model);
+
+        Snackbar.Add(
+            "Modifications enregistrées — statistiques recalculées.",
+            Severity.Success,
+            cfg =>
+            {
+                cfg.Icon = Icons.Material.Filled.CheckCircle;
+                cfg.VisibleStateDuration = 3000;
+            }
+        );
     }
 }
