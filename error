@@ -1,68 +1,13 @@
-using CANDF.Kosmos.Foundations.Client.Services.Annuaire;
-using CANDF.Kosmos.Foundations.Client.Services.Habilitations;
-using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.AspNetCore.Components.Web;
-using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using Microsoft.JSInterop;
-using MudBlazor.Services;
-using Segmentation.Client;
-using Segmentation.Client.Services;
-using Segmentation.Client.Services.Application;
-using Segmentation.Client.Shared;
-using Segmentation.Client.Shared.Notifications;
-using Segmentation.Client.Shared.Request;
-using System.Globalization;
-using Telerik.Blazor.Services;
-
-var builder = WebAssemblyHostBuilder.CreateDefault(args);
-builder.RootComponents.Add<App>("#app");
-builder.RootComponents.Add<HeadOutlet>("head::after");
-
-builder.Services.AddLocalization();
-
-builder.Services.AddOptions();
-builder.Services.AddAuthorizationCore();
-
-builder.Services.AddSingleton<AuthenticationStateProvider, HostAuthenticationStateProvider>();
-builder.Services.AddScoped<CookieHandler>();
-
-builder.Services.AddHttpClient("default", client => client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress));
-builder.Services.AddHttpClient("Segmentation.Server", client => client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)).AddHttpMessageHandler<CookieHandler>();
-builder.Services.AddSingleton(sp => (HostAuthenticationStateProvider)sp.GetRequiredService<AuthenticationStateProvider>());
-builder.Services.AddTransient(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("default"));
-builder.Services.AddSingleton<AppState>();
-builder.Services.AddSingleton<RequestState>();
-builder.Services.AddSingleton<NotificationQueue>();
-
-builder.Services.AddSingleton<IS3Service, S3Service>();
-builder.Services.AddSingleton<IHabilitationsService, HabilitationsService>();
-builder.Services.AddSingleton<IUsersExtendedService, UsersExtendedService>();
-builder.Services.AddSingleton<IUnitsExtendedService, UnitsExtendedService>();
-builder.Services.AddSingleton<IUsersService, UsersService>();
-builder.Services.AddSingleton<IUnitsService, UnitsService>();
-builder.Services.AddSingleton<IHierarchiesService, HierarchiesService>();
-builder.Services.AddScoped<MockDataService>();
-builder.Services.AddScoped<SegmentationStateService>();
-builder.Services.AddMudServices();
-
-
-builder.Services.AddTelerikBlazor();
-builder.Services.AddSingleton(typeof(ITelerikStringLocalizer), typeof(ResxLocalizer));
-
-var host = builder.Build();
-
-const string defaultCulture = "fr-FR";
-
-var js = host.Services.GetRequiredService<IJSRuntime>();
-var result = await js.InvokeAsync<string>("blazorCulture.get");
-var culture = CultureInfo.GetCultureInfo(result ?? defaultCulture);
-
-if (result == null)
-{
-	await js.InvokeVoidAsync("blazorCulture.set", defaultCulture);
-}
-
-CultureInfo.DefaultThreadCurrentCulture = culture;
-CultureInfo.DefaultThreadCurrentUICulture = culture;
-
-await host.RunAsync();
+bootstrap.min.css	200	stylesheet	vision-globale:14	(memory cache)	0 ms
+all.min.css	200	stylesheet	vision-globale:15	(memory cache)	0 ms
+ca-theme-2023-3.css	200	stylesheet	vision-globale:16	(memory cache)	0 ms
+colors.css	200	stylesheet	vision-globale:17	(memory cache)	0 ms
+kendo.css	200	stylesheet	vision-globale:18	(memory cache)	0 ms
+notification.css	200	stylesheet	vision-globale:19	(memory cache)	0 ms
+opensans.css	200	stylesheet	vision-globale:20	(memory cache)	0 ms
+progressbar.css	200	stylesheet	vision-globale:21	(memory cache)	0 ms
+Segmentation.Client.styles.css	200	stylesheet	vision-globale:23	(memory cache)	0 ms
+material-io-colors.css	200	stylesheet	vision-globale:24	(memory cache)	0 ms
+notifications.css	200	stylesheet	vision-globale:25	(memory cache)	0 ms
+app.css	200	stylesheet	vision-globale:26	(memory cache)	0 ms
+CANDF.Kosmos.Blazor.Components.6f3w3pqed1.bundle.scp.css	200	stylesheet	Segmentation.Client.styles.css:1	(memory cache)	0 ms
