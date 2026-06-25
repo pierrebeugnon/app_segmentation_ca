@@ -24,6 +24,7 @@
     <link href="css/material-io-colors.css" rel="stylesheet" />
     <link href="css/notifications.css" rel="stylesheet" />
     <link href="css/app.css" rel="stylesheet" />
+    <link href="css/MudBlazor.min.css" rel="stylesheet" />
     <script src="js/app.js"></script>
 </head>
 
@@ -41,5 +42,6 @@
             Blazor.start();
         });
     </script>
+    <script src="js/MudBlazor.min.js"></script>
 </body>
 </html>
