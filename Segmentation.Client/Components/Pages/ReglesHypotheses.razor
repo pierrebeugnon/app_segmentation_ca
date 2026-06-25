@@ -10,7 +10,9 @@
     <div class="ca-page-header">
         <div>
             <MudText Typo="Typo.h5" Class="ca-page-title">Règles & Hypothèses</MudText>
-            <MudText Typo="Typo.caption" Class="ca-page-subtitle">Configuration des paramètres de dimensionnement du réseau</MudText>
+            <MudText Typo="Typo.caption" Class="ca-page-subtitle">
+                Configuration des paramètres de dimensionnement du réseau
+            </MudText>
         </div>
 
         <MudButton Variant="Variant.Filled"
@@ -28,7 +30,10 @@
              Section 1 : Segments et intensité relationnelle
              Jaune = saisie utilisateur | Gris = calculé
         ════════════════════════════════════════════════════════ -->
-        <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden" Class="mb-4">
+        <MudPaper Elevation="2"
+                  Style="border-radius:8px;overflow:visible"
+                  Class="mb-4">
+
             <div class="ca-section-header">
                 <span class="ca-section-badge">1</span>
                 Segments et intensité relationnelle
@@ -38,7 +43,8 @@
                       Dense="true"
                       Hover="true"
                       Elevation="0"
-                      Striped="true">
+                      Striped="true"
+                      Style="overflow:visible">
 
                 <HeaderContent>
                     <MudTh>Ligne métier</MudTh>
@@ -97,7 +103,10 @@
         <!-- ════════════════════════════════════════════════════════
              Section 2 : Conseillers et temps commercial
         ════════════════════════════════════════════════════════ -->
-        <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden" Class="mb-4">
+        <MudPaper Elevation="2"
+                  Style="border-radius:8px;overflow:visible"
+                  Class="mb-4">
+
             <div class="ca-section-header">
                 <span class="ca-section-badge">2</span>
                 Conseillers et temps commercial
@@ -111,7 +120,8 @@
                 <MudGrid Spacing="3" Class="mb-4">
                     <MudItem xs="12" sm="4">
                         <MudPaper Elevation="0"
-                                  Style="background:#FFFDE7;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px">
+                                  Style="background:#FFFDE7;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px;overflow:visible">
+
                             <MudText Typo="Typo.caption" Color="Color.Secondary">
                                 Heures par semaine
                             </MudText>
@@ -130,7 +140,8 @@
 
                     <MudItem xs="12" sm="4">
                         <MudPaper Elevation="0"
-                                  Style="background:#FFFDE7;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px">
+                                  Style="background:#FFFDE7;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px;overflow:visible">
+
                             <MudText Typo="Typo.caption" Color="Color.Secondary">
                                 Nb semaines par an
                             </MudText>
@@ -149,7 +160,8 @@
 
                     <MudItem xs="12" sm="4">
                         <MudPaper Elevation="0"
-                                  Style="background:#E8EDF2;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px">
+                                  Style="background:#E8EDF2;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px;overflow:visible">
+
                             <MudText Typo="Typo.caption" Color="Color.Secondary">
                                 Heures de travail par an
                             </MudText>
@@ -166,7 +178,8 @@
                       Dense="true"
                       Hover="true"
                       Elevation="0"
-                      Striped="true">
+                      Striped="true"
+                      Style="overflow:visible">
 
                 <HeaderContent>
                     <MudTh>Ligne métier</MudTh>
@@ -220,7 +233,10 @@
         <!-- ════════════════════════════════════════════════════════
              Section 3 : Règles d'affectation des clients par conseiller
         ════════════════════════════════════════════════════════ -->
-        <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden" Class="mb-4">
+        <MudPaper Elevation="2"
+                  Style="border-radius:8px;overflow:visible"
+                  Class="mb-4">
+
             <div class="ca-section-header">
                 <span class="ca-section-badge">3</span>
                 Règles d'affectation des clients par conseiller
@@ -230,7 +246,8 @@
                       Dense="true"
                       Hover="true"
                       Elevation="0"
-                      Striped="true">
+                      Striped="true"
+                      Style="overflow:visible">
 
                 <HeaderContent>
                     <MudTh>Segments distributifs</MudTh>
@@ -249,8 +266,9 @@
                         @context.Segment
                     </MudTd>
 
-                    <MudTd Style="background:#FFFDE7">
+                    <MudTd Style="background:#FFFDE7;overflow:visible">
                         <MudSelect T="string"
+                                   @key="@($"prioritaire-{segment}")"
                                    @bind-Value="context.ConseillerPrioritaire"
                                    Variant="Variant.Outlined"
                                    Margin="Margin.Dense"
@@ -266,8 +284,9 @@
                         </MudSelect>
                     </MudTd>
 
-                    <MudTd Style="background:#FFFDE7">
+                    <MudTd Style="background:#FFFDE7;overflow:visible">
                         <MudSelect T="string"
+                                   @key="@($"secondaire-{segment}")"
                                    @bind-Value="context.ConseillerSecondaire"
                                    Variant="Variant.Outlined"
                                    Margin="Margin.Dense"
@@ -290,7 +309,10 @@
              Section 4 : Taille théorique de portefeuille par conseiller
              Lecture seule — calculé depuis sections 1 et 2
         ════════════════════════════════════════════════════════ -->
-        <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden" Class="mb-4">
+        <MudPaper Elevation="2"
+                  Style="border-radius:8px;overflow:visible"
+                  Class="mb-4">
+
             <div class="ca-section-header">
                 <span class="ca-section-badge">4</span>
                 Taille théorique de portefeuille par conseiller
@@ -307,7 +329,8 @@
                       Dense="true"
                       Hover="true"
                       Elevation="0"
-                      Striped="true">
+                      Striped="true"
+                      Style="overflow:visible">
 
                 <HeaderContent>
                     <MudTh>Ligne métier</MudTh>
@@ -360,7 +383,9 @@
         </MudPaper>
     }
 
-    <div class="ca-footer">© 2025 Crédit Agricole Nord de France — Plateforme de Dimensionnement</div>
+    <div class="ca-footer">
+        © 2025 Crédit Agricole Nord de France — Plateforme de Dimensionnement
+    </div>
 </div>
 
 @code {
