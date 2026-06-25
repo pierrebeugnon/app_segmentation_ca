@@ -1,4 +1,6 @@
 @page "/vision-globale"
+@using System.Linq
+@using System.Collections.Generic
 @inject MockDataService DataService
 @inject SegmentationStateService StateService
 @implements IDisposable
@@ -9,57 +11,235 @@
     <div class="ca-page-header">
         <div>
             <MudText Typo="Typo.h5" Class="ca-page-title">Vision Globale</MudText>
-            <MudText Typo="Typo.caption" Class="ca-page-subtitle">Tableau de bord du dimensionnement du réseau</MudText>
+            <MudText Typo="Typo.caption" Class="ca-page-subtitle">
+                Tableau de bord du dimensionnement du réseau
+            </MudText>
         </div>
+
         <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Color="Color.Default">
             <MudButton StartIcon="@Icons.Material.Filled.Language"
                        Variant="@(vueReseau ? Variant.Filled : Variant.Outlined)"
                        Color="@(vueReseau ? Color.Primary : Color.Default)"
-                       OnClick="() => SetVue(true)">Vue Réseau</MudButton>
+                       OnClick="() => SetVue(true)">
+                Vue Réseau
+            </MudButton>
+
             <MudButton StartIcon="@Icons.Material.Filled.Business"
                        Variant="@(!vueReseau ? Variant.Filled : Variant.Outlined)"
                        Color="@(!vueReseau ? Color.Primary : Color.Default)"
-                       OnClick="() => SetVue(false)">Vue par Agence</MudButton>
+                       OnClick="() => SetVue(false)">
+                Vue par Agence
+            </MudButton>
         </MudButtonGroup>
     </div>
 
     @if (model != null)
     {
+        <!-- ════════════════════════════════════════════════════════
+             Carte de filtres géographiques
+        ════════════════════════════════════════════════════════ -->
+        <MudPaper Elevation="2" Class="mb-4 pa-4" Style="border-radius:10px;overflow:visible">
+            <div class="d-flex justify-space-between align-center mb-3">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Style="color:#1A4E6B;font-weight:700">
+                        Filtres géographiques
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Zoning mocké — filtrage Région / Secteur / Agence
+                    </MudText>
+                </div>
+
+                <div class="d-flex align-center gap-2">
+                    @if (HasActiveFilters)
+                    {
+                        <MudChip T="string"
+                                 Size="Size.Small"
+                                 Variant="Variant.Filled"
+                                 Color="Color.Primary"
+                                 Style="height:26px;font-size:12px">
+                            @GetActiveFilterLabel()
+                        </MudChip>
+                    }
+
+                    <MudButton Variant="Variant.Text"
+                               Color="Color.Primary"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="ResetFilters">
+                        Réinitialiser
+                    </MudButton>
+                </div>
+            </div>
+
+            <MudGrid Spacing="3">
+                <!-- Filtres multi-sélection -->
+                <MudItem xs="12" md="7">
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12" sm="4">
+                            <MudSelect T="string"
+                                       Label="Région"
+                                       MultiSelection="true"
+                                       SelectedValues="@selectedRegions"
+                                       SelectedValuesChanged="OnRegionsChanged"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       Dense="true"
+                                       Clearable="true">
+                                @foreach (var r in RegionsDisponibles)
+                                {
+                                    <MudSelectItem T="string" Value="@r">@r</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+
+                        <MudItem xs="12" sm="4">
+                            <MudSelect T="string"
+                                       Label="Secteur"
+                                       MultiSelection="true"
+                                       SelectedValues="@selectedSecteurs"
+                                       SelectedValuesChanged="OnSecteursChanged"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       Dense="true"
+                                       Clearable="true"
+                                       Disabled="@(!selectedRegions.Any())">
+                                @foreach (var s in SecteursDisponibles)
+                                {
+                                    <MudSelectItem T="string" Value="@s">@s</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+
+                        <MudItem xs="12" sm="4">
+                            <MudSelect T="string"
+                                       Label="Agence"
+                                       MultiSelection="true"
+                                       SelectedValues="@selectedAgences"
+                                       SelectedValuesChanged="OnAgencesChanged"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       Dense="true"
+                                       Clearable="true"
+                                       Disabled="@(!selectedSecteurs.Any())">
+                                @foreach (var a in AgencesDisponibles)
+                                {
+                                    <MudSelectItem T="string" Value="@a">@a</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2 d-block">
+                        @FilteredAgencesCount agence(s) affichée(s) sur @TotalAgencesCount disponible(s)
+                    </MudText>
+                </MudItem>
+
+                <!-- Mini carte de zoning mockée -->
+                <MudItem xs="12" md="5">
+                    <div style="background:#F5F7FA;border:1px solid #E1E6EA;border-radius:8px;padding:12px">
+                        <div class="d-flex justify-space-between align-center mb-2">
+                            <MudText Typo="Typo.caption" Style="font-weight:700;color:#1A4E6B">
+                                Carte de zoning
+                            </MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                mock
+                            </MudText>
+                        </div>
+
+                        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+                            @foreach (var region in RegionsDisponibles)
+                            {
+                                var totalRegion = GetAgencesCountByRegion(region);
+                                var selected = selectedRegions.Contains(region);
+
+                                <MudPaper Elevation="0"
+                                          OnClick="@(() => ToggleRegion(region))"
+                                          Style="@GetRegionCardStyle(selected)">
+                                    <div class="d-flex justify-space-between align-center">
+                                        <MudText Typo="Typo.body2" Style="font-weight:700">
+                                            @region
+                                        </MudText>
+                                        <MudChip T="string"
+                                                 Size="Size.Small"
+                                                 Variant="Variant.Outlined"
+                                                 Style="height:22px;font-size:11px">
+                                            @totalRegion agences
+                                        </MudChip>
+                                    </div>
+
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @GetSecteursLabelByRegion(region)
+                                    </MudText>
+                                </MudPaper>
+                            }
+                        </div>
+                    </div>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
         <!-- KPI Cards -->
         <MudGrid Spacing="3" Class="mb-4">
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="3">
                 <MudPaper Elevation="2" Class="mud-kpi-card pa-4 d-flex align-center gap-4" Style="border-radius:8px">
                     <MudAvatar Style="background:rgba(0,91,43,.12);color:#005B2B;width:52px;height:52px">
-                        <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large"/>
+                        <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" />
                     </MudAvatar>
                     <div>
-                        <MudText Typo="Typo.h4" Style="font-weight:700;color:#12374C;line-height:1">@FormatClients(model.Kpis.TotalClients)</MudText>
+                        <MudText Typo="Typo.h4" Style="font-weight:700;color:#12374C;line-height:1">
+                            @FormatClients(model.Kpis.TotalClients)
+                        </MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary">Total Clients</MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">@model.Kpis.TotalClients.ToString("N0") clients</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @model.Kpis.TotalClients.ToString("N0") clients
+                        </MudText>
                     </div>
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" sm="4">
+
+            <MudItem xs="12" sm="3">
                 <MudPaper Elevation="2" Class="mud-kpi-card pa-4 d-flex align-center gap-4" Style="border-radius:8px">
                     <MudAvatar Style="background:rgba(26,78,107,.12);color:#1A4E6B;width:52px;height:52px">
-                        <MudIcon Icon="@Icons.Material.Filled.SupportAgent" Size="Size.Large"/>
+                        <MudIcon Icon="@Icons.Material.Filled.SupportAgent" Size="Size.Large" />
                     </MudAvatar>
                     <div>
-                        <MudText Typo="Typo.h4" Style="font-weight:700;color:#12374C;line-height:1">@model.Kpis.TotalConseillers.ToString("N0")</MudText>
+                        <MudText Typo="Typo.h4" Style="font-weight:700;color:#12374C;line-height:1">
+                            @model.Kpis.TotalConseillers.ToString("N0")
+                        </MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary">Total Conseillers</MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Équipes commerciales</MudText>
                     </div>
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" sm="4">
+
+            <MudItem xs="12" sm="3">
                 <MudPaper Elevation="2" Class="mud-kpi-card pa-4 d-flex align-center gap-4" Style="border-radius:8px">
                     <MudAvatar Style="background:rgba(232,119,34,.12);color:#E87722;width:52px;height:52px">
-                        <MudIcon Icon="@Icons.Material.Filled.Folder" Size="Size.Large"/>
+                        <MudIcon Icon="@Icons.Material.Filled.Folder" Size="Size.Large" />
                     </MudAvatar>
                     <div>
-                        <MudText Typo="Typo.h4" Style="font-weight:700;color:#12374C;line-height:1">@model.Kpis.TaillePortefeuilleMoyenne.ToString("N0")</MudText>
+                        <MudText Typo="Typo.h4" Style="font-weight:700;color:#12374C;line-height:1">
+                            @model.Kpis.TaillePortefeuilleMoyenne.ToString("N0")
+                        </MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary">Taille portefeuille moyenne</MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">clients / conseiller</MudText>
+                    </div>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="3">
+                <MudPaper Elevation="2" Class="mud-kpi-card pa-4 d-flex align-center gap-4" Style="border-radius:8px">
+                    <MudAvatar Style="background:rgba(18,55,76,.10);color:#12374C;width:52px;height:52px">
+                        <MudIcon Icon="@Icons.Material.Filled.Map" Size="Size.Large" />
+                    </MudAvatar>
+                    <div>
+                        <MudText Typo="Typo.h4" Style="font-weight:700;color:#12374C;line-height:1">
+                            @FilteredAgencesCount.ToString("N0")
+                        </MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Agences affichées</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            sur @TotalAgencesCount.ToString("N0") agences
+                        </MudText>
                     </div>
                 </MudPaper>
             </MudItem>
@@ -81,13 +261,20 @@
                                 <div class="d-flex justify-space-between align-center mb-1">
                                     <MudText Typo="Typo.body2" Style="@(isTotal ? "font-weight:700" : "")">@s.Segment</MudText>
                                     <div class="d-flex gap-3">
-                                        <MudText Typo="Typo.body2" Style="font-weight:600;color:#1A4E6B;min-width:50px;text-align:right">@FormatClientsShort(s.NombreClients)</MudText>
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="min-width:42px;text-align:right">@s.Pourcentage.ToString("F1")%</MudText>
+                                        <MudText Typo="Typo.body2" Style="font-weight:600;color:#1A4E6B;min-width:50px;text-align:right">
+                                            @FormatClientsShort(s.NombreClients)
+                                        </MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="min-width:42px;text-align:right">
+                                            @s.Pourcentage.ToString("F1")%
+                                        </MudText>
                                     </div>
                                 </div>
                                 @if (!isTotal)
                                 {
-                                    <MudProgressLinear Value="@s.Pourcentage" Max="100" Rounded="true" Size="Size.Small"
+                                    <MudProgressLinear Value="@s.Pourcentage"
+                                                       Max="100"
+                                                       Rounded="true"
+                                                       Size="Size.Small"
                                                        Color="@GetSegmentColor(s.Segment)" />
                                 }
                             </div>
@@ -110,13 +297,20 @@
                                 <div class="d-flex justify-space-between align-center mb-1">
                                     <MudText Typo="Typo.body2" Style="@(isTotal ? "font-weight:700" : "")">@p.Profil</MudText>
                                     <div class="d-flex gap-3">
-                                        <MudText Typo="Typo.body2" Style="font-weight:600;color:#1A4E6B;min-width:40px;text-align:right">@p.NombreConseillers.ToString("N0")</MudText>
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="min-width:42px;text-align:right">@p.Pourcentage.ToString("F1")%</MudText>
+                                        <MudText Typo="Typo.body2" Style="font-weight:600;color:#1A4E6B;min-width:40px;text-align:right">
+                                            @p.NombreConseillers.ToString("N0")
+                                        </MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="min-width:42px;text-align:right">
+                                            @p.Pourcentage.ToString("F1")%
+                                        </MudText>
                                     </div>
                                 </div>
                                 @if (!isTotal)
                                 {
-                                    <MudProgressLinear Value="@p.Pourcentage" Max="100" Rounded="true" Size="Size.Small"
+                                    <MudProgressLinear Value="@p.Pourcentage"
+                                                       Max="100"
+                                                       Rounded="true"
+                                                       Size="Size.Small"
                                                        Color="@GetProfilColor(p.Profil)" />
                                 }
                             </div>
@@ -141,14 +335,23 @@
                                 <div class="d-flex justify-space-between align-center mb-1">
                                     <MudText Typo="Typo.body2">@t.Profil</MudText>
                                     <MudText Typo="Typo.body2" Style="font-weight:700;color:#1A4E6B">
-                                        @t.ClientsParConseiller.ToString("N0") <span style="font-size:11px;font-weight:400;color:#6C7A89">clients/cons.</span>
+                                        @t.ClientsParConseiller.ToString("N0")
+                                        <span style="font-size:11px;font-weight:400;color:#6C7A89">clients/cons.</span>
                                     </MudText>
                                 </div>
                                 <div class="d-flex align-center gap-3">
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="min-width:110px">Taux de remplissage</MudText>
-                                    <MudProgressLinear Value="@t.TauxRemplissage" Max="100" Rounded="true" Size="Size.Small"
-                                                       Color="Color.Primary" Style="flex:1" />
-                                    <MudText Typo="Typo.body2" Style="font-weight:600;color:#005B2B;min-width:36px;text-align:right">@t.TauxRemplissage.ToString("F0")%</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="min-width:110px">
+                                        Taux de remplissage
+                                    </MudText>
+                                    <MudProgressLinear Value="@t.TauxRemplissage"
+                                                       Max="100"
+                                                       Rounded="true"
+                                                       Size="Size.Small"
+                                                       Color="Color.Primary"
+                                                       Style="flex:1" />
+                                    <MudText Typo="Typo.body2" Style="font-weight:600;color:#005B2B;min-width:36px;text-align:right">
+                                        @t.TauxRemplissage.ToString("F0")%
+                                    </MudText>
                                 </div>
                             </div>
                         }
@@ -171,6 +374,7 @@
                         {
                             var color = ind.EstPositif ? Color.Success : Color.Error;
                             var hexColor = ind.EstPositif ? "#27AE60" : "#E74C3C";
+
                             <div style="margin-bottom:16px">
                                 <div class="d-flex justify-space-between align-center mb-1">
                                     <MudText Typo="Typo.body2">@ind.Libelle</MudText>
@@ -179,8 +383,11 @@
                                         @(ind.EstPositif && ind.Valeur > 0 ? "+" : "")@ind.Valeur.ToString("F1")%
                                     </MudChip>
                                 </div>
-                                <MudProgressLinear Value="@Math.Min(ind.Valeur, 100)" Max="100" Rounded="true"
-                                                   Size="Size.Small" Color="@color" />
+                                <MudProgressLinear Value="@Math.Min(ind.Valeur, 100)"
+                                                   Max="100"
+                                                   Rounded="true"
+                                                   Size="Size.Small"
+                                                   Color="@color" />
                             </div>
                         }
                     </div>
@@ -194,44 +401,119 @@
                 <span class="ca-section-badge">5</span>
                 Agences avec des problématiques
             </div>
-            <MudTable Items="@model.AgencesProblematiques" Dense="true" Hover="true" Striped="true"
-                      SortLabel="Trier" AllowUnsorted="false" Elevation="0">
+
+            <MudTable Items="@model.AgencesProblematiques"
+                      Dense="true"
+                      Hover="true"
+                      Striped="true"
+                      SortLabel="Trier"
+                      AllowUnsorted="false"
+                      Elevation="0">
+
                 <HeaderContent>
-                    <MudTh><MudTableSortLabel SortBy="new Func<AgenceProblematique,object>(x=>x.NomAgence)">Agence</MudTableSortLabel></MudTh>
-                    <MudTh Style="text-align:center"><MudTableSortLabel SortBy="new Func<AgenceProblematique,object>(x=>x.ScoreGlobal)">Score Global</MudTableSortLabel></MudTh>
-                    <MudTh Style="text-align:right"><MudTableSortLabel SortBy="new Func<AgenceProblematique,object>(x=>x.Remplissage)">Remplissage</MudTableSortLabel></MudTh>
-                    <MudTh Style="text-align:right"><MudTableSortLabel SortBy="new Func<AgenceProblematique,object>(x=>x.ConcordanceSegment)">Concord. Segment</MudTableSortLabel></MudTh>
-                    <MudTh Style="text-align:right"><MudTableSortLabel SortBy="new Func<AgenceProblematique,object>(x=>x.ConcordanceProfil)">Concord. Profil</MudTableSortLabel></MudTh>
-                    <MudTh Style="text-align:right"><MudTableSortLabel SortBy="new Func<AgenceProblematique,object>(x=>x.EvolutionEffectifs)">Évol. Effectifs</MudTableSortLabel></MudTh>
-                    <MudTh Style="text-align:right"><MudTableSortLabel SortBy="new Func<AgenceProblematique,object>(x=>x.RotationClients)">Rotation Clients</MudTableSortLabel></MudTh>
+                    <MudTh>
+                        <MudTableSortLabel SortBy="new Func<AgenceProblematique,object>(x=>x.NomAgence)">
+                            Agence
+                        </MudTableSortLabel>
+                    </MudTh>
+                    <MudTh>Région</MudTh>
+                    <MudTh>Secteur</MudTh>
+                    <MudTh Style="text-align:center">
+                        <MudTableSortLabel SortBy="new Func<AgenceProblematique,object>(x=>x.ScoreGlobal)">
+                            Score Global
+                        </MudTableSortLabel>
+                    </MudTh>
+                    <MudTh Style="text-align:right">
+                        <MudTableSortLabel SortBy="new Func<AgenceProblematique,object>(x=>x.Remplissage)">
+                            Remplissage
+                        </MudTableSortLabel>
+                    </MudTh>
+                    <MudTh Style="text-align:right">
+                        <MudTableSortLabel SortBy="new Func<AgenceProblematique,object>(x=>x.ConcordanceSegment)">
+                            Concord. Segment
+                        </MudTableSortLabel>
+                    </MudTh>
+                    <MudTh Style="text-align:right">
+                        <MudTableSortLabel SortBy="new Func<AgenceProblematique,object>(x=>x.ConcordanceProfil)">
+                            Concord. Profil
+                        </MudTableSortLabel>
+                    </MudTh>
+                    <MudTh Style="text-align:right">
+                        <MudTableSortLabel SortBy="new Func<AgenceProblematique,object>(x=>x.EvolutionEffectifs)">
+                            Évol. Effectifs
+                        </MudTableSortLabel>
+                    </MudTh>
+                    <MudTh Style="text-align:right">
+                        <MudTableSortLabel SortBy="new Func<AgenceProblematique,object>(x=>x.RotationClients)">
+                            Rotation Clients
+                        </MudTableSortLabel>
+                    </MudTh>
                 </HeaderContent>
+
                 <RowTemplate>
-                    <MudTd DataLabel="Agence" Style="font-weight:500">@context.NomAgence</MudTd>
+                    <MudTd DataLabel="Agence" Style="font-weight:500">
+                        @context.NomAgence
+                    </MudTd>
+
+                    <MudTd DataLabel="Région">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Style="height:24px;font-size:11px">
+                            @GetRegionFromAgence(context)
+                        </MudChip>
+                    </MudTd>
+
+                    <MudTd DataLabel="Secteur">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Style="height:24px;font-size:11px">
+                            @GetSecteurFromAgence(context)
+                        </MudChip>
+                    </MudTd>
+
                     <MudTd DataLabel="Score" Style="text-align:center">
                         <MudChip T="string" Size="Size.Small" Variant="Variant.Filled"
                                  Style="@($"background:{GetScoreColor(context.NiveauScore)};color:white;height:26px;font-weight:700;min-width:42px")">
                             @context.ScoreGlobal
                         </MudChip>
                     </MudTd>
-                    <MudTd DataLabel="Remplissage" Style="text-align:right">@context.Remplissage.ToString("F0")%</MudTd>
-                    <MudTd DataLabel="Concord. Segment" Style="text-align:right">@context.ConcordanceSegment.ToString("F0")%</MudTd>
-                    <MudTd DataLabel="Concord. Profil" Style="text-align:right">@context.ConcordanceProfil.ToString("F0")%</MudTd>
-                    <MudTd DataLabel="Évol. Effectifs" Style="@($"text-align:right;font-weight:600;color:{(context.EvolutionEffectifs >= 0 ? "#27AE60" : "#E74C3C")}")">
+
+                    <MudTd DataLabel="Remplissage" Style="text-align:right">
+                        @context.Remplissage.ToString("F0")%
+                    </MudTd>
+
+                    <MudTd DataLabel="Concord. Segment" Style="text-align:right">
+                        @context.ConcordanceSegment.ToString("F0")%
+                    </MudTd>
+
+                    <MudTd DataLabel="Concord. Profil" Style="text-align:right">
+                        @context.ConcordanceProfil.ToString("F0")%
+                    </MudTd>
+
+                    <MudTd DataLabel="Évol. Effectifs"
+                           Style="@($"text-align:right;font-weight:600;color:{(context.EvolutionEffectifs >= 0 ? "#27AE60" : "#E74C3C")}")">
                         @(context.EvolutionEffectifs >= 0 ? "+" : "")@context.EvolutionEffectifs.ToString("F1")%
                     </MudTd>
-                    <MudTd DataLabel="Rotation Clients" Style="text-align:right">@context.RotationClients.ToString("F1")%</MudTd>
+
+                    <MudTd DataLabel="Rotation Clients" Style="text-align:right">
+                        @context.RotationClients.ToString("F1")%
+                    </MudTd>
                 </RowTemplate>
             </MudTable>
         </MudPaper>
     }
 
-    <div class="ca-footer">© 2025 Crédit Agricole Nord de France — Plateforme de Dimensionnement</div>
+    <div class="ca-footer">
+        © 2025 Crédit Agricole Nord de France — Plateforme de Dimensionnement
+    </div>
 </div>
 
 @code {
     private VisionGlobaleModel? model;
     private bool vueReseau = true;
     private double moyenneTauxRemplissage;
+
+    private List<AgenceProblematique> allAgencesProblematiques = new();
+
+    private HashSet<string> selectedRegions = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string> selectedSecteurs = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string> selectedAgences = new(StringComparer.OrdinalIgnoreCase);
 
     protected override void OnInitialized()
     {
@@ -244,55 +526,274 @@
     private void OnReglesChanged()
     {
         ApplyStateToModel();
+        ApplyFilters();
         InvokeAsync(StateHasChanged);
     }
 
-    private void SetVue(bool reseau) { vueReseau = reseau; LoadData(); }
+    private void SetVue(bool reseau)
+    {
+        vueReseau = reseau;
+
+        selectedRegions.Clear();
+        selectedSecteurs.Clear();
+        selectedAgences.Clear();
+
+        LoadData();
+    }
 
     private void LoadData()
     {
         model = DataService.GetVisionGlobale(!vueReseau);
         ApplyStateToModel();
+
+        allAgencesProblematiques = model?.AgencesProblematiques?.ToList() ?? new List<AgenceProblematique>();
+
+        ApplyFilters();
     }
 
     private void ApplyStateToModel()
     {
         if (model == null) return;
-        // Mettre à jour les tailles de portefeuilles calculées par les règles
+
         model.TaillesPortefeuilles = StateService.TaillesPortefeuilles;
-        // Mettre à jour les KPIs dérivés
         model.Kpis.TaillePortefeuilleMoyenne = StateService.TaillePortefeuilleMoyenne;
-        model.Kpis.TotalConseillers          = StateService.TotalConseillersCible;
+        model.Kpis.TotalConseillers = StateService.TotalConseillersCible;
+
         if (model.TaillesPortefeuilles.Any())
             moyenneTauxRemplissage = model.TaillesPortefeuilles.Average(t => t.TauxRemplissage);
     }
 
-    private string FormatClients(int n) => n >= 1_000_000 ? (n / 1_000_000.0).ToString("F1") + "M"
-                                         : n >= 1_000     ? (n / 1_000.0).ToString("F0")     + "K"
-                                         : n.ToString();
+    /* ════════════════════════════════════════════════════════
+       Filtres géographiques
+    ════════════════════════════════════════════════════════ */
 
-    private string FormatClientsShort(int n) => n >= 1_000_000 ? (n / 1_000_000.0).ToString("F1") + "M"
-                                              : n >= 1_000     ? (n / 1_000.0).ToString("F0") + "K"
-                                              : n.ToString();
+    private int TotalAgencesCount => allAgencesProblematiques.Count;
+
+    private int FilteredAgencesCount => model?.AgencesProblematiques?.Count ?? 0;
+
+    private bool HasActiveFilters =>
+        selectedRegions.Any() || selectedSecteurs.Any() || selectedAgences.Any();
+
+    private IEnumerable<string> RegionsDisponibles =>
+        allAgencesProblematiques
+            .Select(GetRegionFromAgence)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x);
+
+    private IEnumerable<string> SecteursDisponibles =>
+        allAgencesProblematiques
+            .Where(a => !selectedRegions.Any() || selectedRegions.Contains(GetRegionFromAgence(a)))
+            .Select(GetSecteurFromAgence)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x);
+
+    private IEnumerable<string> AgencesDisponibles =>
+        allAgencesProblematiques
+            .Where(a =>
+                (!selectedRegions.Any() || selectedRegions.Contains(GetRegionFromAgence(a))) &&
+                (!selectedSecteurs.Any() || selectedSecteurs.Contains(GetSecteurFromAgence(a)))
+            )
+            .Select(a => a.NomAgence)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x);
+
+    private void OnRegionsChanged(IEnumerable<string> values)
+    {
+        selectedRegions = values?.ToHashSet(StringComparer.OrdinalIgnoreCase)
+                          ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        selectedSecteurs.Clear();
+        selectedAgences.Clear();
+
+        ApplyFilters();
+    }
+
+    private void OnSecteursChanged(IEnumerable<string> values)
+    {
+        selectedSecteurs = values?.ToHashSet(StringComparer.OrdinalIgnoreCase)
+                           ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        selectedAgences.Clear();
+
+        ApplyFilters();
+    }
+
+    private void OnAgencesChanged(IEnumerable<string> values)
+    {
+        selectedAgences = values?.ToHashSet(StringComparer.OrdinalIgnoreCase)
+                          ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        ApplyFilters();
+    }
+
+    private void ResetFilters()
+    {
+        selectedRegions.Clear();
+        selectedSecteurs.Clear();
+        selectedAgences.Clear();
+
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        if (model == null) return;
+
+        var agences = allAgencesProblematiques.AsEnumerable();
+
+        if (selectedRegions.Any())
+            agences = agences.Where(a => selectedRegions.Contains(GetRegionFromAgence(a)));
+
+        if (selectedSecteurs.Any())
+            agences = agences.Where(a => selectedSecteurs.Contains(GetSecteurFromAgence(a)));
+
+        if (selectedAgences.Any())
+            agences = agences.Where(a => selectedAgences.Contains(a.NomAgence));
+
+        model.AgencesProblematiques = agences.ToList();
+    }
+
+    private void ToggleRegion(string region)
+    {
+        if (selectedRegions.Contains(region))
+            selectedRegions.Remove(region);
+        else
+            selectedRegions.Add(region);
+
+        selectedSecteurs.Clear();
+        selectedAgences.Clear();
+
+        ApplyFilters();
+    }
+
+    private string GetActiveFilterLabel()
+    {
+        if (selectedAgences.Any())
+            return $"{selectedAgences.Count} agence(s)";
+
+        if (selectedSecteurs.Any())
+            return $"{selectedSecteurs.Count} secteur(s)";
+
+        if (selectedRegions.Any())
+            return $"{selectedRegions.Count} région(s)";
+
+        return "Tous périmètres";
+    }
+
+    /* ════════════════════════════════════════════════════════
+       Zoning mocké
+       À remplacer plus tard par des vrais champs Région / Secteur.
+    ════════════════════════════════════════════════════════ */
+
+    private string GetRegionFromAgence(AgenceProblematique agence)
+    {
+        var nom = agence.NomAgence?.Trim() ?? string.Empty;
+
+        if (nom.Contains("Arras", StringComparison.OrdinalIgnoreCase)
+            || nom.Contains("Lille", StringComparison.OrdinalIgnoreCase)
+            || nom.Contains("Amiens", StringComparison.OrdinalIgnoreCase)
+            || nom.Contains("Lens", StringComparison.OrdinalIgnoreCase)
+            || nom.Contains("Retail", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Région 1";
+        }
+
+        if (nom.Contains("Voltaire", StringComparison.OrdinalIgnoreCase)
+            || nom.Contains("Opéra", StringComparison.OrdinalIgnoreCase)
+            || nom.Contains("Opera", StringComparison.OrdinalIgnoreCase)
+            || nom.Contains("BP", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Région 2";
+        }
+
+        return "Région mock";
+    }
+
+    private string GetSecteurFromAgence(AgenceProblematique agence)
+    {
+        var nom = agence.NomAgence?.Trim() ?? string.Empty;
+
+        if (nom.Contains("Arras", StringComparison.OrdinalIgnoreCase)
+            || nom.Contains("Lille", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Secteur A";
+        }
+
+        if (nom.Contains("Amiens", StringComparison.OrdinalIgnoreCase)
+            || nom.Contains("Lens", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Secteur B";
+        }
+
+        if (nom.Contains("Voltaire", StringComparison.OrdinalIgnoreCase)
+            || nom.Contains("Opéra", StringComparison.OrdinalIgnoreCase)
+            || nom.Contains("Opera", StringComparison.OrdinalIgnoreCase)
+            || nom.Contains("BP", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Secteur C";
+        }
+
+        return "Secteur mock";
+    }
+
+    private int GetAgencesCountByRegion(string region) =>
+        allAgencesProblematiques.Count(a => GetRegionFromAgence(a) == region);
+
+    private string GetSecteursLabelByRegion(string region)
+    {
+        var secteurs = allAgencesProblematiques
+            .Where(a => GetRegionFromAgence(a) == region)
+            .Select(GetSecteurFromAgence)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x)
+            .ToList();
+
+        return secteurs.Any() ? string.Join(" · ", secteurs) : "Aucun secteur";
+    }
+
+    private string GetRegionCardStyle(bool selected)
+    {
+        return selected
+            ? "border:1px solid #1A4E6B;background:#E8EDF2;border-radius:8px;padding:10px;cursor:pointer"
+            : "border:1px solid #D8DCE0;background:white;border-radius:8px;padding:10px;cursor:pointer";
+    }
+
+    /* ════════════════════════════════════════════════════════
+       Helpers existants
+    ════════════════════════════════════════════════════════ */
+
+    private string FormatClients(int n) =>
+        n >= 1_000_000 ? (n / 1_000_000.0).ToString("F1") + "M"
+        : n >= 1_000 ? (n / 1_000.0).ToString("F0") + "K"
+        : n.ToString();
+
+    private string FormatClientsShort(int n) =>
+        n >= 1_000_000 ? (n / 1_000_000.0).ToString("F1") + "M"
+        : n >= 1_000 ? (n / 1_000.0).ToString("F0") + "K"
+        : n.ToString();
 
     private Color GetSegmentColor(string segment) => segment switch
     {
         "Faible Potentiel" => Color.Info,
-        "Haut de Gamme"    => Color.Success,
-        _                  => Color.Secondary
+        "Haut de Gamme" => Color.Success,
+        _ => Color.Secondary
     };
 
     private Color GetProfilColor(string profil) => profil switch
     {
         "Portefeuilles Mutualisés" => Color.Info,
-        "Dédiés - Haut de Gamme"   => Color.Success,
-        _                          => Color.Secondary
+        "Dédiés - Haut de Gamme" => Color.Success,
+        _ => Color.Secondary
     };
 
     private string GetScoreColor(string niveau) => niveau switch
     {
-        "danger"  => "#C8102E",
+        "danger" => "#C8102E",
         "warning" => "#E87722",
-        _         => "#27AE60"
+        _ => "#27AE60"
     };
 }
+``
