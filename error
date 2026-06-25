@@ -1,13 +1,104 @@
-Génération démarrée à 16:29...
-1>------ Début de la génération : Projet : Segmentation.Client, Configuration : Debug Any CPU ------
-1>C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Services\Application\S3Service.cs(70,9,70,22): warning CS8602: Déréférencement d'une éventuelle référence null.
-1>  Segmentation.Client -> C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\bin\Debug\net10.0\Segmentation.Client.dll
-1>  Segmentation.Client (Blazor output) -> C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\bin\Debug\net10.0\wwwroot
-2>------ Début de la génération : Projet : Segmentation.Server, Configuration : Debug Any CPU ------
-2>C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\Controllers\Application\RedisController.cs(12,40,12,53): warning CS0108: 'RedisController._redisService' masque le membre hérité 'SegmentationBaseController._redisService'. Utilisez le mot clé new si le masquage est intentionnel.
-2>  Segmentation.Server -> C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Segmentation.Server.dll
-3>------ Début de la génération : Projet : SegmentationTests, Configuration : Debug Any CPU ------
-3>C:\Users\J097179\source\repos\a02t7-segmentation\tests\Controllers\Foundations\UsersControllerUnitTests.cs(153,16,153,36): warning CS8605: Conversion unboxing d'une valeur peut-être null.
-3>  SegmentationTests -> C:\Users\J097179\source\repos\a02t7-segmentation\tests\bin\Debug\net10.0\SegmentationTests.dll
-========== Build : 3 réussite(s), 0 échec(s), 4 à jour, 0 ignorée(s) ==========
-========== Build s’est terminée à 16:29 et a duré 19,640 secondes ==========
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
+using Telerik.Blazor.Components;
+using Segmentation.Client.Models;
+
+namespace Segmentation.Client.Components.Layout
+{
+    /// <summary>
+    /// Composant Menu
+    /// </summary>
+    public partial class Menu : IDisposable
+    {
+        #region attributes
+        private string tag = string.Empty; 
+        #endregion
+
+        #region properties
+        /// <summary>
+        /// Version de l'application
+        /// </summary>
+        [Parameter]
+        public string AppVersion { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Est étendu ou non
+        /// </summary>
+        public bool IsExpanded { get; set; }
+
+        /// <summary>
+        /// Tiroir
+        /// </summary>
+        public TelerikDrawer<DrawerItem> Drawer { get; set; } = null!;
+
+        /// <summary>
+        /// Tiroir sélectionné
+        /// </summary>
+        public DrawerItem SelectedItem { get; set; } = null!;
+
+        /// <summary>
+        /// Données des tiroirs
+        /// </summary>
+        public List<DrawerItem> Data { get; set; } = new();
+        #endregion
+
+        #region protected methods
+        /// <inheritdoc/>
+        protected override async Task OnInitializedAsync()
+        {
+            AppState!.OnChange += StateHasChanged;
+            tag = NavigationManager!.Uri.Replace(NavigationManager.BaseUri, string.Empty);
+            SetMenuData();
+            await GetAppVersionAsync();
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            AppState!.OnChange -= StateHasChanged;
+        }
+        #endregion
+
+        #region publics methods
+        public async Task ToggleDrawer(MouseEventArgs e) => await Drawer.ToggleAsync();
+
+        public async Task ExpandDrawer(MouseEventArgs e) => await Drawer.ExpandAsync();
+
+        public async Task CollapseDrawer(MouseEventArgs e) => await Drawer.CollapseAsync();
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        public void OnItemClick(DrawerItem item)
+        {
+            SelectedItem = item;
+            NavigationManager!.NavigateTo(item.NavigateTo, false);
+            StateHasChanged();
+        }
+        #endregion
+
+        #region privates methods
+        private void SetMenuData()
+        {
+            Data = new List<DrawerItem>
+            {
+                new() { Text = "Accueil", IconClass = "k-icon fad fa-home", NavigateTo = "/"},
+                new() { Text = "Administration", IconClass = "k-icon fad fa-cog", NavigateTo = "/Administration", HabilitationCodes = new List<string>() { "ADMIN" } }, //exemple d'utilisation pour affichage d'un item en fonction d'une liste d'habilitation
+                new() { Text = "Assistance", IconClass = "k-icon fad fa-comments-question", NavigateTo = "/Help", Position = DrawerItem.ItemPosition.Bottom },
+            };
+            SelectedItem = Data.SingleOrDefault(x => x.Tag == tag) ?? Data[0];
+        }
+
+        private async Task GetAppVersionAsync()
+        {
+            AppVersion = await HttpClient!.GetStringAsync("api/Environment/appversion");
+            if (string.IsNullOrWhiteSpace(AppVersion))
+            {
+                AppVersion = configuration["Application:Version"]!;
+            }
+        }
+        #endregion
+    }
+}
