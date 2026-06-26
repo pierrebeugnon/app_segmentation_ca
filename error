@@ -1,7 +1,11 @@
-public class RegleAffectationSegment
-{
-    public string Segment { get; set; } = "";
-    public string ConseillerPrioritaire { get; set; } = "";
-    public string ConseillerSecondaire { get; set; } = "";
-    public string ConseillerTertiaire { get; set; } = "";   // ← ajouter
-}
+<script>
+    window.downloadCsvFile = function (fileName, content) {
+        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+</script>
