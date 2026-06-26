@@ -260,7 +260,6 @@
                               Style="overflow:visible">
 
                         <HeaderContent>
-                            <MudTh>Ligne métier</MudTh>
                             <MudTh>Profil conseiller</MudTh>
                             <MudTh Style="text-align:center">Part temps commercial (%)</MudTh>
                             <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
@@ -288,12 +287,8 @@
                                 var ecartVolume = volumeActuel - volumeReference;
                             }
 
-                            <MudTd Style="color:#6C7A89;font-style:italic;font-size:12px">
-                                @context.LigneMetier
-                            </MudTd>
-
                             <MudTd Style="font-weight:600;color:#1A4E6B">
-                                @context.Profil
+                                @FormatProfilLabel(context.Profil)
                             </MudTd>
 
                             <MudTd Style="text-align:center;background:#FFFDE7">
@@ -373,7 +368,10 @@
                         <RowTemplate>
                             @{
                                 var segment = context.Segment?.Trim() ?? string.Empty;
-                                var options = GetOptionsProfilsPourSegment(segment);
+                                var allOptions = GetOptionsProfilsPourSegment(segment);
+                                var optionsPrioritaire = GetOptionsFiltered(allOptions, context.ConseillerSecondaire, context.ConseillerTertiaire);
+                                var optionsSecondaire  = GetOptionsFiltered(allOptions, context.ConseillerPrioritaire, context.ConseillerTertiaire);
+                                var optionsTertiaire   = GetOptionsFiltered(allOptions, context.ConseillerPrioritaire, context.ConseillerSecondaire);
                                 var selectDisabled = IsSegmentNonAffectable(segment);
                                 var affectationModifiee = IsAffectationModifiee(
                                     context.Segment,
@@ -397,7 +395,7 @@
                                            Disabled="@selectDisabled"
                                            Style="min-width:220px">
 
-                                    @foreach (var p in options)
+                                    @foreach (var p in optionsPrioritaire)
                                     {
                                         <MudSelectItem T="string" Value="@p">@p</MudSelectItem>
                                     }
@@ -414,7 +412,7 @@
                                            Disabled="@selectDisabled"
                                            Style="min-width:220px">
 
-                                    @foreach (var p in options)
+                                    @foreach (var p in optionsSecondaire)
                                     {
                                         <MudSelectItem T="string" Value="@p">@p</MudSelectItem>
                                     }
@@ -431,7 +429,7 @@
                                            Disabled="@selectDisabled"
                                            Style="min-width:220px">
 
-                                    @foreach (var p in options)
+                                    @foreach (var p in optionsTertiaire)
                                     {
                                         <MudSelectItem T="string" Value="@p">@p</MudSelectItem>
                                     }
@@ -533,7 +531,7 @@
                                 @(string.IsNullOrWhiteSpace(context.Profil) ? "0.0" : volumeActuel.ToString("F1"))
                             </MudTd>
 
-                            <MudTd Style="@GetPortefeuilleCellStyle(tailleActuelle, segmentNonRenseigne)">
+                            <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B;font-style:italic">
                                 @(segmentNonRenseigne || intensiteActuelle == 0 ? "—" : tailleActuelle.ToString("N2"))
                             </MudTd>
 
@@ -773,6 +771,17 @@
         _optionsProfilsParSegment[segment] = newOptions;
 
         return newOptions;
+    }
+
+    private static IReadOnlyList<string> GetOptionsFiltered(
+        IReadOnlyList<string> allOptions,
+        params string?[] exclude)
+    {
+        var excluded = exclude
+            .Where(e => !string.IsNullOrWhiteSpace(e))
+            .Select(e => e!.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return allOptions.Where(p => !excluded.Contains(p.Trim())).ToList();
     }
 
     private static void AddIfMissing(List<string> options, string? value)
@@ -1143,6 +1152,11 @@
 
     private static string FormatSegmentLabel(string? segment) =>
         IsBanquePriveeSegment(segment) ? $"{segment} (Banque Privée)" : (segment ?? string.Empty);
+
+    private static string FormatProfilLabel(string? profil) =>
+        ProfilsBanquePrivee.Contains(profil ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            ? $"{profil} (Banque Privée)"
+            : (profil ?? string.Empty);
 
     private async Task ExportExcel()
     {
