@@ -7,36 +7,7 @@
     <base href="/" />
     <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="@Assets["app.css"]" />@inject NavigationManager NavigationManager
-<CascadingAuthenticationState>
-    <Router AppAssembly="@typeof(Program).Assembly">
-        <Found Context="routeData">
-            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
-                <NotAuthorized>
-                    @{
-                        NavigationManager.NavigateTo($"api/Auth/AuthUser?returnUrl={NavigationManager.Uri}", forceLoad: true);
-                    }
-                </NotAuthorized>
-                <Authorizing>
-                    <div id="loading-overlay">
-                        <span class="k-color-primary facd fa-4x fa-logo-ca"></span>
-                        <p>@configuration["Application:DisplayName"]</p>
-                        <p>Authentification en cours...</p>
-                        <img src="css/peri/images/ca-logo-loader.gif" class="loader-ca--img" />
-                    </div>
-                </Authorizing>
-            </AuthorizeRouteView>
-        </Found>
-        <NotFound>
-            <LayoutView Layout="@typeof(MainLayout)">
-                @{
-                    NavigationManager.NavigateTo("/NotFound", forceLoad: false);
-                }
-            </LayoutView>
-        </NotFound>
-    </Router>
-</CascadingAuthenticationState>
-
+    <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["Segmentation.Client.styles.css"]" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <HeadOutlet />
@@ -46,19 +17,6 @@
     <Routes />
     <script src="_framework/blazor.web.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
-    <script>
-        window.downloadCsvFile = function (fileName, csvContent) {
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        };
-    </script>
 </body>
 
 </html>
