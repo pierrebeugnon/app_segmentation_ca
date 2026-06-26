@@ -634,6 +634,20 @@ html, body {
 
 .blazor-error-boundary::after { content: "Une erreur est survenue."; }
 
+/* Tableaux Temps conseiller — colonnes identiques BP / Retail */
+.ca-temps-table table {
+    table-layout: fixed !important;
+    width: 100% !important;
+}
+.ca-temps-table table th:nth-child(1),
+.ca-temps-table table td:nth-child(1) { width: 210px; min-width: 210px; max-width: 210px; }
+.ca-temps-table table th:nth-child(2),
+.ca-temps-table table td:nth-child(2) { width: 200px; min-width: 200px; max-width: 200px; text-align: center; }
+.ca-temps-table table th:nth-child(3),
+.ca-temps-table table td:nth-child(3) { width: 180px; min-width: 180px; max-width: 180px; text-align: center; }
+.ca-temps-table table th:nth-child(4),
+.ca-temps-table table td:nth-child(4) { width: 140px; min-width: 140px; max-width: 140px; text-align: center; }
+
 #blazor-error-ui {
     background: lightyellow;
     bottom: 0; left: 0; right: 0;
