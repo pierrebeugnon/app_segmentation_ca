@@ -1,1 +1,1 @@
-RÃˆGLES Dâ€™AFFECTATION
+const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
