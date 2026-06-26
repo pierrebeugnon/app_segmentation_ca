@@ -1,1245 +1,192 @@
-<Router AppAssembly="@typeof(App).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
-        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-    </Found>
-    <NotFound>
-        <LayoutView Layout="@typeof(MainLayout)">
-            <p>Page introuvable</p>
-        </LayoutView>
-    </NotFound>
-</Router>
-@page "/regles-hypotheses"
-@using System.Linq
-@inject MockDataService DataService
-@inject ISnackbar Snackbar
-@inject SegmentationStateService StateService
-
-<PageTitle>Règles & Hypothèses — CA Segmentation</PageTitle>
-
-<div class="ca-page">
-
-    <div class="ca-page-header">
-        <div>
-            <MudText Typo="Typo.h5" Class="ca-page-title">Règles & Hypothèses</MudText>
-            <MudText Typo="Typo.caption" Class="ca-page-subtitle">
-                Configuration des paramètres de dimensionnement du réseau
-            </MudText>
-        </div>
-
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <MudButton Variant="Variant.Outlined"
-                       Color="@(modeSimulation ? Color.Warning : Color.Primary)"
-                       Size="Size.Medium"
-                       StartIcon="@Icons.Material.Filled.Science"
-                       OnClick="ToggleModeSimulation">
-                @(modeSimulation ? "Mode simulation activé" : "Activer le mode simulation")
-            </MudButton>
-
-            @if (modeSimulation)
-            {
-                <MudButton Variant="Variant.Outlined"
-                           Color="Color.Secondary"
-                           Size="Size.Medium"
-                           StartIcon="@Icons.Material.Filled.Restore"
-                           OnClick="ReinitialiserSimulation">
-                    Réinitialiser
-                </MudButton>
-            }
-
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       Size="Size.Medium"
-                       StartIcon="@Icons.Material.Filled.Save"
-                       OnClick="Enregistrer">
-                Enregistrer les modifications
-            </MudButton>
-        </div>
-    </div>
-
-    @if (model != null)
-    {
-        <!-- ════════════════════════════════════════════════════════
-             Bandeau KPI / Simulation
-        ════════════════════════════════════════════════════════ -->
-        <MudPaper Elevation="1"
-                  Class="mb-4 pa-4"
-                  Style="border-radius:8px;overflow:visible">
-
-            <MudGrid Spacing="3">
-                <MudItem xs="12" sm="6" md="3">
-                    <MudPaper Elevation="0"
-                              Style="background:#F5F7FA;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px;min-height:95px">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Heures annuelles</MudText>
-
-                        <MudText Typo="Typo.h6" Style="font-weight:700;color:#1A4E6B">
-                            @GetHeuresTravailParAn().ToString("F0") h
-                        </MudText>
-
-                        @if (modeSimulation)
-                        {
-                            <MudText Typo="Typo.caption" Style="@GetDeltaStyle(GetDeltaHeuresTravailParAn())">
-                                @FormatDelta(GetDeltaHeuresTravailParAn(), "h")
-                            </MudText>
-                        }
-                    </MudPaper>
-                </MudItem>
-
-                <MudItem xs="12" sm="6" md="3">
-                    <MudPaper Elevation="0"
-                              Style="background:#F5F7FA;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px;min-height:95px">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Volume commercial moyen</MudText>
-
-                        <MudText Typo="Typo.h6" Style="font-weight:700;color:#1A4E6B">
-                            @GetVolumeMoyen().ToString("F0") h
-                        </MudText>
-
-                        @if (modeSimulation)
-                        {
-                            <MudText Typo="Typo.caption" Style="@GetDeltaStyle(GetDeltaVolumeMoyen())">
-                                @FormatDelta(GetDeltaVolumeMoyen(), "h")
-                            </MudText>
-                        }
-                    </MudPaper>
-                </MudItem>
-
-                <MudItem xs="12" sm="6" md="3">
-                    <MudPaper Elevation="0"
-                              Style="background:#F5F7FA;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px;min-height:95px">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Intensité moyenne</MudText>
-
-                        <MudText Typo="Typo.h6" Style="font-weight:700;color:#1A4E6B">
-                            @GetIntensiteMoyenne().ToString("F2") h
-                        </MudText>
-
-                        @if (modeSimulation)
-                        {
-                            <MudText Typo="Typo.caption" Style="@GetDeltaStyle(GetDeltaIntensiteMoyenne())">
-                                @FormatDelta(GetDeltaIntensiteMoyenne(), "h")
-                            </MudText>
-                        }
-                    </MudPaper>
-                </MudItem>
-
-                <MudItem xs="12" sm="6" md="3">
-                    <MudPaper Elevation="0"
-                              Style="background:#F5F7FA;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px;min-height:95px">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Capacité portefeuille</MudText>
-
-                        <MudText Typo="Typo.h6" Style="font-weight:700;color:#1A4E6B">
-                            @GetCapaciteMoyenne().ToString("F0") clients
-                        </MudText>
-
-                        @if (modeSimulation)
-                        {
-                            <MudText Typo="Typo.caption" Style="@GetDeltaStyle(GetDeltaCapaciteMoyenne())">
-                                @FormatDelta(GetDeltaCapaciteMoyenne(), "clients")
-                            </MudText>
-                        }
-                    </MudPaper>
-                </MudItem>
-            </MudGrid>
-
-            @if (modeSimulation)
-            {
-                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-4">
-                    Mode simulation activé : les écarts comparent les valeurs actuelles aux valeurs de référence chargées initialement.
-                    L’enregistrement fige les valeurs actuelles comme nouvelle référence.
-                </MudAlert>
-            }
-        </MudPaper>
-
-        <!-- ════════════════════════════════════════════════════════
-             Onglets
-        ════════════════════════════════════════════════════════ -->
-        <MudTabs Rounded="true"
-                 Elevation="1"
-                 Class="mb-4"
-                 Style="overflow:visible">
-
-            <!-- ════════════════════════════════════════════════════════
-                 Section 1 : Intensité
-            ════════════════════════════════════════════════════════ -->
-            <MudTabPanel Text="1. Intensité">
-                <MudPaper Elevation="1"
-                          Style="border-radius:8px;overflow:visible"
-                          Class="pa-0 mt-4">
-
-                    <div class="ca-section-header">
-                        <span class="ca-section-badge">1</span>
-                        Segments et intensité relationnelle
-                    </div>
-
-                    <MudTable Items="@model.SegmentsIntensite"
-                              Dense="true"
-                              Hover="true"
-                              Elevation="0"
-                              Striped="true"
-                              Style="overflow:visible">
-
-                        <HeaderContent>
-                            <MudTh>Ligne métier</MudTh>
-                            <MudTh>Segments distributifs</MudTh>
-                            <MudTh Style="text-align:center">Nombre de RDV / CC / an</MudTh>
-                            <MudTh Style="text-align:center">Durée du RDV (h)</MudTh>
-                            <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Intensité actuelle
-                            </MudTh>
-
-                            @if (modeSimulation)
-                            {
-                                <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
-                                    Référence
-                                </MudTh>
-                                <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
-                                    Écart
-                                </MudTh>
-                            }
-                        </HeaderContent>
-
-                        <RowTemplate>
-                            @{
-                                var intensiteActuelle = GetIntensite(context);
-                                var intensiteReference = GetBaselineIntensiteBySegment(context.Segment);
-                                var ecart = intensiteActuelle - intensiteReference;
-                            }
-
-                            <MudTd Style="color:#6C7A89;font-style:italic;font-size:12px">
-                                @context.LigneMetier
-                            </MudTd>
-
-                            <MudTd Style="font-weight:600;color:#1A4E6B">
-                                @context.Segment
-                            </MudTd>
-
-                            <MudTd Style="text-align:center;background:#FFFDE7">
-                                <MudNumericField T="double"
-                                                 @bind-Value="context.NombreRdvParAn"
-                                                 Immediate="true"
-                                                 Variant="Variant.Outlined"
-                                                 Margin="Margin.Dense"
-                                                 Min="0"
-                                                 Max="52"
-                                                 Step="0.25"
-                                                 Format="F2"
-                                                 Style="max-width:110px;margin:0 auto"
-                                                 HideSpinButtons="true" />
-                            </MudTd>
-
-                            <MudTd Style="text-align:center;background:#FFFDE7">
-                                <MudNumericField T="double"
-                                                 @bind-Value="context.DureeRdvHeures"
-                                                 Immediate="true"
-                                                 Variant="Variant.Outlined"
-                                                 Margin="Margin.Dense"
-                                                 Min="0"
-                                                 Max="8"
-                                                 Step="0.25"
-                                                 Format="F2"
-                                                 Style="max-width:110px;margin:0 auto"
-                                                 HideSpinButtons="true" />
-                            </MudTd>
-
-                            <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B;font-style:italic">
-                                @intensiteActuelle.ToString("F2")
-                            </MudTd>
-
-                            @if (modeSimulation)
-                            {
-                                <MudTd Style="text-align:center;background:#F5F7FA;color:#6C7A89">
-                                    @intensiteReference.ToString("F2")
-                                </MudTd>
-
-                                <MudTd Style="@GetDeltaCellStyle(ecart)">
-                                    @FormatDelta(ecart, "")
-                                </MudTd>
-                            }
-                        </RowTemplate>
-                    </MudTable>
-                </MudPaper>
-            </MudTabPanel>
-
-            <!-- ════════════════════════════════════════════════════════
-                 Section 2 : Temps conseiller
-            ════════════════════════════════════════════════════════ -->
-            <MudTabPanel Text="2. Temps conseiller">
-                <MudPaper Elevation="1"
-                          Style="border-radius:8px;overflow:visible"
-                          Class="pa-0 mt-4">
-
-                    <div class="ca-section-header">
-                        <span class="ca-section-badge">2</span>
-                        Conseillers et temps commercial
-                    </div>
-
-                    <div class="pa-4">
-                        <MudText Typo="Typo.subtitle2" Style="color:#1A4E6B;margin-bottom:12px">
-                            Hypothèse temps de travail des conseillers
-                        </MudText>
-
-                        <MudGrid Spacing="3" Class="mb-4">
-                            <MudItem xs="12" sm="4">
-                                <MudPaper Elevation="0"
-                                          Style="background:#FFFDE7;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px;overflow:visible">
-
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                        Heures par semaine
-                                    </MudText>
-
-                                    <MudNumericField T="double"
-                                                     @bind-Value="model.HeuresParSemaine"
-                                                     Immediate="true"
-                                                     Variant="Variant.Outlined"
-                                                     Margin="Margin.Dense"
-                                                     Min="1"
-                                                     Max="50"
-                                                     Step="0.1"
-                                                     Format="F1" />
-                                </MudPaper>
-                            </MudItem>
-
-                            <MudItem xs="12" sm="4">
-                                <MudPaper Elevation="0"
-                                          Style="background:#FFFDE7;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px;overflow:visible">
-
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                        Nb semaines par an
-                                    </MudText>
-
-                                    <MudNumericField T="double"
-                                                     @bind-Value="model.NbSemainesParAn"
-                                                     Immediate="true"
-                                                     Variant="Variant.Outlined"
-                                                     Margin="Margin.Dense"
-                                                     Min="1"
-                                                     Max="52"
-                                                     Step="0.5"
-                                                     Format="F1" />
-                                </MudPaper>
-                            </MudItem>
-
-                            <MudItem xs="12" sm="4">
-                                <MudPaper Elevation="0"
-                                          Style="background:#E8EDF2;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px;overflow:visible">
-
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                        Heures de travail par an
-                                    </MudText>
-
-                                    <MudText Typo="Typo.h6" Style="font-weight:700;color:#1A4E6B;margin-top:4px">
-                                        @GetHeuresTravailParAn().ToString("F2") h
-                                    </MudText>
-
-                                    @if (modeSimulation)
-                                    {
-                                        <MudText Typo="Typo.caption" Style="@GetDeltaStyle(GetDeltaHeuresTravailParAn())">
-                                            @FormatDelta(GetDeltaHeuresTravailParAn(), "h")
-                                        </MudText>
-                                    }
-                                </MudPaper>
-                            </MudItem>
-                        </MudGrid>
-                    </div>
-
-                    <MudTable Items="@model.ConseillersProfils"
-                              Dense="true"
-                              Hover="true"
-                              Elevation="0"
-                              Striped="true"
-                              Style="overflow:visible">
-
-                        <HeaderContent>
-                            <MudTh>Ligne métier</MudTh>
-                            <MudTh>Profil conseiller</MudTh>
-                            <MudTh Style="text-align:center">Part temps commercial (%)</MudTh>
-                            <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Part non commercial (%)
-                            </MudTh>
-                            <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Volume actuel
-                            </MudTh>
-
-                            @if (modeSimulation)
-                            {
-                                <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
-                                    Référence
-                                </MudTh>
-                                <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
-                                    Écart
-                                </MudTh>
-                            }
-                        </HeaderContent>
-
-                        <RowTemplate>
-                            @{
-                                var volumeActuel = GetVolumeHoraire(context);
-                                var volumeReference = GetBaselineVolumeHoraireByProfil(context.Profil);
-                                var ecartVolume = volumeActuel - volumeReference;
-                            }
-
-                            <MudTd Style="color:#6C7A89;font-style:italic;font-size:12px">
-                                @context.LigneMetier
-                            </MudTd>
-
-                            <MudTd Style="font-weight:600;color:#1A4E6B">
-                                @context.Profil
-                            </MudTd>
-
-                            <MudTd Style="text-align:center;background:#FFFDE7">
-                                <MudNumericField T="double"
-                                                 Value="@GetPartTempsCommercialPctDisplay(context)"
-                                                 ValueChanged="@(v => SetPartTempsCommercialPctFromDisplay(context, v))"
-                                                 Immediate="true"
-                                                 Variant="Variant.Outlined"
-                                                 Margin="Margin.Dense"
-                                                 Min="0"
-                                                 Max="100"
-                                                 Step="5"
-                                                 Format="F0"
-                                                 Adornment="Adornment.End"
-                                                 AdornmentText="%"
-                                                 Style="max-width:110px;margin:0 auto"
-                                                 HideSpinButtons="true" />
-                            </MudTd>
-
-                            <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89;font-style:italic">
-                                @GetPartTempsNonCommercialPctDisplay(context).ToString("F0")%
-                            </MudTd>
-
-                            <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B;font-style:italic">
-                                @volumeActuel.ToString("F1")
-                            </MudTd>
-
-                            @if (modeSimulation)
-                            {
-                                <MudTd Style="text-align:center;background:#F5F7FA;color:#6C7A89">
-                                    @volumeReference.ToString("F1")
-                                </MudTd>
-
-                                <MudTd Style="@GetDeltaCellStyle(ecartVolume)">
-                                    @FormatDelta(ecartVolume, "h")
-                                </MudTd>
-                            }
-                        </RowTemplate>
-                    </MudTable>
-                </MudPaper>
-            </MudTabPanel>
-
-            <!-- ════════════════════════════════════════════════════════
-                 Section 3 : Affectation
-            ════════════════════════════════════════════════════════ -->
-            <MudTabPanel Text="3. Affectation">
-                <MudPaper Elevation="1"
-                          Style="border-radius:8px;overflow:visible"
-                          Class="pa-0 mt-4">
-
-                    <div class="ca-section-header">
-                        <span class="ca-section-badge">3</span>
-                        Règles d'affectation des clients par conseiller
-                    </div>
-
-                    <MudTable Items="@model.ReglesAffectationSegments"
-                              Dense="true"
-                              Hover="true"
-                              Elevation="0"
-                              Striped="true"
-                              Style="overflow:visible">
-
-                        <HeaderContent>
-                            <MudTh>Segments distributifs</MudTh>
-                            <MudTh>Conseiller Prioritaire</MudTh>
-                            <MudTh>Conseiller Secondaire</MudTh>
-
-                            @if (modeSimulation)
-                            {
-                                <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
-                                    Statut simulation
-                                </MudTh>
-                            }
-                        </HeaderContent>
-
-                        <RowTemplate>
-                            @{
-                                var segment = context.Segment?.Trim() ?? string.Empty;
-                                var options = GetOptionsProfilsPourSegment(segment);
-                                var selectDisabled = IsSegmentNonAffectable(segment);
-                                var affectationModifiee = IsAffectationModifiee(
-                                context.Segment,
-                                context.ConseillerPrioritaire,
-                                context.ConseillerSecondaire
-                                );
-                            }
-
-                            <MudTd Style="font-weight:600;color:#1A4E6B">
-                                @context.Segment
-                            </MudTd>
-
-                            <MudTd Style="background:#FFFDE7;overflow:visible">
-                                <MudSelect T="string"
-                                           @bind-Value="context.ConseillerPrioritaire"
-                                           Variant="Variant.Outlined"
-                                           Margin="Margin.Dense"
-                                           Dense="true"
-                                           Clearable="true"
-                                           Disabled="@selectDisabled"
-                                           Style="min-width:220px">
-
-                                    @foreach (var p in options)
-                                    {
-                                        <MudSelectItem T="string" Value="@p">@p</MudSelectItem>
-                                    }
-                                </MudSelect>
-                            </MudTd>
-
-                            <MudTd Style="background:#FFFDE7;overflow:visible">
-                                <MudSelect T="string"
-                                           @bind-Value="context.ConseillerSecondaire"
-                                           Variant="Variant.Outlined"
-                                           Margin="Margin.Dense"
-                                           Dense="true"
-                                           Clearable="true"
-                                           Disabled="@selectDisabled"
-                                           Style="min-width:220px">
-
-                                    @foreach (var p in options)
-                                    {
-                                        <MudSelectItem T="string" Value="@p">@p</MudSelectItem>
-                                    }
-                                </MudSelect>
-                            </MudTd>
-
-                            @if (modeSimulation)
-                            {
-                                <MudTd Style="text-align:center;background:#F5F7FA">
-                                    @if (affectationModifiee)
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">
-                                            Modifié
-                                        </MudChip>
-                                    }
-                                    else
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">
-                                            Inchangé
-                                        </MudChip>
-                                    }
-                                </MudTd>
-                            }
-                        </RowTemplate>
-                    </MudTable>
-                </MudPaper>
-            </MudTabPanel>
-
-            <!-- ════════════════════════════════════════════════════════
-                 Section 4 : Portefeuille
-            ════════════════════════════════════════════════════════ -->
-            <MudTabPanel Text="4. Portefeuille">
-                <MudPaper Elevation="1"
-                          Style="border-radius:8px;overflow:visible"
-                          Class="pa-0 mt-4">
-
-                    <div class="ca-section-header">
-                        <span class="ca-section-badge">4</span>
-                        Taille théorique de portefeuille par conseiller
-
-                        <MudChip T="string"
-                                 Size="Size.Small"
-                                 Variant="Variant.Outlined"
-                                 Style="color:white;border-color:rgba(255,255,255,.5);margin-left:auto;font-size:11px">
-                            Lecture seule — calculé automatiquement
-                        </MudChip>
-                    </div>
-
-                    <MudTable Items="@model.TaillesTheoretiques.OrderByDescending(t => GetTailleTheoriqueCalculee(t.Profil, t.SegmentCouvert)).ToList()"
-                              Dense="true"
-                              Hover="true"
-                              Elevation="0"
-                              Striped="true"
-                              Style="overflow:visible">
-
-                        <HeaderContent>
-                            <MudTh>Ligne métier</MudTh>
-                            <MudTh>Profil conseiller</MudTh>
-                            <MudTh>Segment couvert</MudTh>
-                            <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Intensité
-                            </MudTh>
-                            <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Volume horaire
-                            </MudTh>
-                            <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Taille actuelle
-                            </MudTh>
-
-                            @if (modeSimulation)
-                            {
-                                <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
-                                    Référence
-                                </MudTh>
-                                <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
-                                    Écart
-                                </MudTh>
-                            }
-                        </HeaderContent>
-
-                        <RowTemplate>
-                            @{
-                                var segmentNonRenseigne = IsSegmentNonRenseigne(context.SegmentCouvert);
-                                var intensiteActuelle = segmentNonRenseigne ? 0 : GetIntensiteBySegment(context.SegmentCouvert);
-                                var volumeActuel = GetVolumeHoraireByProfil(context.Profil);
-                                var tailleActuelle = intensiteActuelle > 0 ? volumeActuel / intensiteActuelle : 0;
-
-                                var tailleReference = GetBaselineTailleTheorique(context.Profil, context.SegmentCouvert);
-                                var ecartTaille = tailleActuelle - tailleReference;
-                            }
-
-                            <MudTd Style="color:#6C7A89;font-style:italic;font-size:12px">
-                                @context.LigneMetier
-                            </MudTd>
-
-                            <MudTd Style="font-weight:600;color:#1A4E6B">
-                                @context.Profil
-                            </MudTd>
-
-                            <MudTd>
-                                @context.SegmentCouvert
-                            </MudTd>
-
-                            <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89;font-style:italic">
-                                @(segmentNonRenseigne ? "?" : intensiteActuelle.ToString("F2"))
-                            </MudTd>
-
-                            <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89;font-style:italic">
-                                @(string.IsNullOrWhiteSpace(context.Profil) ? "0.0" : volumeActuel.ToString("F1"))
-                            </MudTd>
-
-                            <MudTd Style="@GetPortefeuilleCellStyle(tailleActuelle, segmentNonRenseigne)">
-                                @(segmentNonRenseigne || intensiteActuelle == 0 ? "—" : tailleActuelle.ToString("N2"))
-                            </MudTd>
-
-                            @if (modeSimulation)
-                            {
-                                <MudTd Style="text-align:center;background:#F5F7FA;color:#6C7A89">
-                                    @(segmentNonRenseigne || tailleReference == 0 ? "—" : tailleReference.ToString("N2"))
-                                </MudTd>
-
-                                <MudTd Style="@GetDeltaCellStyle(ecartTaille)">
-                                    @(segmentNonRenseigne || tailleReference == 0 ? "—" : FormatDelta(ecartTaille, "clients"))
-                                </MudTd>
-                            }
-                        </RowTemplate>
-                    </MudTable>
-                </MudPaper>
-            </MudTabPanel>
-        </MudTabs>
-    }
-
-    <div class="ca-footer">
-        © 2025 Crédit Agricole Nord de France — Plateforme de Dimensionnement
-    </div>
-</div>
-
-@code {
-    private ReglesHypothesesModel? model;
-    private bool modeSimulation = false;
-    private SimulationSnapshot? snapshotInitial;
-
-    private readonly Dictionary<string, List<string>> _optionsProfilsParSegment =
-        new(StringComparer.OrdinalIgnoreCase);
-
-    private static readonly List<string> ProfilsBanquePrivee = new()
-    {
-        "DIR. BP",
-        "BANQUIER PRIVÉ",
-        "CGP"
-    };
-
-    private static readonly List<string> ProfilsRetail = new()
-    {
-        "RESP. AGENCE",
-        "RCP",
-        "CONSEILLER CLIENTELE",
-        "CONSEILLER COMMERCIAL"
-    };
-
-    private static readonly List<string> ProfilsRetailAvecAccueil = new()
-    {
-        "RESP. AGENCE",
-        "RCP",
-        "CONSEILLER CLIENTELE",
-        "CONSEILLER COMMERCIAL",
-        "CONSEILLER D'ACCUEIL"
-    };
-
-    private static readonly HashSet<string> SegmentsBanquePrivee =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            "HDG Premium Potentiel",
-            "HDG Premium Standard"
-        };
-
-    protected override void OnInitialized()
-    {
-        model = StateService.Regles;
-        BuildOptionsProfilsParSegment();
-        snapshotInitial = CreateSnapshot();
-    }
-
-    private void ToggleModeSimulation()
-    {
-        modeSimulation = !modeSimulation;
-
-        if (snapshotInitial == null)
-            snapshotInitial = CreateSnapshot();
-    }
-
-    private void ReinitialiserSimulation()
-    {
-        if (snapshotInitial == null || model == null)
-            return;
-
-        RestoreSnapshot(snapshotInitial);
-
-        Snackbar.Add(
-            "Simulation réinitialisée avec les valeurs de référence.",
-            Severity.Info,
-            cfg =>
-            {
-                cfg.Icon = Icons.Material.Filled.Restore;
-                cfg.VisibleStateDuration = 3000;
-            }
-        );
-    }
-
-    private SimulationSnapshot CreateSnapshot()
-    {
-        var snapshot = new SimulationSnapshot();
-
-        if (model == null)
-            return snapshot;
-
-        snapshot.HeuresParSemaine = model.HeuresParSemaine;
-        snapshot.NbSemainesParAn = model.NbSemainesParAn;
-
-        foreach (var segment in model.SegmentsIntensite)
-        {
-            var key = NormalizeKey(segment.Segment);
-
-            if (!snapshot.Segments.ContainsKey(key))
-            {
-                snapshot.Segments[key] = new SegmentSnapshot
-                {
-                    Segment = segment.Segment ?? string.Empty,
-                    NombreRdvParAn = segment.NombreRdvParAn,
-                    DureeRdvHeures = segment.DureeRdvHeures
-                };
-            }
-        }
-
-        foreach (var profil in model.ConseillersProfils)
-        {
-            var key = NormalizeKey(profil.Profil);
-
-            if (!snapshot.PartsCommerciales.ContainsKey(key))
-                snapshot.PartsCommerciales[key] = profil.PartTempsCommercialPct;
-        }
-
-        foreach (var regle in model.ReglesAffectationSegments)
-        {
-            var key = NormalizeKey(regle.Segment);
-
-            if (!snapshot.Affectations.ContainsKey(key))
-            {
-                snapshot.Affectations[key] = new AffectationSnapshot
-                {
-                    Segment = regle.Segment ?? string.Empty,
-                    ConseillerPrioritaire = regle.ConseillerPrioritaire ?? string.Empty,
-                    ConseillerSecondaire = regle.ConseillerSecondaire ?? string.Empty
-                };
-            }
-        }
-
-        return snapshot;
-    }
-
-    private void RestoreSnapshot(SimulationSnapshot snapshot)
-    {
-        if (model == null)
-            return;
-
-        model.HeuresParSemaine = snapshot.HeuresParSemaine;
-        model.NbSemainesParAn = snapshot.NbSemainesParAn;
-
-        foreach (var segment in model.SegmentsIntensite)
-        {
-            var key = NormalizeKey(segment.Segment);
-
-            if (snapshot.Segments.TryGetValue(key, out var saved))
-            {
-                segment.NombreRdvParAn = saved.NombreRdvParAn;
-                segment.DureeRdvHeures = saved.DureeRdvHeures;
-            }
-        }
-
-        foreach (var profil in model.ConseillersProfils)
-        {
-            var key = NormalizeKey(profil.Profil);
-
-            if (snapshot.PartsCommerciales.TryGetValue(key, out var savedPart))
-                profil.PartTempsCommercialPct = savedPart;
-        }
-
-        foreach (var regle in model.ReglesAffectationSegments)
-        {
-            var key = NormalizeKey(regle.Segment);
-
-            if (snapshot.Affectations.TryGetValue(key, out var saved))
-            {
-                regle.ConseillerPrioritaire = saved.ConseillerPrioritaire;
-                regle.ConseillerSecondaire = saved.ConseillerSecondaire;
-            }
-        }
-
-        BuildOptionsProfilsParSegment();
-    }
-
-    private void BuildOptionsProfilsParSegment()
-    {
-        _optionsProfilsParSegment.Clear();
-
-        if (model?.ReglesAffectationSegments == null)
-            return;
-
-        foreach (var regle in model.ReglesAffectationSegments)
-        {
-            var segment = regle.Segment?.Trim() ?? string.Empty;
-
-            if (string.IsNullOrWhiteSpace(segment))
-                continue;
-
-            if (!_optionsProfilsParSegment.ContainsKey(segment))
-                _optionsProfilsParSegment[segment] = BuildOptionsProfilsForSegment(segment);
-
-            AddIfMissing(_optionsProfilsParSegment[segment], regle.ConseillerPrioritaire);
-            AddIfMissing(_optionsProfilsParSegment[segment], regle.ConseillerSecondaire);
-        }
-    }
-
-    private List<string> BuildOptionsProfilsForSegment(string segment)
-    {
-        if (IsSegmentNonAffectable(segment))
-            return new List<string>();
-
-        if (SegmentsBanquePrivee.Contains(segment))
-            return ProfilsBanquePrivee.ToList();
-
-        if (IsGpStandard(segment))
-            return ProfilsRetailAvecAccueil.ToList();
-
-        return ProfilsRetail.ToList();
-    }
-
-    private IReadOnlyList<string> GetOptionsProfilsPourSegment(string segment)
-    {
-        segment = segment?.Trim() ?? string.Empty;
-
-        if (_optionsProfilsParSegment.TryGetValue(segment, out var options))
-            return options;
-
-        var newOptions = BuildOptionsProfilsForSegment(segment);
-        _optionsProfilsParSegment[segment] = newOptions;
-
-        return newOptions;
-    }
-
-    private static void AddIfMissing(List<string> options, string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return;
-
-        var normalizedValue = value.Trim();
-
-        if (!options.Any(x => string.Equals(x.Trim(), normalizedValue, StringComparison.OrdinalIgnoreCase)))
-            options.Add(normalizedValue);
-    }
-
-    private static bool IsGpStandard(string? segment)
-    {
-        return string.Equals(segment?.Trim(), "GP Standard", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsSegmentNonAffectable(string? segment)
-    {
-        var s = segment?.Trim();
-
-        return string.IsNullOrWhiteSpace(s)
-               || string.Equals(s, "Non segmenté", StringComparison.OrdinalIgnoreCase)
-               || s == "?";
-    }
-
-    private static bool IsSegmentNonRenseigne(string? segment)
-    {
-        return string.IsNullOrWhiteSpace(segment) || segment.Trim() == "?";
-    }
-
-    private static string NormalizeKey(string? value)
-    {
-        return value?.Trim() ?? string.Empty;
-    }
-
-    private double GetIntensite(SegmentIntensite segment)
-    {
-        if (segment == null)
-            return 0;
-
-        return segment.NombreRdvParAn * segment.DureeRdvHeures;
-    }
-
-    private double GetHeuresTravailParAn()
-    {
-        if (model == null)
-            return 0;
-
-        return model.HeuresParSemaine * model.NbSemainesParAn;
-    }
-
-    private double GetPartTempsCommercialRatio(ConseillerTempsProfil profil)
-    {
-        if (profil == null)
-            return 0;
-
-        return ConvertPartTempsCommercialToRatio(profil.PartTempsCommercialPct);
-    }
-
-    private double ConvertPartTempsCommercialToRatio(double valeur)
-    {
-        if (double.IsNaN(valeur) || double.IsInfinity(valeur))
-            return 0;
-
-        if (valeur < 0)
-            return 0;
-
-        return valeur > 1 ? valeur / 100.0 : valeur;
-    }
-
-    private double GetPartTempsCommercialPctDisplay(ConseillerTempsProfil profil)
-    {
-        return GetPartTempsCommercialRatio(profil) * 100.0;
-    }
-
-    private double GetPartTempsNonCommercialPctDisplay(ConseillerTempsProfil profil)
-    {
-        return 100.0 - GetPartTempsCommercialPctDisplay(profil);
-    }
-
-    private void SetPartTempsCommercialPctFromDisplay(ConseillerTempsProfil profil, double valeurPct)
-    {
-        if (profil == null)
-            return;
-
-        profil.PartTempsCommercialPct = Math.Clamp(valeurPct, 0, 100);
-    }
-
-    private double GetVolumeHoraire(ConseillerTempsProfil profil)
-    {
-        if (model == null || profil == null)
-            return 0;
-
-        return Math.Round(GetHeuresTravailParAn() * GetPartTempsCommercialRatio(profil), 1);
-    }
-
-    private double GetVolumeHoraireByProfil(string profil)
-    {
-        if (model == null || string.IsNullOrWhiteSpace(profil))
-            return 0;
-
-        var conseiller = model.ConseillersProfils
-            .FirstOrDefault(c => string.Equals(c.Profil?.Trim(), profil.Trim(), StringComparison.OrdinalIgnoreCase));
-
-        return conseiller != null ? GetVolumeHoraire(conseiller) : 0;
-    }
-
-    private double GetIntensiteBySegment(string segment)
-    {
-        if (model == null || IsSegmentNonRenseigne(segment))
-            return 0;
-
-        var segmentTrouve = model.SegmentsIntensite
-            .FirstOrDefault(s => string.Equals(s.Segment?.Trim(), segment.Trim(), StringComparison.OrdinalIgnoreCase));
-
-        return segmentTrouve != null ? GetIntensite(segmentTrouve) : 0;
-    }
-
-    private double GetTailleTheoriqueCalculee(string? profil, string? segment)
-    {
-        if (string.IsNullOrWhiteSpace(profil) || IsSegmentNonRenseigne(segment))
-            return 0;
-
-        var intensite = GetIntensiteBySegment(segment!);
-        var volume = GetVolumeHoraireByProfil(profil);
-
-        return intensite > 0 ? volume / intensite : 0;
-    }
-
-    private double GetVolumeMoyen()
-    {
-        if (model == null || model.ConseillersProfils == null || !model.ConseillersProfils.Any())
-            return 0;
-
-        return model.ConseillersProfils.Average(c => GetVolumeHoraire(c));
-    }
-
-    private double GetIntensiteMoyenne()
-    {
-        if (model == null || model.SegmentsIntensite == null || !model.SegmentsIntensite.Any())
-            return 0;
-
-        var valeurs = model.SegmentsIntensite
-            .Select(GetIntensite)
-            .Where(v => v > 0)
-            .ToList();
-
-        return valeurs.Any() ? valeurs.Average() : 0;
-    }
-
-    private double GetCapaciteMoyenne()
-    {
-        if (model == null || model.TaillesTheoretiques == null)
-            return 0;
-
-        var valeurs = model.TaillesTheoretiques
-            .Where(t => !IsSegmentNonRenseigne(t.SegmentCouvert))
-            .Select(t =>
-            {
-                var intensite = GetIntensiteBySegment(t.SegmentCouvert);
-                var volume = GetVolumeHoraireByProfil(t.Profil);
-                return intensite > 0 ? volume / intensite : 0;
-            })
-            .Where(v => v > 0)
-            .ToList();
-
-        return valeurs.Any() ? valeurs.Average() : 0;
-    }
-
-    private double GetBaselineHeuresTravailParAn()
-    {
-        if (snapshotInitial == null)
-            return 0;
-
-        return snapshotInitial.HeuresParSemaine * snapshotInitial.NbSemainesParAn;
-    }
-
-    private double GetBaselineIntensiteBySegment(string? segment)
-    {
-        if (snapshotInitial == null || string.IsNullOrWhiteSpace(segment))
-            return 0;
-
-        var key = NormalizeKey(segment);
-
-        if (!snapshotInitial.Segments.TryGetValue(key, out var saved))
-            return 0;
-
-        return saved.NombreRdvParAn * saved.DureeRdvHeures;
-    }
-
-    private double GetBaselinePartCommercialeRatioByProfil(string? profil)
-    {
-        if (snapshotInitial == null || string.IsNullOrWhiteSpace(profil))
-            return 0;
-
-        var key = NormalizeKey(profil);
-
-        if (!snapshotInitial.PartsCommerciales.TryGetValue(key, out var saved))
-            return 0;
-
-        return ConvertPartTempsCommercialToRatio(saved);
-    }
-
-    private double GetBaselineVolumeHoraireByProfil(string? profil)
-    {
-        if (string.IsNullOrWhiteSpace(profil))
-            return 0;
-
-        return Math.Round(GetBaselineHeuresTravailParAn() * GetBaselinePartCommercialeRatioByProfil(profil), 1);
-    }
-
-    private double GetBaselineTailleTheorique(string? profil, string? segment)
-    {
-        if (snapshotInitial == null || string.IsNullOrWhiteSpace(profil) || IsSegmentNonRenseigne(segment))
-            return 0;
-
-        var intensite = GetBaselineIntensiteBySegment(segment);
-        var volume = GetBaselineVolumeHoraireByProfil(profil);
-
-        return intensite > 0 ? volume / intensite : 0;
-    }
-
-    private double GetBaselineVolumeMoyen()
-    {
-        if (model == null || snapshotInitial == null || model.ConseillersProfils == null || !model.ConseillersProfils.Any())
-            return 0;
-
-        return model.ConseillersProfils.Average(c => GetBaselineVolumeHoraireByProfil(c.Profil));
-    }
-
-    private double GetBaselineIntensiteMoyenne()
-    {
-        if (snapshotInitial == null || !snapshotInitial.Segments.Any())
-            return 0;
-
-        var valeurs = snapshotInitial.Segments.Values
-            .Select(s => s.NombreRdvParAn * s.DureeRdvHeures)
-            .Where(v => v > 0)
-            .ToList();
-
-        return valeurs.Any() ? valeurs.Average() : 0;
-    }
-
-    private double GetBaselineCapaciteMoyenne()
-    {
-        if (model == null || snapshotInitial == null || model.TaillesTheoretiques == null)
-            return 0;
-
-        var valeurs = model.TaillesTheoretiques
-            .Where(t => !IsSegmentNonRenseigne(t.SegmentCouvert))
-            .Select(t => GetBaselineTailleTheorique(t.Profil, t.SegmentCouvert))
-            .Where(v => v > 0)
-            .ToList();
-
-        return valeurs.Any() ? valeurs.Average() : 0;
-    }
-
-    private double GetDeltaHeuresTravailParAn()
-    {
-        return GetHeuresTravailParAn() - GetBaselineHeuresTravailParAn();
-    }
-
-    private double GetDeltaVolumeMoyen()
-    {
-        return GetVolumeMoyen() - GetBaselineVolumeMoyen();
-    }
-
-    private double GetDeltaIntensiteMoyenne()
-    {
-        return GetIntensiteMoyenne() - GetBaselineIntensiteMoyenne();
-    }
-
-    private double GetDeltaCapaciteMoyenne()
-    {
-        return GetCapaciteMoyenne() - GetBaselineCapaciteMoyenne();
-    }
-
-    private bool IsAffectationModifiee(string? segment, string? conseillerPrioritaire, string? conseillerSecondaire)
-    {
-        if (snapshotInitial == null || string.IsNullOrWhiteSpace(segment))
-            return false;
-
-        var key = NormalizeKey(segment);
-
-        if (!snapshotInitial.Affectations.TryGetValue(key, out var saved))
-            return false;
-
-        return !string.Equals(saved.ConseillerPrioritaire?.Trim(), conseillerPrioritaire?.Trim(), StringComparison.OrdinalIgnoreCase)
-               || !string.Equals(saved.ConseillerSecondaire?.Trim(), conseillerSecondaire?.Trim(), StringComparison.OrdinalIgnoreCase);
-    }
-
-    private string FormatDelta(double delta, string unite)
-    {
-        if (Math.Abs(delta) < 0.0001)
-            return "0";
-
-        var prefix = delta > 0 ? "+" : "";
-        var suffix = string.IsNullOrWhiteSpace(unite) ? "" : $" {unite}";
-
-        return $"{prefix}{delta:F2}{suffix}";
-    }
-
-    private string GetDeltaStyle(double delta)
-    {
-        if (Math.Abs(delta) < 0.0001)
-            return "color:#6C7A89;font-weight:600";
-
-        if (delta > 0)
-            return "color:#1B5E20;font-weight:700";
-
-        return "color:#B71C1C;font-weight:700";
-    }
-
-    private string GetDeltaCellStyle(double delta)
-    {
-        var baseStyle = "text-align:center;font-weight:700;";
-
-        if (Math.Abs(delta) < 0.0001)
-            return baseStyle + "background:#F5F7FA;color:#6C7A89";
-
-        if (delta > 0)
-            return baseStyle + "background:#E8F5E9;color:#1B5E20";
-
-        return baseStyle + "background:#FDECEA;color:#B71C1C";
-    }
-
-    private string GetPortefeuilleCellStyle(double taille, bool segmentNonRenseigne)
-    {
-        var baseStyle = "text-align:center;font-weight:700;font-size:15px;";
-
-        if (segmentNonRenseigne || taille <= 0)
-            return baseStyle + "background:#E8EDF2;color:#6C7A89";
-
-        if (taille < 150)
-            return baseStyle + "background:#FDECEA;color:#B71C1C";
-
-        if (taille < 300)
-            return baseStyle + "background:#FFF3E0;color:#E65100";
-
-        return baseStyle + "background:#E8F5E9;color:#1B5E20";
-    }
-
-    private void Enregistrer()
-    {
-        if (model == null)
-            return;
-
-        StateService.UpdateRegles(model);
-
-        snapshotInitial = CreateSnapshot();
-
-        Snackbar.Add(
-            "Modifications enregistrées — les valeurs actuelles deviennent la nouvelle référence de simulation.",
-            Severity.Success,
-            cfg =>
-            {
-                cfg.Icon = Icons.Material.Filled.CheckCircle;
-                cfg.VisibleStateDuration = 3000;
-            }
-        );
-    }
-
-    private sealed class SimulationSnapshot
-    {
-        public double HeuresParSemaine { get; set; }
-        public double NbSemainesParAn { get; set; }
-
-        public Dictionary<string, SegmentSnapshot> Segments { get; set; } =
-            new(StringComparer.OrdinalIgnoreCase);
-
-        public Dictionary<string, double> PartsCommerciales { get; set; } =
-            new(StringComparer.OrdinalIgnoreCase);
-
-        public Dictionary<string, AffectationSnapshot> Affectations { get; set; } =
-            new(StringComparer.OrdinalIgnoreCase);
-    }
-
-    private sealed class SegmentSnapshot
-    {
-        public string Segment { get; set; } = string.Empty;
-        public double NombreRdvParAn { get; set; }
-        public double DureeRdvHeures { get; set; }
-    }
-
-    private sealed class AffectationSnapshot
-    {
-        public string Segment { get; set; } = string.Empty;
-        public string ConseillerPrioritaire { get; set; } = string.Empty;
-        public string ConseillerSecondaire { get; set; } = string.Empty;
-    }
-}
+'Segmentation.Server.exe' (CoreCLR: DefaultDomain) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Private.CoreLib.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Segmentation.Server.dll'. Les symboles ont été chargés.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Runtime.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'c:\program files\microsoft visual studio\18\professional\common7\ide\extensions\microsoft\managedprojectsystem\HotReload\net10.0\Microsoft.Extensions.DotNetDeltaApplier.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Linq.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Runtime.Loader.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Console.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Collections.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Runtime.InteropServices.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Collections.Concurrent.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.IO.Pipes.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Threading.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Threading.Overlapped.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Security.AccessControl.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Security.Principal.Windows.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Security.Claims.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'c:\program files\microsoft visual studio\18\professional\common7\ide\extensions\microsoft\managedprojectsystem\HotReload\net6.0\Microsoft.AspNetCore.Watch.BrowserRefresh.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'c:\program files\microsoft visual studio\18\professional\common7\ide\extensions\microsoft\web tools\projectsystem\net7.0\Microsoft.WebTools.ApiEndpointDiscovery.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\Microsoft Visual Studio\18\Professional\Common7\IDE\Extensions\Microsoft\Web Tools\Browser Link\Microsoft.WebTools.BrowserLink.Net.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Hosting.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.DependencyInjection.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Logging.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Diagnostics.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Configuration.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Mapster.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Http.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Routing.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.ComponentModel.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Features.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Diagnostics.HealthChecks.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Configuration.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Primitives.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Hosting.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Configuration.FileExtensions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Configuration.Json.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Configuration.EnvironmentVariables.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\CANDF.Kosmos.Dependencies.dll'. Chargement des symboles désactivé par le paramètre Include/Exclude.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Segmentation.Application.dll'. Les symboles ont été chargés.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Segmentation.Infrastructure.dll'. Les symboles ont été chargés.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Mvc.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\CANDF.Kosmos.Tools.dll'. Chargement des symboles désactivé par le paramètre Include/Exclude.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Http.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Mvc.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Mvc.Core.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Hosting.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\catslogger.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\CANDF.Kosmos.Foundations.dll'. Chargement des symboles désactivé par le paramètre Include/Exclude.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.HttpsPolicy.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Microsoft.AspNetCore.Components.WebAssembly.Server.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.StaticFiles.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Authentication.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Authorization.Policy.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\HealthChecks.UI.Client.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\Microsoft Visual Studio\18\Professional\Common7\IDE\PrivateAssemblies\Runtime\Microsoft.VisualStudio.Debugger.Runtime.NetCoreApp.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Hosting.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.FileProviders.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.FileProviders.Physical.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Options.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Logging.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Diagnostics.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Diagnostics.DiagnosticSource.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Configuration.Binder.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Memory.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.IO.FileSystem.Watcher.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.ComponentModel.Primitives.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\Microsoft.Win32.Primitives.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Text.Json.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Text.Encoding.Extensions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.IO.Pipelines.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Configuration.UserSecrets.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Logging.EventLog.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Logging.Configuration.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Options.ConfigurationExtensions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Logging.Console.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Logging.Debug.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Logging.EventSource.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Diagnostics.Tracing.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.DependencyInjection.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Server.Kestrel.Core.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Server.Kestrel.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Server.Kestrel.Transport.Quic.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Server.Kestrel.Transport.NamedPipes.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Net.Quic.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Net.Sockets.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Net.Primitives.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\Microsoft.Win32.Registry.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Server.IIS.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Server.IISIntegration.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.FileProviders.Composite.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Text.Encodings.Web.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Numerics.Vectors.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Mvc.ApiExplorer.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Connections.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Hosting.Server.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.ObjectPool.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.HostFiltering.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.HttpOverrides.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Routing.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.ObjectModel.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Authentication.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\xconnect.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Microsoft.AspNetCore.Authentication.OpenIdConnect.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Authentication.Core.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.DataProtection.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.DataProtection.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Cryptography.Internal.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.WebEncoders.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Net.Http.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Http.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Authentication.Cookies.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\StackExchange.Redis.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Microsoft.AspNetCore.DataProtection.StackExchangeRedis.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Microsoft.Extensions.Caching.StackExchangeRedis.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Pipelines.Sockets.Unofficial.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Threading.ThreadPool.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Text.RegularExpressions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Threading.Thread.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Runtime.Intrinsics.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Net.Security.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Security.Cryptography.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Reflection.Emit.Lightweight.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Reflection.Emit.ILGeneration.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Reflection.Primitives.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Linq.Parallel.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Caching.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\AWSSDK.S3.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\AWSSDK.Core.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.HttpLogging.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Http.Features.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Diagnostics.HealthChecks.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\FluentValidation.DependencyInjectionExtensions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\FluentValidation.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\MediatR.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\MediatR.Contracts.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Mapster.Core.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\netstandard.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Linq.Expressions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Microsoft.EntityFrameworkCore.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Segmentation.Core.dll'. Les symboles ont été chargés.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\CANDF.Kosmos.Foundations.Models.dll'. Chargement des symboles désactivé par le paramètre Include/Exclude.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Segmentation.Shared.dll'. Les symboles ont été chargés.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\CANDF.Kosmos.Dependencies.Models.dll'. Chargement des symboles désactivé par le paramètre Include/Exclude.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Authorization.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Mvc.Cors.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Cors.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Mvc.DataAnnotations.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Serilog.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Serilog.Extensions.Hosting.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Serilog.Extensions.Logging.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Newtonsoft.Json.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Localization.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Mvc.Razor.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Http.Extensions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Serilog.Settings.Configuration.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Microsoft.Extensions.DependencyModel.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Reflection.Metadata.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.IO.MemoryMappedFiles.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Collections.Immutable.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Serilog.AspNetCore.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Serilog.Enrichers.ClientInfo.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Serilog.Enrichers.Environment.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Serilog.Enrichers.Thread.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Serilog.Formatting.Compact.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Serilog.Formatting.Elasticsearch.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Serilog.Sinks.Console.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Serilog.Sinks.Debug.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Serilog.Sinks.Elasticsearch.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Serilog.Sinks.File.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Serilog.Sinks.PeriodicBatching.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\bin\Debug\net10.0\Elasticsearch.Net.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Private.Uri.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Net.Http.Headers.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.ComponentModel.TypeConverter.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Runtime.Numerics.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.ComponentModel.Annotations.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Metadata.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Xml.XDocument.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Private.Xml.Linq.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Private.Xml.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Runtime.Extensions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Diagnostics.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.Extensions.Validation.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.1\Microsoft.AspNetCore.Diagnostics.Abstractions.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Collections.NonGeneric.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Formats.Asn1.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
+Verbose logs are written to:
+C:\Users\J097179\AppData\Local\Temp\1\visualstudio-js-debugger.txt
+Le programme '' s'est arrêté avec le code 4294967295 (0xffffffff).
+Le programme '[3040] Segmentation.Server.exe' s'est arrêté avec le code 4294967295 (0xffffffff).
