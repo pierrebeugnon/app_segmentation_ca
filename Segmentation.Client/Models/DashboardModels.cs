@@ -119,6 +119,7 @@ namespace Segmentation.Client.Models
         public string Segment { get; set; } = "";
         public string ConseillerPrioritaire { get; set; } = "";
         public string ConseillerSecondaire { get; set; } = "";
+        public string ConseillerTertiaire { get; set; } = "";
     }
 
     // ── Section 4 : Taille théorique (config fixe, calculs dynamiques) ────────
