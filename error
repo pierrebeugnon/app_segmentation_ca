@@ -1,28 +1,47 @@
-@layout TelerikLayout
-@inherits LayoutComponentBase
-@using Microsoft.AspNetCore.Components.WebAssembly.Hosting
-@inject IWebAssemblyHostEnvironment HostEnvironment
-@using Segmentation.Client.Components.Layout
+<!DOCTYPE html>
+<html lang="fr">
 
-<MudThemeProvider />
-<MudDialogProvider />
-<MudSnackbarProvider />
-<MudPopoverProvider />
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Segmentation et Dimensionnement</title>
+    <base href="/" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
 
-<div id="header-block">
-    <Ribbon />
-    <AppBar />
-</div>
-<div id="content-block">
-    <nav role="navigation">
-        <Menu />
-    </nav>
-    <main role="main">
-        <div id="main-body">
-            <div id="main-body-content">
-                @Body
-                <AppNotification></AppNotification>
-            </div>
-        </div>
-    </main>
-</div>
+    <script src="_content/Telerik.UI.for.Blazor/js/telerik-blazor.js" defer></script>
+
+    <link href="css/bootstrap/bootstrap.min.css" rel="stylesheet" />
+    <link href="css/fontawesome/all.min.css" rel="stylesheet" />
+    <link href="css/peri/ca-theme-2023-3.css" rel="stylesheet" />
+    <link href="css/peri/colors.css" rel="stylesheet" />
+    <link href="css/peri/kendo.css" rel="stylesheet" />
+    <link href="css/peri/notification.css" rel="stylesheet" />
+    <link href="css/peri/opensans.css" rel="stylesheet" />
+    <link href="css/peri/progressbar.css" rel="stylesheet" />
+
+    <link href="Segmentation.Client.styles.css" rel="stylesheet" />
+    <link href="css/material-io-colors.css" rel="stylesheet" />
+    <link href="css/notifications.css" rel="stylesheet" />
+    <link href="css/app.css" rel="stylesheet" />
+    <link href="css/MudBlazor.min.css" rel="stylesheet" />
+    <script src="js/app.js"></script>
+</head>
+
+<body>
+    <div id="app"></div>
+    <script>
+        window.blazorCulture = {
+            get: () => window.localStorage['BlazorCulture'],
+            set: (value) => window.localStorage['BlazorCulture'] = value
+        };
+    </script>
+    <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            Blazor.start();
+        });
+    </script>
+    <script src="js/MudBlazor.min.js"></script>
+</body>
+</html>
