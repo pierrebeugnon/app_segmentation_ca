@@ -1,1 +1,28 @@
-<MudTd Style="text-align:center;font-weight:700;color:#1A4E6B;font-size:15px">
+@layout TelerikLayout
+@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.WebAssembly.Hosting
+@inject IWebAssemblyHostEnvironment HostEnvironment
+@using Segmentation.Client.Components.Layout
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudPopoverProvider />
+
+<div id="header-block">
+    <Ribbon />
+    <AppBar />
+</div>
+<div id="content-block">
+    <nav role="navigation">
+        <Menu />
+    </nav>
+    <main role="main">
+        <div id="main-body">
+            <div id="main-body-content">
+                @Body
+                <AppNotification></AppNotification>
+            </div>
+        </div>
+    </main>
+</div>
