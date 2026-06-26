@@ -188,5 +188,6 @@
 'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Formats.Asn1.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
 Verbose logs are written to:
 C:\Users\J097179\AppData\Local\Temp\1\visualstudio-js-debugger.txt
+'Segmentation.Server.exe' (CoreCLR: clrhost) : Chargé 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.Net.WebSockets.dll'. Chargement des symboles ignoré. Le module est optimisé et l'option du débogueur 'Uniquement mon code' est activée.
 Le programme '' s'est arrêté avec le code 4294967295 (0xffffffff).
-Le programme '[22064] Segmentation.Server.exe' s'est arrêté avec le code 4294967295 (0xffffffff).
+Le programme '[12168] Segmentation.Server.exe' s'est arrêté avec le code 4294967295 (0xffffffff).
