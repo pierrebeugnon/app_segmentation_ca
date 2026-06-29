@@ -927,6 +927,40 @@ thead .ca-dim-sticky-col { background: #1A4E6B !important; z-index: 4; }
 .ca-dim-cell-label-existant { color: #6C7A89; font-weight: 600; }
 .ca-dim-cell-label-cible    { color: #1A4E6B; font-weight: 600; }
 
+/* Valeur ETP cible calculée (zone basse) */
+.ca-dim-cible-etp {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1px;
+    color: rgba(255,255,255,0.95);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    white-space: nowrap;
+}
+/* Pour les cellules tertiaire (fond clair, texte sombre) */
+[style*="background:#C3E6CB"] .ca-dim-cible-etp {
+    color: #1A4E6B;
+}
+/* Pour les cellules non affectées */
+.ca-dim-cell-bottom-empty .ca-dim-cible-etp {
+    color: #9AA5B1;
+}
+.ca-dim-cible-role {
+    font-size: 9.5px;
+    font-weight: 400;
+    opacity: 0.75;
+}
+
+/* Total cible dans la ligne total */
+.ca-dim-total-cible {
+    font-size: 10px;
+    font-weight: 600;
+    color: #1A4E6B;
+    opacity: 0.75;
+    margin-top: 1px;
+}
+
 /* Input numérique dans cellule */
 .ca-dim-table .mud-input-root { justify-content: center; }
 .ca-dim-table .mud-input      { text-align: center !important; color: inherit !important; font-size: 12px; font-weight: 600; }

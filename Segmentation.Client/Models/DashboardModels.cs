@@ -102,6 +102,8 @@ namespace Segmentation.Client.Models
         public double NombreRdvParAn { get; set; }
         public double DureeRdvHeures { get; set; }
         public double IntensiteRelationnelle => Math.Round(NombreRdvParAn * DureeRdvHeures, 2);
+        /// <summary>Nombre de clients dans ce segment (par agence) — utilisé pour le calcul ETP cible</summary>
+        public int NombreClients { get; set; }
     }
 
     // ── Section 2 : Conseillers et temps commercial ───────────────────────────

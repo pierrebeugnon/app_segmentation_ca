@@ -161,11 +161,14 @@
                                     <td class="ca-dim-td-merged" style="@GetMergedCellStyle(lvl, row.IsTotal)">
                                         @if (row.IsTotal)
                                         {
-                                            <!-- Ligne total : valeur unique -->
+                                            <!-- Ligne total : ETP existant + ETP cible -->
+                                            var etpCibleTot = GetEtpCibleTotal(profil);
                                             <div class="ca-dim-total-cell">
-                                                @(etp.HasValue && etp > 0
-                                                    ? (vueEtp ? etp.Value.ToString("F2") : etp.Value.ToString("N0"))
-                                                    : "—")
+                                                <div>@(etp.HasValue && etp > 0 ? etp.Value.ToString("F2") : "—")</div>
+                                                @if (etpCibleTot.HasValue)
+                                                {
+                                                    <div class="ca-dim-total-cible">▼ @etpCibleTot.Value.ToString("F2")</div>
+                                                }
                                             </div>
                                         }
                                         else
@@ -194,22 +197,30 @@
                                                 }
                                             </div>
 
-                                            <!-- ▼ Zone CIBLE (depuis ReglesHypothèses) -->
+                                            <!-- ▼ Zone CIBLE — ETP calculé depuis ReglesHypothèses -->
+                                            @{
+                                                var etpCible = GetEtpCible(row.Segment, profil);
+                                                var roleLbl  = lvl switch { 1 => "Prio", 2 => "Sec.", 3 => "Tert.", _ => "" };
+                                            }
                                             <div class="ca-dim-cell-bottom @(lvl > 0 ? "ca-dim-cell-bottom-assigned" : "ca-dim-cell-bottom-empty")">
-                                                @switch (lvl)
+                                                @if (lvl > 0 && etpCible.HasValue)
                                                 {
-                                                    case 1:
-                                                        <span class="ca-dim-role-pill">● Prioritaire</span>
-                                                        break;
-                                                    case 2:
-                                                        <span class="ca-dim-role-pill">● Secondaire</span>
-                                                        break;
-                                                    case 3:
-                                                        <span class="ca-dim-role-pill ca-dim-role-pill-light">● Tertiaire</span>
-                                                        break;
-                                                    default:
-                                                        <span class="ca-dim-role-none">—</span>
-                                                        break;
+                                                    <span class="ca-dim-cible-etp">
+                                                        @etpCible.Value.ToString("F2")
+                                                        <span class="ca-dim-cible-role">(@roleLbl)</span>
+                                                    </span>
+                                                }
+                                                else if (lvl > 0)
+                                                {
+                                                    <span class="ca-dim-role-pill">@roleLbl</span>
+                                                    <MudTooltip Text="Renseignez le nombre de clients dans Règles &amp; Hypothèses Section 1">
+                                                        <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small"
+                                                                 Style="font-size:11px;opacity:0.6;margin-left:2px" />
+                                                    </MudTooltip>
+                                                }
+                                                else
+                                                {
+                                                    <span class="ca-dim-role-none">—</span>
                                                 }
                                             </div>
                                         }
@@ -381,6 +392,41 @@
         var filled = assigned.Count(p => (row.EtpParProfil.GetValueOrDefault(p) ?? 0) > 0);
         return filled == 0 ? 0 : filled == assigned.Count ? 2 : 1;
     }
+
+    // ── ETP CIBLE calculé depuis ReglesHypothèses ─────────────────────────
+    // Formule : NombreClients(segment) / TailleThéorique(profil, segment)
+    // TailleThéorique = VolumeHoraire(profil) / IntensitéRelationnelle(segment)
+    // = (HeuresTravailParAn × PartTempsCommercialPct/100) / (NbRdv × DuréeRdv)
+    private double? GetEtpCible(string segment, string profil)
+    {
+        var si = StateService.Regles.SegmentsIntensite
+            .FirstOrDefault(s => s.Segment?.Trim().Equals(segment.Trim(), StringComparison.OrdinalIgnoreCase) == true);
+        if (si == null || si.NombreClients <= 0) return null;
+
+        var intensite = si.IntensiteRelationnelle;
+        if (intensite <= 0) return null;
+
+        var cp = StateService.Regles.ConseillersProfils
+            .FirstOrDefault(p => p.Profil?.Trim().Equals(profil.Trim(), StringComparison.OrdinalIgnoreCase) == true);
+        if (cp == null) return null;
+
+        var heuresAn = StateService.Regles.HeuresTravailParAn;
+        var volumeHoraire = heuresAn * cp.PartTempsCommercialPct / 100.0;
+        if (volumeHoraire <= 0) return null;
+
+        var tailleTheorique = volumeHoraire / intensite;   // nb clients par conseiller
+        return tailleTheorique > 0
+            ? Math.Round(si.NombreClients / tailleTheorique, 2)
+            : null;
+    }
+
+    // ── ETP CIBLE total par colonne (ligne Total) ─────────────────────────
+    private double? GetEtpCibleTotal(string profil) =>
+        segments.Select(s => GetEtpCible(s, profil))
+                .Where(v => v.HasValue)
+                .Select(v => v!.Value)
+                .DefaultIfEmpty()
+                .Sum() is double t && t > 0 ? t : null;
 
     // ── Calculs ───────────────────────────────────────────────────────────
     private double? GetRowTotal(DimMatrixRow row)
