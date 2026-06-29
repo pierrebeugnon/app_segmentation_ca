@@ -161,9 +161,7 @@
                                     <td class="ca-dim-td-merged" style="@GetMergedCellStyle(lvl, row.IsTotal)">
                                         @if (row.IsTotal)
                                         {
-                                            @{
-                                                var etpCibleTot = GetEtpCibleTotal(profil);
-                                            }
+                                            var etpCibleTot = GetEtpCibleTotal(profil);
                                             <!-- Ligne total : ETP existant + ETP cible -->
                                             <div class="ca-dim-total-cell">
                                                 <div>@(etp.HasValue && etp > 0 ? etp.Value.ToString("F2") : "—")</div>
@@ -175,13 +173,11 @@
                                         }
                                         else
                                         {
-                                            @{
-                                                var etpCible    = GetEtpCible(row.Segment, profil);
-                                                var roleLbl     = lvl switch { 1 => "Prio", 2 => "Sec.", 3 => "Tert.", _ => "" };
-                                                var placeholder = lvl > 0 ? "0.00" : "—";
-                                                var bottomCls   = lvl > 0 ? "ca-dim-cell-bottom ca-dim-cell-bottom-assigned"
-                                                                           : "ca-dim-cell-bottom ca-dim-cell-bottom-empty";
-                                            }
+                                            var etpCible    = GetEtpCible(row.Segment, profil);
+                                            var roleLbl     = lvl switch { 1 => "Prio", 2 => "Sec.", 3 => "Tert.", _ => "" };
+                                            var placeholder = lvl > 0 ? "0.00" : "—";
+                                            var bottomCls   = lvl > 0 ? "ca-dim-cell-bottom ca-dim-cell-bottom-assigned"
+                                                                       : "ca-dim-cell-bottom ca-dim-cell-bottom-empty";
                                             <!-- ▲ Zone EXISTANT (modifiable) -->
                                             <div class="ca-dim-cell-top">
                                                 @if (vueEtp)
