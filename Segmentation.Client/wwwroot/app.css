@@ -849,19 +849,83 @@ thead .ca-dim-sticky-col { background: #1A4E6B !important; z-index: 4; }
     box-shadow: 2px 0 4px rgba(0,0,0,0.06);
 }
 
-/* Badges rôle dans table CIBLE */
-.ca-dim-role-badge {
-    display: inline-block;
-    padding: 2px 7px;
-    border-radius: 10px;
-    font-size: 10px;
+/* ── Cellules fusionnées EXISTANT ▲ / CIBLE ▼ ───────────────── */
+.ca-dim-td-merged {
+    padding: 0;
+    border-bottom: 1px solid #E8EDF2;
+    border-left: 1px solid #EAECEF;
+    vertical-align: top;
+    min-width: 108px;
+    transition: filter .12s;
+}
+.ca-dim-tr-data:hover .ca-dim-td-merged:not([style*="background:#1A6B3C"]):not([style*="background:#52A86B"]):not([style*="background:#C3E6CB"]) {
+    background-color: #EEF4FA;
+}
+
+/* Partie haute — EXISTANT (modifiable) */
+.ca-dim-cell-top {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 6px 4px;
+    min-height: 32px;
+}
+
+/* Partie basse — CIBLE (depuis règles) */
+.ca-dim-cell-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 6px 4px;
+    min-height: 20px;
+    border-top: 1px solid rgba(0,0,0,0.10);
+}
+.ca-dim-cell-bottom-assigned { background: rgba(0,0,0,0.08); }
+.ca-dim-cell-bottom-empty    { background: rgba(0,0,0,0.02); }
+
+/* Pills rôle dans zone CIBLE */
+.ca-dim-role-pill {
+    font-size: 9.5px;
     font-weight: 600;
-    letter-spacing: .3px;
+    letter-spacing: .2px;
+    color: rgba(255,255,255,0.92);
     white-space: nowrap;
 }
-.ca-dim-role-prio   { background: rgba(255,255,255,0.25); color: white; border: 1px solid rgba(255,255,255,0.5); }
-.ca-dim-role-secon  { background: rgba(255,255,255,0.25); color: white; border: 1px solid rgba(255,255,255,0.5); }
-.ca-dim-role-tertio { background: rgba(26,107,60,0.12);   color: #1A6B3C; border: 1px solid #52A86B; }
+.ca-dim-role-pill-light {
+    color: #1A4E6B;
+}
+.ca-dim-role-none {
+    font-size: 11px;
+    color: #C5CAD0;
+}
+
+/* Ligne TOTAL — cellule unique centrée */
+.ca-dim-total-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 6px;
+    font-weight: 700;
+    color: #1A4E6B;
+    font-size: 13px;
+}
+.ca-dim-total-label {
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #1A4E6B;
+}
+
+/* Séparateur dans la légende */
+.ca-dim-legend-sep {
+    width: 1px;
+    height: 16px;
+    background: #D0D5DA;
+    flex-shrink: 0;
+}
+.ca-dim-cell-label-existant { color: #6C7A89; font-weight: 600; }
+.ca-dim-cell-label-cible    { color: #1A4E6B; font-weight: 600; }
 
 /* Input numérique dans cellule */
 .ca-dim-table .mud-input-root { justify-content: center; }

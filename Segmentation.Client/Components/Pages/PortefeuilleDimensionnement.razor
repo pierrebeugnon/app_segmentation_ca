@@ -14,8 +14,8 @@
             <MudText Typo="Typo.h5" Class="ca-page-title">Dimensionnement des Portefeuilles</MudText>
             <MudText Typo="Typo.caption" Class="ca-page-subtitle">
                 @(vueEtp
-                    ? "Vue ETP — saisie des charges existantes et cible théorique"
-                    : "Vue Volume de clients — projection informative (non modifiable)")
+                    ? "Vue ETP — saisie des charges existantes et comparaison à la cible"
+                    : "Vue Volume de clients — projection informative")
             </MudText>
         </div>
 
@@ -27,44 +27,50 @@
             <MudButton StartIcon="@Icons.Material.Filled.People"
                        Variant="@(!vueEtp ? Variant.Filled : Variant.Outlined)"
                        Color="@(!vueEtp   ? Color.Primary  : Color.Default)"
-                       OnClick="@(() => vueEtp = false)">Vue Volume de clients</MudButton>
+                       OnClick="@(() => vueEtp = false)">Vue Volume</MudButton>
         </MudButtonGroup>
     </div>
 
-    <!-- ── Légende ───────────────────────────────────────────────── -->
+    <!-- ── Légende ───────────────────────────────────────────────────── -->
     <div class="ca-dim-legend-bar">
+        <!-- Couleurs -->
         <span class="ca-dim-legend-item">
-            <span class="ca-dim-swatch" style="background:#1A6B3C"></span>
-            Prioritaire
+            <span class="ca-dim-swatch" style="background:#1A6B3C"></span>Prioritaire
         </span>
         <span class="ca-dim-legend-item">
-            <span class="ca-dim-swatch" style="background:#52A86B"></span>
-            Secondaire
+            <span class="ca-dim-swatch" style="background:#52A86B"></span>Secondaire
         </span>
         <span class="ca-dim-legend-item">
-            <span class="ca-dim-swatch" style="background:#C3E6CB;border:1px solid #52A86B"></span>
-            Tertiaire
+            <span class="ca-dim-swatch" style="background:#C3E6CB;border:1px solid #52A86B"></span>Tertiaire
         </span>
         <span class="ca-dim-legend-item" style="color:#9AA5B1">
-            <span class="ca-dim-swatch" style="background:#F0F2F5;border:1px solid #D0D5DA"></span>
-            Non affecté
+            <span class="ca-dim-swatch" style="background:#F0F2F5;border:1px solid #D0D5DA"></span>Non affecté
         </span>
+
+        <!-- Séparateur + explication cellule -->
+        <span class="ca-dim-legend-sep"></span>
+        <span class="ca-dim-legend-item" style="font-size:11px;color:#6C7A89;gap:10px">
+            <span class="ca-dim-cell-label-existant">▲ Existant</span>
+            <span style="color:#C5CAD0">·</span>
+            <span class="ca-dim-cell-label-cible">▼ Cible (Règles &amp; Hypothèses)</span>
+        </span>
+
         <div style="flex:1"></div>
-        <!-- KPI chips dynamiques -->
-        @if (existantRows.Any())
+
+        <!-- KPI dynamiques -->
+        @{
+            var nbSaisis  = rows.Where(r => !r.IsTotal).Count(r => r.EtpParProfil.Values.Any(v => v > 0));
+            var totalSaisi = rows.Where(r => !r.IsTotal).SelectMany(r => r.EtpParProfil.Values).Sum(v => v ?? 0);
+        }
+        @if (segments.Any())
         {
-            var nbSaisis = existantRows.Where(r => !r.IsTotal)
-                .Count(r => r.EtpParProfil.Values.Any(v => v.HasValue && v > 0));
-            var totalEtp = existantRows.Where(r => !r.IsTotal)
-                .SelectMany(r => r.EtpParProfil.Values)
-                .Sum(v => v ?? 0);
             <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined"
                      Style="height:24px;font-size:11px;font-weight:600">
-                @nbSaisis / @segments.Count segments renseignés
+                @nbSaisis / @segments.Count segments saisis
             </MudChip>
             <MudChip T="string" Size="Size.Small" Color="Color.Dark" Variant="Variant.Outlined"
                      Style="height:24px;font-size:11px;font-weight:600">
-                @totalEtp.ToString("F2") ETP saisis
+                @totalSaisi.ToString("F2") ETP existants
             </MudChip>
         }
     </div>
@@ -79,209 +85,175 @@
     else
     {
         <!-- ══════════════════════════════════════════════════════════
-             SECTION EXISTANT — modifiable
-             L'utilisateur saisit l'état actuel pour comparer à la cible
+             TABLE FUSIONNÉE — Existant (▲) + Cible (▼) par cellule
         ══════════════════════════════════════════════════════════ -->
-        <div class="ca-dim-section-row">
-            <div class="ca-dim-section-tag ca-dim-tag-existant">
-                EXISTANT
-                <div class="ca-dim-tag-sub">à saisir</div>
+        <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden">
+            <div class="ca-section-header" style="display:flex;align-items:center;gap:10px">
+                <span class="ca-section-badge">1</span>
+                Répartition des charges @(vueEtp ? "(en ETP)" : "(nombre de clients)") — Existant vs Cible
+                <MudTooltip Text="Chaque cellule affiche sur deux lignes : ▲ la valeur existante saisie (modifiable en Vue ETP) et ▼ l'affectation cible issue des Règles et Hypothèses (lecture seule). La couleur de fond indique le rôle du conseiller pour ce segment.">
+                    <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small"
+                             Style="color:rgba(255,255,255,0.65)" />
+                </MudTooltip>
+                @if (vueEtp)
+                {
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                             Style="height:20px;font-size:10px;color:rgba(255,255,255,0.85);border-color:rgba(255,255,255,0.4);margin-left:auto">
+                        Cellules ▲ modifiables
+                    </MudChip>
+                }
             </div>
 
-            <MudPaper Elevation="1" Class="ca-dim-paper mb-4">
-                <div class="ca-section-header" style="border-radius:0 8px 0 0;display:flex;align-items:center;gap:10px">
-                    <span class="ca-section-badge">1</span>
-                    Répartition actuelle des charges @(vueEtp ? "(en ETP)" : "(nombre de clients)")
-                    <MudTooltip Text="Saisissez les ETP actuellement affectés par segment et par profil conseiller. Les cellules colorées indiquent l'affectation définie dans Règles &amp; Hypothèses.">
-                        <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" Style="color:rgba(255,255,255,0.7);margin-left:4px" />
-                    </MudTooltip>
-                </div>
+            <div class="ca-dim-scroll-wrapper">
+                <table class="ca-dim-table">
+                    <thead>
+                        <!-- Super-header -->
+                        <tr class="ca-dim-superheader">
+                            <th class="ca-dim-th-segment ca-dim-sticky-col" rowspan="2">
+                                Segments clients
+                            </th>
+                            <th colspan="@profils.Count" class="ca-dim-th-group">
+                                Profils conseillers
+                            </th>
+                            <th class="ca-dim-th-total" rowspan="2">
+                                Total ETP<br/>existant
+                            </th>
+                            <th class="ca-dim-th-ctrl" rowspan="2">
+                                Couverture
+                            </th>
+                        </tr>
+                        <!-- Sous-header profils -->
+                        <tr>
+                            @foreach (var p in profils)
+                            {
+                                <th class="ca-dim-th-profil">@p</th>
+                            }
+                        </tr>
+                    </thead>
 
-                <div class="ca-dim-scroll-wrapper">
-                    <table class="ca-dim-table">
-                        <thead>
-                            <!-- Super-header groupé -->
-                            <tr class="ca-dim-superheader">
-                                <th class="ca-dim-th-segment ca-dim-sticky-col" rowspan="2">Segments clients</th>
-                                <th colspan="@profils.Count" class="ca-dim-th-group">Profils conseillers</th>
-                                <th class="ca-dim-th-total" rowspan="2">Total ETP</th>
-                                <th class="ca-dim-th-ctrl" rowspan="2">Couverture</th>
-                            </tr>
-                            <tr>
+                    <tbody>
+                        @foreach (var row in rows)
+                        {
+                            var rowTotal = GetRowTotal(row);
+                            var coverage = GetCoverageLevel(row);
+
+                            <tr class="@(row.IsTotal ? "ca-dim-tr-total" : "ca-dim-tr-data")">
+
+                                <!-- Colonne segment -->
+                                <td class="ca-dim-td-segment ca-dim-sticky-col">
+                                    @if (row.IsTotal)
+                                    {
+                                        <span class="ca-dim-total-label">@row.Segment</span>
+                                    }
+                                    else
+                                    {
+                                        @row.Segment
+                                    }
+                                </td>
+
+                                <!-- Cellules fusionnées : ▲ Existant / ▼ Cible -->
                                 @foreach (var p in profils)
                                 {
-                                    <th class="ca-dim-th-profil">@p</th>
-                                }
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var row in existantRows)
-                            {
-                                var rowTotal = GetRowTotal(row);
-                                var coverage = GetCoverageLevel(row);
-                                <tr class="@(row.IsTotal ? "ca-dim-tr-total" : "ca-dim-tr-data")">
-                                    <td class="ca-dim-td-segment ca-dim-sticky-col">
+                                    var profil = p;
+                                    var lvl = GetAssignmentLevel(row.Segment, profil);
+                                    var etp = row.EtpParProfil.GetValueOrDefault(profil);
+
+                                    <td class="ca-dim-td-merged" style="@GetMergedCellStyle(lvl, row.IsTotal)">
                                         @if (row.IsTotal)
                                         {
-                                            <span style="text-transform:uppercase;letter-spacing:.5px;font-size:11px;font-weight:700;color:#1A4E6B">@row.Segment</span>
+                                            <!-- Ligne total : valeur unique -->
+                                            <div class="ca-dim-total-cell">
+                                                @(etp.HasValue && etp > 0
+                                                    ? (vueEtp ? etp.Value.ToString("F2") : etp.Value.ToString("N0"))
+                                                    : "—")
+                                            </div>
                                         }
                                         else
                                         {
-                                            @row.Segment
+                                            <!-- ▲ Zone EXISTANT (modifiable) -->
+                                            <div class="ca-dim-cell-top">
+                                                @if (vueEtp)
+                                                {
+                                                    <MudNumericField T="double?"
+                                                                     Value="@etp"
+                                                                     ValueChanged="@(v => SetEtp(row, profil, v))"
+                                                                     Immediate="true"
+                                                                     Variant="Variant.Text"
+                                                                     Margin="Margin.Dense"
+                                                                     Format="F2"
+                                                                     Min="0"
+                                                                     HideSpinButtons="true"
+                                                                     Placeholder="@(lvl > 0 ? "0.00" : "—")"
+                                                                     Style="max-width:76px;margin:0 auto;color:inherit;font-size:12px;font-weight:600" />
+                                                }
+                                                else
+                                                {
+                                                    <span style="font-size:12px;font-weight:600">
+                                                        @(etp.HasValue && etp > 0 ? etp.Value.ToString("F2") : "—")
+                                                    </span>
+                                                }
+                                            </div>
+
+                                            <!-- ▼ Zone CIBLE (depuis ReglesHypothèses) -->
+                                            <div class="ca-dim-cell-bottom @(lvl > 0 ? "ca-dim-cell-bottom-assigned" : "ca-dim-cell-bottom-empty")">
+                                                @switch (lvl)
+                                                {
+                                                    case 1:
+                                                        <span class="ca-dim-role-pill">● Prioritaire</span>
+                                                        break;
+                                                    case 2:
+                                                        <span class="ca-dim-role-pill">● Secondaire</span>
+                                                        break;
+                                                    case 3:
+                                                        <span class="ca-dim-role-pill ca-dim-role-pill-light">● Tertiaire</span>
+                                                        break;
+                                                    default:
+                                                        <span class="ca-dim-role-none">—</span>
+                                                        break;
+                                                }
+                                            </div>
                                         }
                                     </td>
-                                    @foreach (var p in profils)
-                                    {
-                                        var profil = p;
-                                        var lvl = GetAssignmentLevel(row.Segment, profil);
-                                        var etp = row.EtpParProfil.GetValueOrDefault(profil);
-                                        <td class="ca-dim-td-value" style="@GetCellBgStyle(lvl, row.IsTotal)">
-                                            @if (vueEtp && !row.IsTotal)
-                                            {
-                                                <MudNumericField T="double?"
-                                                                 Value="@etp"
-                                                                 ValueChanged="@(v => SetExistantEtp(row, profil, v))"
-                                                                 Immediate="true"
-                                                                 Variant="Variant.Text"
-                                                                 Margin="Margin.Dense"
-                                                                 Format="F2"
-                                                                 Min="0"
-                                                                 HideSpinButtons="true"
-                                                                 Placeholder="@(lvl > 0 ? "0.00" : "")"
-                                                                 Style="max-width:80px;margin:0 auto;color:inherit;font-size:12px" />
-                                            }
-                                            else
-                                            {
-                                                @FormatReadCell(etp, lvl, vueEtp)
-                                            }
-                                        </td>
-                                    }
-                                    <td class="ca-dim-td-total">@FormatTotal(rowTotal, vueEtp)</td>
-                                    <td class="ca-dim-td-ctrl">
-                                        @if (!row.IsTotal)
-                                        {
-                                            @RenderCoverageIcon(coverage)
-                                        }
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </MudPaper>
-        </div>
-
-        <!-- ══════════════════════════════════════════════════════════
-             SECTION CIBLE — tirée de Règles & Hypothèses
-             Affiche les affectations théoriques (valeurs calculées phase 2)
-        ══════════════════════════════════════════════════════════ -->
-        <div class="ca-dim-section-row" style="margin-top:10px">
-            <div class="ca-dim-section-tag ca-dim-tag-cible">
-                CIBLE
-                <div class="ca-dim-tag-sub">théorique</div>
-            </div>
-
-            <MudPaper Elevation="1" Class="ca-dim-paper mb-4">
-                <div class="ca-section-header" style="border-radius:0 8px 0 0;display:flex;align-items:center;gap:10px">
-                    <span class="ca-section-badge">2</span>
-                    Affectation cible @(vueEtp ? "(en ETP)" : "(nombre de clients)") — depuis Règles &amp; Hypothèses
-                    <MudTooltip Text="Cette table est générée automatiquement depuis les règles d'affectation (Section 3 de Règles &amp; Hypothèses). Les valeurs ETP cibles seront calculées en phase 2.">
-                        <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" Style="color:rgba(255,255,255,0.7);margin-left:4px" />
-                    </MudTooltip>
-                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
-                             Style="height:20px;font-size:10px;color:rgba(255,255,255,0.85);border-color:rgba(255,255,255,0.4);margin-left:4px">
-                        Lecture seule
-                    </MudChip>
-                </div>
-
-                <div class="ca-dim-scroll-wrapper">
-                    <table class="ca-dim-table">
-                        <thead>
-                            <tr class="ca-dim-superheader">
-                                <th class="ca-dim-th-segment ca-dim-sticky-col" rowspan="2">Segments clients</th>
-                                <th colspan="@profils.Count" class="ca-dim-th-group">Profils conseillers</th>
-                                <th class="ca-dim-th-total" rowspan="2">Affectés</th>
-                                <th class="ca-dim-th-ctrl" rowspan="2">Statut</th>
-                            </tr>
-                            <tr>
-                                @foreach (var p in profils)
-                                {
-                                    <th class="ca-dim-th-profil">@p</th>
                                 }
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var seg in segments)
-                            {
-                                var regle = GetRegle(seg);
-                                var assignedCount = profils.Count(p => GetAssignmentLevel(seg, p) > 0);
-                                <tr class="ca-dim-tr-data">
-                                    <td class="ca-dim-td-segment ca-dim-sticky-col">@seg</td>
-                                    @foreach (var p in profils)
-                                    {
-                                        var lvl = GetAssignmentLevel(seg, p);
-                                        <td class="ca-dim-td-value" style="@GetCellBgStyle(lvl, false)">
-                                            @if (lvl == 1)
-                                            {
-                                                <span class="ca-dim-role-badge ca-dim-role-prio">Prioritaire</span>
-                                            }
-                                            else if (lvl == 2)
-                                            {
-                                                <span class="ca-dim-role-badge ca-dim-role-secon">Secondaire</span>
-                                            }
-                                            else if (lvl == 3)
-                                            {
-                                                <span class="ca-dim-role-badge ca-dim-role-tertio">Tertiaire</span>
-                                            }
-                                            else
-                                            {
-                                                <span style="color:#D0D5DA;font-size:14px">—</span>
-                                            }
-                                        </td>
-                                    }
-                                    <td class="ca-dim-td-total" style="font-size:13px">@assignedCount</td>
-                                    <td class="ca-dim-td-ctrl">
-                                        @if (assignedCount > 0)
-                                        {
-                                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle"
-                                                     Color="Color.Success" Size="Size.Small" />
-                                        }
-                                        else
-                                        {
-                                            <MudIcon Icon="@Icons.Material.Filled.Warning"
-                                                     Color="Color.Warning" Size="Size.Small" />
-                                        }
-                                    </td>
-                                </tr>
-                            }
-                            <!-- Ligne résumé -->
-                            <tr class="ca-dim-tr-total">
-                                <td class="ca-dim-td-segment ca-dim-sticky-col">
-                                    <span style="text-transform:uppercase;letter-spacing:.5px;font-size:11px;font-weight:700;color:#1A4E6B">Total affectations</span>
+
+                                <!-- Total ETP existant (somme ligne) -->
+                                <td class="ca-dim-td-total">
+                                    @(rowTotal.HasValue
+                                        ? (vueEtp ? rowTotal.Value.ToString("F2") : rowTotal.Value.ToString("N0"))
+                                        : "—")
                                 </td>
-                                @foreach (var p in profils)
-                                {
-                                    var cnt = segments.Count(s => GetAssignmentLevel(s, p) > 0);
-                                    <td class="ca-dim-td-value" style="text-align:center;font-weight:700;color:#1A4E6B;background:#EEF1F5">
-                                        @(cnt > 0 ? cnt.ToString() : "—")
-                                    </td>
-                                }
-                                <td class="ca-dim-td-total">@segments.Sum(s => profils.Count(p => GetAssignmentLevel(s, p) > 0))</td>
-                                <td class="ca-dim-td-ctrl"></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </MudPaper>
-        </div>
 
-        <!-- ── Propositions UX futures ─────────────────────────────────
-             À implémenter en phase 2 :
-             - Vue Écart (EXISTANT vs CIBLE) avec delta coloré par cellule
-             - Mini progress-bars dans les cellules EXISTANT
-             - Export Excel du dimensionnement saisi
-             - KPI de concordance par profil (% segments couverts correctement)
-        ──────────────────────────────────────────────────────────── -->
+                                <!-- Indicateur couverture -->
+                                <td class="ca-dim-td-ctrl">
+                                    @if (!row.IsTotal)
+                                    {
+                                        @switch (coverage)
+                                        {
+                                            case 2:
+                                                <MudTooltip Text="Tous les conseillers assignés sont renseignés">
+                                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle"
+                                                             Color="Color.Success" Size="Size.Small" />
+                                                </MudTooltip>
+                                                break;
+                                            case 1:
+                                                <MudTooltip Text="Partiellement renseigné">
+                                                    <MudIcon Icon="@Icons.Material.Filled.RemoveCircle"
+                                                             Color="Color.Warning" Size="Size.Small" />
+                                                </MudTooltip>
+                                                break;
+                                            default:
+                                                <MudIcon Icon="@Icons.Material.Outlined.RadioButtonUnchecked"
+                                                         Style="color:#D0D5DA" Size="Size.Small" />
+                                                break;
+                                        }
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </MudPaper>
     }
 
     <div class="ca-footer">© 2025 Crédit Agricole Nord de France — Plateforme de Dimensionnement</div>
@@ -291,9 +263,9 @@
     private bool vueEtp = true;
     private List<string> profils  = new();
     private List<string> segments = new();
-    private List<DimMatrixRow> existantRows = new();
+    private List<DimMatrixRow> rows = new();
 
-    // ── Lifecycle ──────────────────────────────────────────────────────────
+    // ── Lifecycle ─────────────────────────────────────────────────────────
     protected override void OnInitialized()
     {
         StateService.OnChange += OnReglesChanged;
@@ -305,25 +277,25 @@
     private void OnReglesChanged()
     {
         var newProfils = GetProfils();
-        // Conserver les valeurs saisies, ajouter les nouveaux profils
-        foreach (var row in existantRows)
+        // Conserver les valeurs saisies si le profil existe encore
+        foreach (var row in rows)
             foreach (var p in newProfils.Where(p => !row.EtpParProfil.ContainsKey(p)))
                 row.EtpParProfil[p] = null;
 
         profils  = newProfils;
         segments = GetSegments();
-        RecalcExistantTotal();
+        RecalcTotal();
         InvokeAsync(StateHasChanged);
     }
 
     private void InitData()
     {
-        profils      = GetProfils();
-        segments     = GetSegments();
-        existantRows = BuildExistantRows();
+        profils  = GetProfils();
+        segments = GetSegments();
+        rows     = BuildRows();
     }
 
-    // ── Sources de données ─────────────────────────────────────────────────
+    // ── Sources de données ────────────────────────────────────────────────
     private List<string> GetProfils() =>
         StateService.Regles.ConseillersProfils
             .Select(p => p.Profil)
@@ -336,30 +308,34 @@
             .Where(s => !string.IsNullOrWhiteSpace(s))
             .Distinct().ToList();
 
-    private RegleAffectationSegment? GetRegle(string segment) =>
-        StateService.Regles.ReglesAffectationSegments
-            .FirstOrDefault(r => r.Segment?.Trim().Equals(segment.Trim(), StringComparison.OrdinalIgnoreCase) == true);
-
-    // ── Construction EXISTANT ─────────────────────────────────────────────
-    private DimMatrixRow EmptyRow(string segment) =>
-        new() { Segment = segment, EtpParProfil = profils.ToDictionary(p => p, _ => (double?)null) };
-
-    private DimMatrixRow TotalRow() =>
-        new() { Segment = "Total charge ETP", IsTotal = true,
-                EtpParProfil = profils.ToDictionary(p => p, _ => (double?)null) };
-
-    private List<DimMatrixRow> BuildExistantRows()
+    // ── Construction de la table ──────────────────────────────────────────
+    private List<DimMatrixRow> BuildRows()
     {
-        var rows = segments.Select(EmptyRow).ToList();
-        rows.Add(TotalRow());
-        return rows;
+        var dataRows = segments
+            .Select(s => new DimMatrixRow
+            {
+                Segment = s,
+                EtpParProfil = profils.ToDictionary(p => p, _ => (double?)null)
+            }).ToList();
+
+        dataRows.Add(new DimMatrixRow
+        {
+            Segment = "Total charge ETP",
+            IsTotal = true,
+            EtpParProfil = profils.ToDictionary(p => p, _ => (double?)null)
+        });
+
+        return dataRows;
     }
 
     // ── Affectation depuis ReglesHypotheses (Section 3) ───────────────────
+    // 1 = Prioritaire, 2 = Secondaire, 3 = Tertiaire, 0 = non affecté
     private int GetAssignmentLevel(string segment, string profil)
     {
         if (string.IsNullOrWhiteSpace(segment) || string.IsNullOrWhiteSpace(profil)) return 0;
-        var r = GetRegle(segment);
+        var r = StateService.Regles.ReglesAffectationSegments
+            .FirstOrDefault(x => x.Segment?.Trim().Equals(segment.Trim(),
+                StringComparison.OrdinalIgnoreCase) == true);
         if (r == null) return 0;
         if (r.ConseillerPrioritaire?.Trim().Equals(profil.Trim(), StringComparison.OrdinalIgnoreCase) == true) return 1;
         if (r.ConseillerSecondaire?.Trim().Equals(profil.Trim(),  StringComparison.OrdinalIgnoreCase) == true) return 2;
@@ -367,51 +343,44 @@
         return 0;
     }
 
-    private static string GetCellBgStyle(int level, bool isTotal) => isTotal ? "" : level switch
+    // Style de fond de la cellule fusionnée (depuis affectation CIBLE)
+    private static string GetMergedCellStyle(int level, bool isTotal) => isTotal ? "" : level switch
     {
         1 => "background:#1A6B3C;color:white",
         2 => "background:#52A86B;color:white",
         3 => "background:#C3E6CB;color:#1A4E6B",
-        _ => "background:#F8F9FA;color:#C5CAD0"
+        _ => ""
     };
 
-    // ── Mutations EXISTANT ────────────────────────────────────────────────
-    private void SetExistantEtp(DimMatrixRow row, string profil, double? value)
+    // ── Mutations ────────────────────────────────────────────────────────
+    private void SetEtp(DimMatrixRow row, string profil, double? value)
     {
         row.EtpParProfil[profil] = value;
-        RecalcExistantTotal();
+        RecalcTotal();
     }
 
-    private void RecalcExistantTotal()
+    private void RecalcTotal()
     {
-        var totalRow = existantRows.LastOrDefault(r => r.IsTotal);
+        var totalRow = rows.LastOrDefault(r => r.IsTotal);
         if (totalRow == null) return;
         foreach (var p in profils)
         {
-            var vals = existantRows.Where(r => !r.IsTotal)
-                                   .Select(r => r.EtpParProfil.GetValueOrDefault(p)).ToList();
+            var vals = rows.Where(r => !r.IsTotal)
+                           .Select(r => r.EtpParProfil.GetValueOrDefault(p)).ToList();
             totalRow.EtpParProfil[p] = vals.Any(v => v.HasValue) ? vals.Sum(v => v ?? 0) : null;
         }
     }
 
-    // ── Indicateur couverture par ligne EXISTANT ──────────────────────────
+    // ── Indicateur couverture ─────────────────────────────────────────────
     // 0 = vide, 1 = partiel, 2 = complet
     private int GetCoverageLevel(DimMatrixRow row)
     {
         if (row.IsTotal) return -1;
-        var assignedProfils = profils.Where(p => GetAssignmentLevel(row.Segment, p) > 0).ToList();
-        if (!assignedProfils.Any()) return 0;
-        var filled = assignedProfils.Count(p => (row.EtpParProfil.GetValueOrDefault(p) ?? 0) > 0);
-        if (filled == 0) return 0;
-        return filled == assignedProfils.Count ? 2 : 1;
+        var assigned = profils.Where(p => GetAssignmentLevel(row.Segment, p) > 0).ToList();
+        if (!assigned.Any()) return 0;
+        var filled = assigned.Count(p => (row.EtpParProfil.GetValueOrDefault(p) ?? 0) > 0);
+        return filled == 0 ? 0 : filled == assigned.Count ? 2 : 1;
     }
-
-    private RenderFragment RenderCoverageIcon(int level) => level switch
-    {
-        2 => @<MudIcon Icon="@Icons.Material.Filled.CheckCircle"   Color="Color.Success" Size="Size.Small" />,
-        1 => @<MudIcon Icon="@Icons.Material.Filled.RemoveCircle"  Color="Color.Warning" Size="Size.Small" />,
-        _ => @<MudIcon Icon="@Icons.Material.Outlined.Circle"      Color="Color.Default" Size="Size.Small" />,
-    };
 
     // ── Calculs ───────────────────────────────────────────────────────────
     private double? GetRowTotal(DimMatrixRow row)
@@ -420,18 +389,4 @@
                           .Where(v => v.HasValue).ToList();
         return vals.Any() ? vals.Sum(v => v!.Value) : null;
     }
-
-    // ── Formatage ─────────────────────────────────────────────────────────
-    private MarkupString FormatReadCell(double? val, int level, bool isEtp)
-    {
-        if (!val.HasValue || val.Value == 0)
-            return level > 0
-                ? new MarkupString("<span style='opacity:0.4;font-size:11px'>0.00</span>")
-                : new MarkupString("<span style='color:#D0D5DA;font-size:14px'>—</span>");
-        var fmt = isEtp ? val.Value.ToString("F2") : val.Value.ToString("N0");
-        return new MarkupString($"<span style='font-weight:600'>{fmt}</span>");
-    }
-
-    private static string FormatTotal(double? val, bool isEtp) =>
-        val.HasValue ? (isEtp ? val.Value.ToString("F2") : val.Value.ToString("N0")) : "—";
 }
