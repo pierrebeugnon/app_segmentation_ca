@@ -95,7 +95,6 @@
 
                         <HeaderContent>
                             <MudTh>Segments distributifs</MudTh>
-                            <MudTh Style="text-align:center">Nb clients (agence)</MudTh>
                             <MudTh Style="text-align:center">Nombre de RDV / CC / an</MudTh>
                             <MudTh Style="text-align:center">Durée du RDV (h)</MudTh>
                             <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
@@ -122,18 +121,6 @@
 
                             <MudTd Style="font-weight:600;color:#1A4E6B">
                                 @FormatSegmentLabel(context.Segment)
-                            </MudTd>
-
-                            <MudTd Style="text-align:center;background:#FFFDE7">
-                                <MudNumericField T="int"
-                                                 @bind-Value="context.NombreClients"
-                                                 Immediate="true"
-                                                 Variant="Variant.Outlined"
-                                                 Margin="Margin.Dense"
-                                                 Min="0"
-                                                 Format="N0"
-                                                 Style="max-width:110px;margin:0 auto"
-                                                 HideSpinButtons="true" />
                             </MudTd>
 
                             <MudTd Style="text-align:center;background:#FFFDE7">
