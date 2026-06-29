@@ -1,0 +1,360 @@
+@page "/portefeuille"
+@inject SegmentationStateService StateService
+@implements IDisposable
+
+<PageTitle>Dimensionnement Portefeuilles — CA Segmentation</PageTitle>
+
+<div class="ca-page">
+
+    <!-- ══════════════════════════════════════════════════════════
+         En-tête + toggle ETP / Volume
+    ══════════════════════════════════════════════════════════ -->
+    <div class="ca-page-header">
+        <div>
+            <MudText Typo="Typo.h5" Class="ca-page-title">Dimensionnement des Portefeuilles</MudText>
+            <MudText Typo="Typo.caption" Class="ca-page-subtitle">
+                @(vueEtp
+                    ? "Vue ETP — saisie et ajustement des charges conseillers"
+                    : "Vue Volume de clients — projection informative (non modifiable)")
+            </MudText>
+        </div>
+
+        <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small">
+            <MudButton StartIcon="@Icons.Material.Filled.AccessTime"
+                       Variant="@(vueEtp  ? Variant.Filled : Variant.Outlined)"
+                       Color="@(vueEtp    ? Color.Primary  : Color.Default)"
+                       OnClick="@(() => vueEtp = true)">
+                Vue ETP
+            </MudButton>
+            <MudButton StartIcon="@Icons.Material.Filled.People"
+                       Variant="@(!vueEtp ? Variant.Filled : Variant.Outlined)"
+                       Color="@(!vueEtp   ? Color.Primary  : Color.Default)"
+                       OnClick="@(() => vueEtp = false)">
+                Vue Volume de clients
+            </MudButton>
+        </MudButtonGroup>
+    </div>
+
+    <!-- Légende couleurs -->
+    <div style="display:flex;align-items:center;gap:18px;padding:4px 0 14px;flex-wrap:wrap;font-size:12px;color:#4A5568">
+        <span style="display:flex;align-items:center;gap:6px">
+            <span style="width:14px;height:14px;background:#1A6B3C;border-radius:2px;flex-shrink:0"></span>
+            Conseiller Prioritaire
+        </span>
+        <span style="display:flex;align-items:center;gap:6px">
+            <span style="width:14px;height:14px;background:#52A86B;border-radius:2px;flex-shrink:0"></span>
+            Conseiller Secondaire
+        </span>
+        <span style="display:flex;align-items:center;gap:6px">
+            <span style="width:14px;height:14px;background:#C3E6CB;border:1px solid #52A86B;border-radius:2px;flex-shrink:0"></span>
+            Conseiller Tertiaire
+        </span>
+        <span style="display:flex;align-items:center;gap:6px;color:#9AA5B1">
+            <span style="width:14px;height:14px;background:#F0F2F5;border:1px solid #D0D5DA;border-radius:2px;flex-shrink:0"></span>
+            Non affecté (lecture seule)
+        </span>
+        @if (!vueEtp)
+        {
+            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Style="height:22px;font-size:11px">
+                Vue informative — Modifiez en Vue ETP
+            </MudChip>
+        }
+    </div>
+
+    @if (!profils.Any() || !segments.Any())
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mt-2">
+            Aucune donnée disponible. Configurez d'abord les Règles &amp; Hypothèses.
+        </MudAlert>
+    }
+    else
+    {
+        <!-- ══════════════════════════════════════════════════════════
+             SECTION EXISTANT — non modifiable
+        ══════════════════════════════════════════════════════════ -->
+        <div class="ca-dim-section-row">
+            <div class="ca-dim-section-tag ca-dim-tag-existant">
+                <span>E</span><span>X</span><span>I</span><span>S</span><span>T</span><span>A</span><span>N</span><span>T</span>
+                <div class="ca-dim-tag-sub">non<br/>modifiable</div>
+            </div>
+
+            <MudPaper Elevation="1" Style="border-radius:0 8px 8px 0;overflow-x:auto;flex:1" Class="mb-4">
+                <div class="ca-section-header" style="border-radius:0 8px 0 0">
+                    <span class="ca-section-badge">1</span>
+                    Répartition des charges @(vueEtp ? "(en ETP)" : "(nombre de clients)") — Dimensionnement EXISTANT
+                </div>
+
+                <table class="ca-dim-table">
+                    <thead>
+                        <tr>
+                            <th class="ca-dim-th-segment">Segments clients</th>
+                            @foreach (var p in profils)
+                            {
+                                <th class="ca-dim-th-profil">@p</th>
+                            }
+                            <th class="ca-dim-th-total">Charge totale<br/>@(vueEtp ? "(ETP)" : "(clients)")</th>
+                            <th class="ca-dim-th-ctrl">Contrôle</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in existantRows)
+                        {
+                            <tr class="@(row.IsTotal ? "ca-dim-tr-total" : "ca-dim-tr-data")">
+                                <td class="ca-dim-td-segment">@row.Segment</td>
+                                @foreach (var p in profils)
+                                {
+                                    var lvl = GetAssignmentLevel(row.Segment, p);
+                                    var val = row.EtpParProfil.GetValueOrDefault(p);
+                                    <td class="ca-dim-td-value" style="@GetCellBgStyle(lvl, row.IsTotal)">
+                                        @FormatReadCell(val, lvl, vueEtp)
+                                    </td>
+                                }
+                                @{ var rt = GetRowTotal(row); }
+                                <td class="ca-dim-td-total">
+                                    @FormatTotal(rt, vueEtp)
+                                </td>
+                                <td class="ca-dim-td-ctrl">
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle"
+                                             Color="Color.Success" Size="Size.Small" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </MudPaper>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════
+             SECTION CIBLE — pour ajustement
+        ══════════════════════════════════════════════════════════ -->
+        <div class="ca-dim-section-row" style="margin-top:8px">
+            <div class="ca-dim-section-tag ca-dim-tag-cible">
+                <span>C</span><span>I</span><span>B</span><span>L</span><span>E</span>
+                <div class="ca-dim-tag-sub">pour<br/>ajustement</div>
+            </div>
+
+            <MudPaper Elevation="1" Style="border-radius:0 8px 8px 0;overflow-x:auto;flex:1" Class="mb-4">
+                <div class="ca-section-header" style="border-radius:0 8px 0 0">
+                    <span class="ca-section-badge">2</span>
+                    Répartition des charges @(vueEtp ? "(en ETP)" : "(nombre de clients)") — Dimensionnement CIBLE
+                    @if (vueEtp)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined"
+                                 Style="margin-left:12px;height:20px;font-size:10px">
+                            Cellules vertes modifiables
+                        </MudChip>
+                    }
+                </div>
+
+                <table class="ca-dim-table">
+                    <thead>
+                        <tr>
+                            <th class="ca-dim-th-segment">Segments clients</th>
+                            @foreach (var p in profils)
+                            {
+                                <th class="ca-dim-th-profil">@p</th>
+                            }
+                            <th class="ca-dim-th-total">Charge totale<br/>@(vueEtp ? "(ETP)" : "(clients)")</th>
+                            <th class="ca-dim-th-ctrl">Contrôle</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in cibleRows)
+                        {
+                            <tr class="@(row.IsTotal ? "ca-dim-tr-total" : "ca-dim-tr-data")">
+                                <td class="ca-dim-td-segment">@row.Segment</td>
+                                @foreach (var p in profils)
+                                {
+                                    var profil = p;
+                                    var lvl = GetAssignmentLevel(row.Segment, profil);
+                                    var etp = row.EtpParProfil.GetValueOrDefault(profil);
+                                    <td class="ca-dim-td-value" style="@GetCellBgStyle(lvl, row.IsTotal)">
+                                        @if (vueEtp && lvl > 0 && !row.IsTotal)
+                                        {
+                                            <!-- Cellule verte → éditable en vue ETP -->
+                                            <MudNumericField T="double?"
+                                                             Value="@etp"
+                                                             ValueChanged="@(v => SetCibleEtp(row, profil, v))"
+                                                             Immediate="true"
+                                                             Variant="Variant.Text"
+                                                             Margin="Margin.Dense"
+                                                             Format="F2"
+                                                             Min="0"
+                                                             HideSpinButtons="true"
+                                                             Style="max-width:85px;margin:0 auto;color:inherit" />
+                                        }
+                                        else if (vueEtp && row.IsTotal)
+                                        {
+                                            <!-- Ligne total : lecture seule même en vue ETP -->
+                                            @FormatReadCell(etp, lvl, true)
+                                        }
+                                        else if (!vueEtp && lvl > 0 && !row.IsTotal)
+                                        {
+                                            <!-- Vue volume : projection (phase 2) -->
+                                            <span style="font-size:11px;opacity:0.6">— proj.</span>
+                                        }
+                                        else
+                                        {
+                                            @FormatReadCell(etp, lvl, vueEtp)
+                                        }
+                                    </td>
+                                }
+                                @{ var ct = GetRowTotal(row); }
+                                <td class="ca-dim-td-total">@FormatTotal(ct, vueEtp)</td>
+                                <td class="ca-dim-td-ctrl">
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle"
+                                             Color="Color.Success" Size="Size.Small" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </MudPaper>
+        </div>
+    }
+
+    <div class="ca-footer">© 2025 Crédit Agricole Nord de France — Plateforme de Dimensionnement</div>
+</div>
+
+@code {
+    private bool vueEtp = true;
+    private List<string> profils  = new();
+    private List<string> segments = new();
+    private List<DimMatrixRow> existantRows = new();
+    private List<DimMatrixRow> cibleRows    = new();
+
+    // ── Lifecycle ──────────────────────────────────────────────────────────
+    protected override void OnInitialized()
+    {
+        StateService.OnChange += OnReglesChanged;
+        InitData();
+    }
+
+    public void Dispose() => StateService.OnChange -= OnReglesChanged;
+
+    private void OnReglesChanged()
+    {
+        var newProfils = GetProfils();
+        // Conserver les valeurs CIBLE, ajouter les nouveaux profils manquants
+        foreach (var row in cibleRows)
+            foreach (var p in newProfils.Where(p => !row.EtpParProfil.ContainsKey(p)))
+                row.EtpParProfil[p] = null;
+
+        profils      = newProfils;
+        segments     = GetSegments();
+        existantRows = BuildExistantRows();
+        RecalcTotals();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void InitData()
+    {
+        profils      = GetProfils();
+        segments     = GetSegments();
+        existantRows = BuildExistantRows();
+        cibleRows    = BuildCibleRows();
+    }
+
+    // ── Listes dynamiques depuis Regles & Hypothèses ───────────────────────
+    private List<string> GetProfils() =>
+        StateService.Regles.ConseillersProfils
+            .Select(p => p.Profil)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct()
+            .ToList();
+
+    private List<string> GetSegments() =>
+        StateService.Regles.SegmentsIntensite
+            .Select(s => s.Segment)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Distinct()
+            .ToList();
+
+    // ── Construction des lignes ────────────────────────────────────────────
+    private DimMatrixRow EmptyRow(string segment) =>
+        new() { Segment = segment, EtpParProfil = profils.ToDictionary(p => p, _ => (double?)null) };
+
+    private DimMatrixRow TotalRow() =>
+        new() { Segment = "TOTAL CHARGE ETP", IsTotal = true,
+                EtpParProfil = profils.ToDictionary(p => p, _ => (double?)null) };
+
+    private List<DimMatrixRow> BuildExistantRows()
+    {
+        var rows = segments.Select(EmptyRow).ToList();
+        rows.Add(TotalRow());
+        return rows;
+    }
+
+    private List<DimMatrixRow> BuildCibleRows()
+    {
+        var rows = segments.Select(EmptyRow).ToList();
+        rows.Add(TotalRow());
+        return rows;
+    }
+
+    // ── Affectation depuis ReglesHypotheses (Section 3) ────────────────────
+    // Retourne 1=Prioritaire, 2=Secondaire, 3=Tertiaire, 0=non affecté
+    private int GetAssignmentLevel(string segment, string profil)
+    {
+        if (string.IsNullOrWhiteSpace(segment) || string.IsNullOrWhiteSpace(profil)) return 0;
+        var r = StateService.Regles.ReglesAffectationSegments
+            .FirstOrDefault(x => x.Segment?.Trim().Equals(segment.Trim(), StringComparison.OrdinalIgnoreCase) == true);
+        if (r == null) return 0;
+        if (r.ConseillerPrioritaire?.Trim().Equals(profil.Trim(), StringComparison.OrdinalIgnoreCase) == true) return 1;
+        if (r.ConseillerSecondaire?.Trim().Equals(profil.Trim(),  StringComparison.OrdinalIgnoreCase) == true) return 2;
+        if (r.ConseillerTertiaire?.Trim().Equals(profil.Trim(),   StringComparison.OrdinalIgnoreCase) == true) return 3;
+        return 0;
+    }
+
+    private static string GetCellBgStyle(int level, bool isTotal) => isTotal ? "" : level switch
+    {
+        1 => "background:#1A6B3C;color:white",
+        2 => "background:#52A86B;color:white",
+        3 => "background:#C3E6CB;color:#1A4E6B",
+        _ => "background:#F8F9FA"
+    };
+
+    // ── Mutations CIBLE ────────────────────────────────────────────────────
+    private void SetCibleEtp(DimMatrixRow row, string profil, double? value)
+    {
+        row.EtpParProfil[profil] = value;
+        RecalcTotals();
+    }
+
+    private void RecalcTotals()
+    {
+        var totalRow = cibleRows.LastOrDefault(r => r.IsTotal);
+        if (totalRow == null) return;
+        foreach (var p in profils)
+        {
+            var vals = cibleRows.Where(r => !r.IsTotal)
+                                .Select(r => r.EtpParProfil.GetValueOrDefault(p))
+                                .ToList();
+            totalRow.EtpParProfil[p] = vals.Any(v => v.HasValue)
+                ? vals.Sum(v => v ?? 0)
+                : null;
+        }
+    }
+
+    // ── Calculs ────────────────────────────────────────────────────────────
+    private double? GetRowTotal(DimMatrixRow row)
+    {
+        var vals = profils.Select(p => row.EtpParProfil.GetValueOrDefault(p))
+                          .Where(v => v.HasValue).ToList();
+        return vals.Any() ? vals.Sum(v => v!.Value) : null;
+    }
+
+    // ── Formatage ──────────────────────────────────────────────────────────
+    private MarkupString FormatReadCell(double? val, int level, bool isEtp)
+    {
+        if (!val.HasValue || val.Value == 0)
+            return level > 0
+                ? new MarkupString("<span style='opacity:0.45;font-size:11px'>0.00</span>")
+                : new MarkupString("<span style='color:#C5CAD0'>—</span>");
+        var fmt = isEtp ? val.Value.ToString("F2") : val.Value.ToString("N0");
+        return new MarkupString($"<span style='font-weight:600'>{fmt}</span>");
+    }
+
+    private static string FormatTotal(double? val, bool isEtp) =>
+        val.HasValue ? (isEtp ? val.Value.ToString("F2") : val.Value.ToString("N0")) : "—";
+}

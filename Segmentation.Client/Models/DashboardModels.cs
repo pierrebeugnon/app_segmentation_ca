@@ -154,6 +154,14 @@ namespace Segmentation.Client.Models
         public List<RegleAffectation> ReglesAffectation { get; set; } = new();
     }
 
+    // ── Vue Dimensionnement fusionnée (ETP + Volume) ──────────────────────────
+    public class DimMatrixRow
+    {
+        public string Segment { get; set; } = "";
+        public Dictionary<string, double?> EtpParProfil { get; set; } = new();
+        public bool IsTotal { get; set; } = false;
+    }
+
     public class FichierSource
     {
         public string Titre { get; set; } = "";
