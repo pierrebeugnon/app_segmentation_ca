@@ -386,22 +386,6 @@
                         </MudTable>
                     }
 
-                            <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B;font-style:italic">
-                                @volumeActuel2.ToString("F1")
-                            </MudTd>
-
-                            @if (modeSimulation)
-                            {
-                                <MudTd Style="text-align:center;background:#F5F7FA;color:#6C7A89">
-                                    @volumeReference2.ToString("F1")
-                                </MudTd>
-
-                                <MudTd Style="@GetDeltaCellStyle(ecartVolume2)">
-                                    @FormatDelta(ecartVolume2, "h")
-                                </MudTd>
-                            }
-                        </RowTemplate>
-                    </MudTable>
                 </MudPaper>
             </MudTabPanel>
 
