@@ -114,16 +114,16 @@ namespace Segmentation.Client.Services
                 SegmentsIntensite = new List<SegmentIntensite>
                 {
                     // NombreClients = nombre de clients de ce segment dans une agence typique
-                    new() { LigneMetier = "banque privée",                   Segment = "HDG Premium Potentiel", NombreRdvParAn = 2.5,  DureeRdvHeures = 2,    NombreClients =    50 },
-                    new() { LigneMetier = "banque privée",                   Segment = "HDG Premium Standard",  NombreRdvParAn = 2,    DureeRdvHeures = 2,    NombreClients =   150 },
-                    new() { LigneMetier = "retail",                          Segment = "HDG Potentiel",         NombreRdvParAn = 2,    DureeRdvHeures = 1.75, NombreClients =   300 },
-                    new() { LigneMetier = "retail",                          Segment = "HDG Senior Epargnant",  NombreRdvParAn = 1.5,  DureeRdvHeures = 1.5,  NombreClients =   200 },
-                    new() { LigneMetier = "retail",                          Segment = "HDG Standard",          NombreRdvParAn = 1.5,  DureeRdvHeures = 1.5,  NombreClients =   600 },
-                    new() { LigneMetier = "retail",                          Segment = "CI Potentiel",          NombreRdvParAn = 2,    DureeRdvHeures = 1.25, NombreClients =   800 },
-                    new() { LigneMetier = "retail",                          Segment = "CI Standard",           NombreRdvParAn = 1.25, DureeRdvHeures = 1,    NombreClients =  3000 },
-                    new() { LigneMetier = "retail",                          Segment = "GP Potentiel",          NombreRdvParAn = 1,    DureeRdvHeures = 1.25, NombreClients =  1500 },
-                    new() { LigneMetier = "retail",                          Segment = "GP Standard",           NombreRdvParAn = 0.5,  DureeRdvHeures = 0.5,  NombreClients =  8000 },
-                    new() { LigneMetier = "retail - portefeuille mutualisé", Segment = "Non segmenté",          NombreRdvParAn = 0,    DureeRdvHeures = 0,    NombreClients =  5400 },
+                    new() { LigneMetier = "banque privée",                   Segment = "HDG Premium Potentiel", NombreRdvParAn = 2.5,  DureeRdvHeures = 2,    NombreClients =    50, Region = "Pas-de-Calais", Secteur = "Lens-Béthune",    Agence = "BP Lens"            },
+                    new() { LigneMetier = "banque privée",                   Segment = "HDG Premium Standard",  NombreRdvParAn = 2,    DureeRdvHeures = 2,    NombreClients =   150, Region = "Pas-de-Calais", Secteur = "Lens-Béthune",    Agence = "BP Lens"            },
+                    new() { LigneMetier = "retail",                          Segment = "HDG Potentiel",         NombreRdvParAn = 2,    DureeRdvHeures = 1.75, NombreClients =   300, Region = "Nord",          Secteur = "Lille Métropole", Agence = "Agence Lille Centre"},
+                    new() { LigneMetier = "retail",                          Segment = "HDG Senior Epargnant",  NombreRdvParAn = 1.5,  DureeRdvHeures = 1.5,  NombreClients =   200, Region = "Nord",          Secteur = "Lille Métropole", Agence = "Agence Lille Centre"},
+                    new() { LigneMetier = "retail",                          Segment = "HDG Standard",          NombreRdvParAn = 1.5,  DureeRdvHeures = 1.5,  NombreClients =   600, Region = "Nord",          Secteur = "Lille Métropole", Agence = "Agence Roubaix"     },
+                    new() { LigneMetier = "retail",                          Segment = "CI Potentiel",          NombreRdvParAn = 2,    DureeRdvHeures = 1.25, NombreClients =   800, Region = "Nord",          Secteur = "Valenciennes",    Agence = "Agence Valenciennes"},
+                    new() { LigneMetier = "retail",                          Segment = "CI Standard",           NombreRdvParAn = 1.25, DureeRdvHeures = 1,    NombreClients =  3000, Region = "Nord",          Secteur = "Valenciennes",    Agence = "Agence Valenciennes"},
+                    new() { LigneMetier = "retail",                          Segment = "GP Potentiel",          NombreRdvParAn = 1,    DureeRdvHeures = 1.25, NombreClients =  1500, Region = "Nord",          Secteur = "Douai",           Agence = "Agence Douai"       },
+                    new() { LigneMetier = "retail",                          Segment = "GP Standard",           NombreRdvParAn = 0.5,  DureeRdvHeures = 0.5,  NombreClients =  8000, Region = "Nord",          Secteur = "Douai",           Agence = "Agence Douai"       },
+                    new() { LigneMetier = "retail - portefeuille mutualisé", Segment = "Non segmenté",          NombreRdvParAn = 0,    DureeRdvHeures = 0,    NombreClients =  5400, Region = "Nord",          Secteur = "Lille Métropole", Agence = "Agence Tourcoing"   },
                 },
 
                 // ── Section 2 : Hypothèses temps de travail + profils

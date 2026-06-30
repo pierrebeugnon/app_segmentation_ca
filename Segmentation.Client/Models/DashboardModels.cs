@@ -104,6 +104,10 @@ namespace Segmentation.Client.Models
         public double IntensiteRelationnelle => Math.Round(NombreRdvParAn * DureeRdvHeures, 2);
         /// <summary>Nombre de clients dans ce segment (par agence) — utilisé pour le calcul ETP cible</summary>
         public int NombreClients { get; set; }
+        // Dimensions organisationnelles (filtres Portefeuille)
+        public string Region  { get; set; } = "";
+        public string Secteur { get; set; } = "";
+        public string Agence  { get; set; } = "";
     }
 
     // ── Section 2 : Conseillers et temps commercial ───────────────────────────
@@ -160,7 +164,10 @@ namespace Segmentation.Client.Models
     public class DimMatrixRow
     {
         public string Segment { get; set; } = "";
+        /// <summary>ETP EXISTANT — valeur réelle actuelle (lecture seule dans l'UI)</summary>
         public Dictionary<string, double?> EtpParProfil { get; set; } = new();
+        /// <summary>ETP CIBLE — valeur saisie par l'utilisateur (modifiable dans l'UI)</summary>
+        public Dictionary<string, double?> EtpCibleSaisieParProfil { get; set; } = new();
         public bool IsTotal { get; set; } = false;
     }
 
