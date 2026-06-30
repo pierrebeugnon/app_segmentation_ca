@@ -76,7 +76,7 @@
             <!-- ════════════════════════════════════════════════════════
                  Section 1 : Intensité
             ════════════════════════════════════════════════════════ -->
-            <MudTabPanel Text="1. Intensité">
+            <MudTabPanel Text="1. Intensité Relationelle">
                 <MudPaper Elevation="1"
                           Style="border-radius:8px;overflow:visible"
                           Class="pa-0 mt-4">
@@ -96,9 +96,9 @@
                         <HeaderContent>
                             <MudTh>Segments distributifs</MudTh>
                             <MudTh Style="text-align:center">Nombre de RDV / CC / an</MudTh>
-                            <MudTh Style="text-align:center">Durée du RDV (h)</MudTh>
+                            <MudTh Style="text-align:center">Durée du RDV (heure)</MudTh>
                             <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Intensité actuelle
+                                Intensité relationelle par segment
                             </MudTh>
 
                             @if (modeSimulation)
@@ -173,7 +173,7 @@
             <!-- ════════════════════════════════════════════════════════
                  Section 2 : Temps conseiller
             ════════════════════════════════════════════════════════ -->
-            <MudTabPanel Text="2. Temps conseiller">
+            <MudTabPanel Text="2. Temps commercial">
                 <MudPaper Elevation="1"
                           Style="border-radius:8px;overflow:visible"
                           Class="pa-0 mt-4">
@@ -194,7 +194,7 @@
                                           Style="background:#FFFDE7;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px;overflow:visible">
 
                                     <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                        Heures par semaine
+                                        Nombre d'heures travaillées par semaine
                                     </MudText>
 
                                     <MudNumericField T="double"
@@ -214,7 +214,7 @@
                                           Style="background:#FFFDE7;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px;overflow:visible">
 
                                     <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                        Nb semaines par an
+                                        Nombre de semaines travaillées par an
                                     </MudText>
 
                                     <MudNumericField T="double"
@@ -234,7 +234,7 @@
                                           Style="background:#E8EDF2;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px;overflow:visible">
 
                                     <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                        Heures de travail par an
+                                        Nombre d'heures travaillées par an
                                     </MudText>
 
                                     <MudText Typo="Typo.h6" Style="font-weight:700;color:#1A4E6B;margin-top:4px">
@@ -272,10 +272,10 @@
                             <MudTh>Profil conseiller</MudTh>
                             <MudTh Style="text-align:center">Part temps commercial (%)</MudTh>
                             <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Part non commercial (%)
+                                Part temps non commercial (%)
                             </MudTh>
                             <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Volume actuel
+                                Volume horaire par conseiller dédié à la gestion <br /> de portefeuilles (en heures/an)
                             </MudTh>
 
                             @if (modeSimulation)
@@ -358,10 +358,10 @@
                             <MudTh>Profil conseiller</MudTh>
                             <MudTh Style="text-align:center">Part temps commercial (%)</MudTh>
                             <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Part non commercial (%)
+                                Part temps non commercial (%)
                             </MudTh>
                             <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Volume actuel
+                                Volume horaire par conseiller dédié à la gestion <br /> de portefeuilles (en heures/an)
                             </MudTh>
 
                             @if (modeSimulation)
@@ -429,14 +429,14 @@
             <!-- ════════════════════════════════════════════════════════
                  Section 3 : Affectation
             ════════════════════════════════════════════════════════ -->
-            <MudTabPanel Text="3. Affectation">
+            <MudTabPanel Text="3. Règles d'affectation des conseillers">
                 <MudPaper Elevation="1"
                           Style="border-radius:8px;overflow:visible"
                           Class="pa-0 mt-4">
 
                     <div class="ca-section-header">
                         <span class="ca-section-badge">3</span>
-                        Règles d'affectation des clients par conseiller
+                        Règles d'affectation des conseillers par segment de clientèle
                     </div>
 
                     <MudTable Items="@model.ReglesAffectationSegments"
@@ -449,8 +449,8 @@
                         <HeaderContent>
                             <MudTh>Segments distributifs</MudTh>
                             <MudTh>Conseiller Prioritaire</MudTh>
-                            <MudTh>Conseiller Secondaire</MudTh>
-                            <MudTh>Conseiller Tertiaire</MudTh>
+                            <MudTh>Conseiller Secondaire 1</MudTh>
+                            <MudTh>Conseiller Secondaire 2</MudTh>
 
                             @if (modeSimulation)
                             {
@@ -465,14 +465,14 @@
                                 var segment = context.Segment?.Trim() ?? string.Empty;
                                 var allOptions = GetOptionsProfilsPourSegment(segment);
                                 var optionsPrioritaire = GetOptionsFiltered(allOptions, context.ConseillerSecondaire, context.ConseillerTertiaire);
-                                var optionsSecondaire  = GetOptionsFiltered(allOptions, context.ConseillerPrioritaire, context.ConseillerTertiaire);
-                                var optionsTertiaire   = GetOptionsFiltered(allOptions, context.ConseillerPrioritaire, context.ConseillerSecondaire);
+                                var optionsSecondaire = GetOptionsFiltered(allOptions, context.ConseillerPrioritaire, context.ConseillerTertiaire);
+                                var optionsTertiaire = GetOptionsFiltered(allOptions, context.ConseillerPrioritaire, context.ConseillerSecondaire);
                                 var selectDisabled = IsSegmentNonAffectable(segment);
                                 var affectationModifiee = IsAffectationModifiee(
-                                    context.Segment,
-                                    context.ConseillerPrioritaire,
-                                    context.ConseillerSecondaire,
-                                    context.ConseillerTertiaire
+                                context.Segment,
+                                context.ConseillerPrioritaire,
+                                context.ConseillerSecondaire,
+                                context.ConseillerTertiaire
                                 );
                             }
 
@@ -556,14 +556,14 @@
             <!-- ════════════════════════════════════════════════════════
                  Section 4 : Portefeuille
             ════════════════════════════════════════════════════════ -->
-            <MudTabPanel Text="4. Portefeuille">
+            <MudTabPanel Text="4. Taille théorique des portefeuilles">
                 <MudPaper Elevation="1"
                           Style="border-radius:8px;overflow:visible"
                           Class="pa-0 mt-4">
 
                     <div class="ca-section-header">
                         <span class="ca-section-badge">4</span>
-                        Taille théorique de portefeuille par conseiller
+                        Taille théorique de portefeuille par segment
 
                         <MudChip T="string"
                                  Size="Size.Small"
@@ -581,15 +581,16 @@
                               Style="overflow:visible">
 
                         <HeaderContent>
-                            <MudTh>Segment couvert</MudTh>
+                            <MudTh>Segments distributifs</MudTh>
                             <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Intensité
+                                Intensité relationelle
                             </MudTh>
                             <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Volume horaire
+                                Volume horaire par conseiller dédié à la gestion <br />
+                                de portefeuilles (en heures/an)
                             </MudTh>
                             <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Taille actuelle
+                                Taille théorique de portefeuille par segment
                             </MudTh>
 
                             @if (modeSimulation)
@@ -811,7 +812,7 @@
             {
                 regle.ConseillerPrioritaire = saved.ConseillerPrioritaire;
                 regle.ConseillerSecondaire = saved.ConseillerSecondaire;
-                regle.ConseillerTertiaire  = saved.ConseillerTertiaire;
+                regle.ConseillerTertiaire = saved.ConseillerTertiaire;
             }
         }
 
