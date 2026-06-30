@@ -281,109 +281,79 @@
                             </MudText>
                         </div>
 
-                        <!-- Carte paramétrage du type (le parent modifiable) -->
-                        <MudPaper Elevation="0" Class="pa-3 mx-4 mb-3"
-                                  Style="background:#F0F4FF;border:1px solid #C5D0E8;border-radius:8px;overflow:visible">
-                            <MudGrid Spacing="2" AlignItems="Center.Center">
-
-                                <!-- Temps commercial — unique champ modifiable -->
-                                <MudItem xs="12" sm="3">
-                                    <MudText Typo="Typo.caption" Style="color:#6C7A89;display:block;margin-bottom:4px">
-                                        Temps commercial — @typeLabel
-                                    </MudText>
-                                    <MudNumericField T="double"
-                                                     Value="@tpCommercialType"
-                                                     ValueChanged="@(v => SetTempsCommercialByType(typeAgence, v))"
-                                                     Immediate="true"
-                                                     Variant="Variant.Outlined"
-                                                     Margin="Margin.Dense"
-                                                     Min="0"
-                                                     Max="100"
-                                                     Step="5"
-                                                     Format="F0"
-                                                     Adornment="Adornment.End"
-                                                     AdornmentText="%"
-                                                     Style="max-width:130px;background:#FFFDE7"
-                                                     HideSpinButtons="true" />
-                                </MudItem>
-
-                                <!-- Temps non commercial (calculé) -->
-                                <MudItem xs="12" sm="3">
-                                    <MudText Typo="Typo.caption" Style="color:#6C7A89;display:block;margin-bottom:4px">
-                                        Temps non commercial
-                                    </MudText>
-                                    <MudText Style="font-weight:700;color:#6C7A89;font-size:16px;padding-top:4px">
-                                        @tpNonComType.ToString("F0") %
-                                    </MudText>
-                                </MudItem>
-
-                                <!-- Volume horaire (calculé) -->
-                                <MudItem xs="12" sm="3">
-                                    <MudText Typo="Typo.caption" Style="color:#6C7A89;display:block;margin-bottom:4px">
-                                        Volume horaire / conseiller
-                                    </MudText>
-                                    <MudText Style="font-weight:700;color:#1A4E6B;font-size:16px;padding-top:4px">
-                                        @volHoraireType.ToString("F1") h/an
-                                    </MudText>
-                                </MudItem>
-
-                                <!-- Simulation : référence + écart -->
-                                @if (modeSimulation)
+                        <!-- Table unifiée : ligne parent modifiable + lignes profils héritées -->
+                        <table class="ca-temps-type-table">
+                            <thead>
+                                <tr>
+                                    <th class="ca-ttt-col-profil">Profil</th>
+                                    <th class="ca-ttt-col-tps">Temps commercial (%)</th>
+                                    <th class="ca-ttt-col-ntps">Temps non commercial (%)</th>
+                                    <th class="ca-ttt-col-vol">Volume horaire (h/an)</th>
+                                    @if (modeSimulation)
+                                    {
+                                        <th class="ca-ttt-col-sim">Référence</th>
+                                        <th class="ca-ttt-col-sim">Écart</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Ligne parent — type d'agence (modifiable) -->
+                                <tr class="ca-ttt-parent-row">
+                                    <td class="ca-ttt-parent-name">
+                                        <span class="ca-ttt-parent-badge">TYPE</span>
+                                        @typeLabel
+                                    </td>
+                                    <td class="ca-ttt-parent-edit">
+                                        <MudNumericField T="double"
+                                                         Value="@tpCommercialType"
+                                                         ValueChanged="@(v => SetTempsCommercialByType(typeAgence, v))"
+                                                         Immediate="true"
+                                                         Variant="Variant.Text"
+                                                         Margin="Margin.Dense"
+                                                         Min="0"
+                                                         Max="100"
+                                                         Step="5"
+                                                         Format="F0"
+                                                         Adornment="Adornment.End"
+                                                         AdornmentText="%"
+                                                         Style="max-width:110px;margin:0 auto"
+                                                         HideSpinButtons="true" />
+                                    </td>
+                                    <td class="ca-ttt-parent-calc">@tpNonComType.ToString("F0") %</td>
+                                    <td class="ca-ttt-parent-vol">@volHoraireType.ToString("F1") h</td>
+                                    @if (modeSimulation)
+                                    {
+                                        <td class="ca-ttt-sim-ref">@baselineType.ToString("F0") %</td>
+                                        <td style="@GetDeltaCellStyle(ecartType);text-align:center;padding:6px 10px">
+                                            @FormatDelta(ecartType, "%")
+                                        </td>
+                                    }
+                                </tr>
+                                <!-- Lignes enfants — profils hérités (lecture seule) -->
+                                @foreach (var p in profilsDuType)
                                 {
-                                    <MudItem xs="12" sm="3">
-                                        <MudText Typo="Typo.caption" Style="color:#6C7A89;display:block;margin-bottom:4px">
-                                            Référence / Écart
-                                        </MudText>
-                                        <MudText Style="color:#6C7A89;font-size:13px;padding-top:4px">
-                                            @baselineType.ToString("F0")%
-                                            <span style="@GetDeltaStyle(ecartType);margin-left:8px;font-weight:700">
-                                                @FormatDelta(ecartType, "%")
-                                            </span>
-                                        </MudText>
-                                    </MudItem>
+                                    <tr class="ca-ttt-child-row">
+                                        <td class="ca-ttt-child-name">
+                                            <span class="ca-ttt-inherit-arrow">↳</span>@p.Profil
+                                        </td>
+                                        <td class="ca-ttt-child-tps">
+                                            @GetPartTempsCommercialPctDisplay(p).ToString("F0") %
+                                        </td>
+                                        <td class="ca-ttt-child-ntps">
+                                            @GetPartTempsNonCommercialPctDisplay(p).ToString("F0") %
+                                        </td>
+                                        <td class="ca-ttt-child-vol">
+                                            @GetVolumeHoraire(p).ToString("F1")
+                                        </td>
+                                        @if (modeSimulation)
+                                        {
+                                            <td class="ca-ttt-sim-ref">—</td>
+                                            <td class="ca-ttt-sim-ref">—</td>
+                                        }
+                                    </tr>
                                 }
-
-                            </MudGrid>
-                        </MudPaper>
-
-                        <!-- Profils hérités (lecture seule) -->
-                        <MudTable Items="@profilsDuType"
-                                  Dense="true"
-                                  Hover="true"
-                                  Elevation="0"
-                                  Striped="true"
-                                  Class="ca-temps-table"
-                                  Style="overflow:visible;margin-bottom:16px">
-                            <HeaderContent>
-                                <MudTh>Profil conseiller</MudTh>
-                                <MudTh Style="text-align:center;background:#EEF1F5;color:#1A4E6B">
-                                    Temps commercial hérité
-                                </MudTh>
-                                <MudTh Style="text-align:center;background:#EEF1F5;color:#1A4E6B">
-                                    Temps non commercial
-                                </MudTh>
-                                <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                    Volume horaire (h/an)
-                                </MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd Style="font-weight:600;color:#1A4E6B">
-                                    @context.Profil
-                                </MudTd>
-                                <MudTd Style="text-align:center;background:#EEF1F5;color:#52617A">
-                                    <MudIcon Icon="@Icons.Material.Outlined.AccountTree"
-                                             Size="Size.Small"
-                                             Style="font-size:12px;vertical-align:middle;margin-right:3px;opacity:0.6" />
-                                    @GetPartTempsCommercialPctDisplay(context).ToString("F0") %
-                                </MudTd>
-                                <MudTd Style="text-align:center;background:#EEF1F5;color:#6C7A89;font-style:italic">
-                                    @GetPartTempsNonCommercialPctDisplay(context).ToString("F0") %
-                                </MudTd>
-                                <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B;font-style:italic">
-                                    @GetVolumeHoraire(context).ToString("F1")
-                                </MudTd>
-                            </RowTemplate>
-                        </MudTable>
+                            </tbody>
+                        </table>
                     }
 
                 </MudPaper>
