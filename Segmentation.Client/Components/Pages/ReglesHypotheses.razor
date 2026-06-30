@@ -278,13 +278,13 @@
                                 <span style="font-weight:700;font-size:15px;color:white;letter-spacing:.2px">@typeLabel</span>
                                 <div style="display:flex;align-items:center;gap:10px">
                                     <span style="color:rgba(255,255,255,0.75);font-size:13px">Commercial</span>
-                                    <div style="background:#FFF9C4;border:1.5px solid #F9C825;border-radius:20px;padding:3px 10px 3px 12px;display:inline-flex;align-items:center;gap:2px">
+                                    <div style="background:#FFF9C4;border:2px solid #F9C825;border-radius:6px;padding:6px 14px 6px 16px;display:inline-flex;align-items:center;gap:4px">
                                         <input type="number"
                                                value="@tpCommercial"
-                                               @oninput="@(e => SetTempsCommercialByTypeSafe(typeAgence, (string?)e.Value))"
+                                               @onchange="@(e => SetTempsCommercialByTypeSafe(typeAgence, (string?)e.Value))"
                                                min="0" max="100" step="5"
-                                               style="background:transparent;border:none;color:#1A4E6B;font-weight:700;font-size:14px;width:36px;text-align:center;padding:0;outline:none;-moz-appearance:textfield" />
-                                        <span style="color:#1A4E6B;font-weight:700;font-size:14px">%</span>
+                                               style="background:transparent;border:none;color:#1A4E6B;font-weight:700;font-size:16px;width:46px;text-align:center;padding:0;outline:none;-moz-appearance:textfield" />
+                                        <span style="color:#1A4E6B;font-weight:700;font-size:16px">%</span>
                                     </div>
                                 </div>
                             </div>
