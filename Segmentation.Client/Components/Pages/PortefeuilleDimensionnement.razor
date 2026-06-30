@@ -137,6 +137,17 @@
 
             <div class="ca-dim-scroll-wrapper">
                 <table class="ca-dim-table">
+                    <!-- Colgroup : garantit que les colonnes KPI s'alignent avec le tableau principal -->
+                    <colgroup>
+                        <col style="min-width:160px;width:160px" />
+                        @foreach (var p in profils)
+                        {
+                            <col style="min-width:110px;width:110px" />
+                        }
+                        <col style="min-width:100px;width:100px" />
+                        <col style="min-width:68px;width:68px" />
+                        <col style="min-width:82px;width:82px" />
+                    </colgroup>
                     <thead>
                         <!-- Super-header -->
                         <tr class="ca-dim-superheader">
@@ -203,7 +214,7 @@
                                                 {
                                                     <div style="font-size:12px;font-weight:700">▼ @etpCibleTot.Value.ToString("F2")</div>
                                                 }
-                                                <div style="font-size:11px;font-weight:700;font-style:italic;color:#FF6F00;background:linear-gradient(180deg,rgba(255,143,0,0.08) 0%,rgba(255,143,0,0.28) 100%);border-top:1px solid rgba(255,143,0,0.3);padding:1px 0">
+                                                <div style="font-size:11px;font-weight:700;font-style:italic;color:#E65100;background:#FFF0D6;border-top:2px solid rgba(255,143,0,0.45);padding:2px 0">
                                                     @(etp.HasValue && etp > 0 ? etp.Value.ToString("F2") : "—")
                                                 </div>
                                             </div>
@@ -250,9 +261,9 @@
                                                 }
                                             </div>
 
-                                            <!-- ▲ EXISTANT (bas) — lecture seule, fond orange gradient -->
-                                            <div class="@bottomCls" style="text-align:center;background:linear-gradient(180deg,rgba(255,143,0,0.08) 0%,rgba(255,143,0,0.28) 100%);border-top:1px solid rgba(255,143,0,0.3)">
-                                                <span style="font-size:11px;font-weight:700;color:#FF6F00;font-style:italic;text-shadow:0 0 6px rgba(255,200,0,0.3)">
+                                            <!-- ▲ EXISTANT (bas) — lecture seule, fond orange (#FFF0D6) -->
+                                            <div class="@bottomCls" style="text-align:center">
+                                                <span style="font-size:11px;font-weight:700;color:#E65100;font-style:italic">
                                                     @(etp.HasValue && etp > 0 ? etp.Value.ToString("F2") : "—")
                                                 </span>
                                             </div>
@@ -276,16 +287,16 @@
                                             <span style="color:#9AA5B1">—</span>
                                         }
                                     </div>
-                                    <div style="background:linear-gradient(180deg,rgba(255,143,0,0.10) 0%,rgba(255,143,0,0.30) 100%);border-top:1px solid rgba(255,143,0,0.35);padding:2px 6px 3px">
+                                    <div style="background:#FFF0D6;border-top:2px solid rgba(255,143,0,0.45);padding:2px 6px 3px;text-align:center">
                                         @if (existantTotRow.HasValue)
                                         {
-                                            <span style="font-size:11px;font-weight:700;color:#FF6F00;font-style:italic">
+                                            <span style="font-size:11px;font-weight:700;color:#E65100;font-style:italic">
                                                 @(vueEtp ? existantTotRow.Value.ToString("F2") : existantTotRow.Value.ToString("N0"))
                                             </span>
                                         }
                                         else
                                         {
-                                            <span style="font-size:11px;color:rgba(255,143,0,0.4)">—</span>
+                                            <span style="font-size:11px;color:#E0B090">—</span>
                                         }
                                     </div>
                                 </td>
@@ -360,7 +371,8 @@
                                                          ValueChanged="@(v => { _effectifActuel[pCap] = v; })"
                                                          Immediate="true" Variant="Variant.Text" Margin="Margin.Dense"
                                                          Format="F0" Min="0" HideSpinButtons="true" Placeholder="0"
-                                                         Style="max-width:70px;margin:0 auto;font-size:13px;font-weight:700;color:white;text-align:center" />
+                                                         Style="max-width:70px;margin:0 auto"
+                                                         InputStyle="color:white;font-size:13px;font-weight:700;text-align:center" />
                                     }
                                     else
                                     {
@@ -392,7 +404,8 @@
                                                          ValueChanged="@(v => { _effectifCible[pCap] = v; })"
                                                          Immediate="true" Variant="Variant.Text" Margin="Margin.Dense"
                                                          Format="F0" Min="0" HideSpinButtons="true" Placeholder="0"
-                                                         Style="max-width:70px;margin:0 auto;font-size:13px;font-weight:700;color:white;text-align:center" />
+                                                         Style="max-width:70px;margin:0 auto"
+                                                         InputStyle="color:white;font-size:13px;font-weight:700;text-align:center" />
                                     }
                                     else
                                     {

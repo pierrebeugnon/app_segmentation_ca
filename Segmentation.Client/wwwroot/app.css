@@ -871,17 +871,18 @@ thead .ca-dim-sticky-col { background: #1A4E6B !important; z-index: 4; }
     min-height: 32px;
 }
 
-/* Partie basse — CIBLE (depuis règles) */
+/* Partie basse — EXISTANT (lecture seule, fond orange) */
 .ca-dim-cell-bottom {
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 2px 6px 4px;
-    min-height: 20px;
-    border-top: 1px solid rgba(0,0,0,0.10);
+    min-height: 22px;
+    border-top: 2px solid rgba(255,143,0,0.45);
 }
-.ca-dim-cell-bottom-assigned { background: rgba(0,0,0,0.08); }
-.ca-dim-cell-bottom-empty    { background: rgba(0,0,0,0.02); }
+/* Zone EXISTANT : fond orange opaque — pas de superposition avec le vert de la cible */
+.ca-dim-cell-bottom-assigned { background: #FFF0D6; }
+.ca-dim-cell-bottom-empty    { background: #FFF8EE; }
 
 /* Pills rôle dans zone CIBLE */
 .ca-dim-role-pill {
