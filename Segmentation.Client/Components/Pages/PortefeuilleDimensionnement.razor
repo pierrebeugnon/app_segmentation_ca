@@ -211,9 +211,9 @@
                                             var bottomCls = lvl > 0 ? "ca-dim-cell-bottom ca-dim-cell-bottom-assigned"
                                                                      : "ca-dim-cell-bottom ca-dim-cell-bottom-empty";
 
-                                            <!-- ▼ CIBLE (haut) — éditable -->
+                                            <!-- ▼ CIBLE (haut) — éditable sur TOUTES les lignes -->
                                             <div class="@topCls" style="text-align:center">
-                                                @if (lvl > 0 && vueEtp)
+                                                @if (vueEtp)
                                                 {
                                                     <MudNumericField T="double?"
                                                                      Value="@etpCibleS"
@@ -224,19 +224,25 @@
                                                                      Format="F2"
                                                                      Min="0"
                                                                      HideSpinButtons="true"
-                                                                     Placeholder="0.00"
+                                                                     Placeholder="—"
                                                                      Style="max-width:76px;margin:0 auto;color:inherit;font-size:12px;font-weight:700;text-align:center" />
-                                                }
-                                                else if (lvl > 0)
-                                                {
-                                                    <span style="font-size:12px;font-weight:700">
-                                                        @(etpCibleS.HasValue && etpCibleS > 0 ? etpCibleS.Value.ToString("F2") : "—")
-                                                        <span class="ca-dim-cible-role" style="font-weight:400">(@roleLbl)</span>
-                                                    </span>
                                                 }
                                                 else
                                                 {
-                                                    <span style="opacity:0.35;font-size:12px">—</span>
+                                                    <span style="font-size:12px;font-weight:700">
+                                                        @if (etpCibleS.HasValue && etpCibleS > 0)
+                                                        {
+                                                            @etpCibleS.Value.ToString("F2")
+                                                            @if (lvl > 0)
+                                                            {
+                                                                <span class="ca-dim-cible-role" style="font-weight:400"> (@roleLbl)</span>
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            <span style="opacity:0.4">—</span>
+                                                        }
+                                                    </span>
                                                 }
                                             </div>
 
@@ -303,14 +309,14 @@
                     <tbody>
 
                         <!-- ── Ligne 1 : Effectif actuel ─────────────────────── -->
-                        <tr class="ca-dim-tr-kpi" style="background:#EEF2F7">
-                            <td class="ca-dim-td-segment ca-dim-sticky-col" style="font-size:12px;font-weight:600;color:#1A4E6B;padding:6px 12px;background:#EEF2F7">
+                        <tr class="ca-dim-tr-kpi" style="background:#1A4E6B">
+                            <td class="ca-dim-td-segment ca-dim-sticky-col" style="font-size:12px;font-weight:700;color:white;padding:6px 12px;background:#1A4E6B">
                                 Effectif actuel (nb conseillers)
                             </td>
                             @foreach (var p in profils)
                             {
                                 var pCap = p;
-                                <td style="text-align:center;padding:4px 8px;border-bottom:1px solid #E0E6EF">
+                                <td style="text-align:center;padding:4px 8px;background:#1A4E6B;border-bottom:1px solid #2A6E9B">
                                     @if (vueEtp)
                                     {
                                         <MudNumericField T="double?"
@@ -318,30 +324,30 @@
                                                          ValueChanged="@(v => { _effectifActuel[pCap] = v; })"
                                                          Immediate="true" Variant="Variant.Text" Margin="Margin.Dense"
                                                          Format="F0" Min="0" HideSpinButtons="true" Placeholder="0"
-                                                         Style="max-width:70px;margin:0 auto;font-size:12px;font-weight:600;text-align:center" />
+                                                         Style="max-width:70px;margin:0 auto;font-size:13px;font-weight:700;color:white;text-align:center" />
                                     }
                                     else
                                     {
-                                        <span style="font-size:12px;font-weight:600">@(_effectifActuel.GetValueOrDefault(pCap)?.ToString("F0") ?? "—")</span>
+                                        <span style="font-size:13px;font-weight:700;color:white">@(_effectifActuel.GetValueOrDefault(pCap)?.ToString("F0") ?? "—")</span>
                                     }
                                 </td>
                             }
-                            <td style="text-align:center;font-size:12px;font-weight:700;padding:4px 8px;background:#DDE4EF;border-bottom:1px solid #C8D3E6">
+                            <td style="text-align:center;font-size:13px;font-weight:700;color:white;padding:4px 8px;background:#0F3A52;border-bottom:1px solid #2A6E9B">
                                 @{ var totEffAct = profils.Select(p => _effectifActuel.GetValueOrDefault(p)).Where(v => v.HasValue).Sum(v => v!.Value); }
                                 @(profils.Any(p => _effectifActuel.GetValueOrDefault(p).HasValue) ? totEffAct.ToString("F0") : "—")
                             </td>
-                            <td></td>
+                            <td style="background:#1A4E6B"></td>
                         </tr>
 
                         <!-- ── Ligne 2 : Effectif cible ──────────────────────── -->
-                        <tr class="ca-dim-tr-kpi" style="background:#EEF2F7">
-                            <td class="ca-dim-td-segment ca-dim-sticky-col" style="font-size:12px;font-weight:600;color:#1A4E6B;padding:6px 12px;background:#EEF2F7">
+                        <tr class="ca-dim-tr-kpi" style="background:#1A4E6B">
+                            <td class="ca-dim-td-segment ca-dim-sticky-col" style="font-size:12px;font-weight:700;color:white;padding:6px 12px;background:#1A4E6B;border-top:1px solid #2A6E9B">
                                 Effectif cible (nb conseillers)
                             </td>
                             @foreach (var p in profils)
                             {
                                 var pCap = p;
-                                <td style="text-align:center;padding:4px 8px;border-bottom:1px solid #E0E6EF">
+                                <td style="text-align:center;padding:4px 8px;background:#1A4E6B;border-top:1px solid #2A6E9B;border-bottom:1px solid #2A6E9B">
                                     @if (vueEtp)
                                     {
                                         <MudNumericField T="double?"
@@ -349,88 +355,88 @@
                                                          ValueChanged="@(v => { _effectifCible[pCap] = v; })"
                                                          Immediate="true" Variant="Variant.Text" Margin="Margin.Dense"
                                                          Format="F0" Min="0" HideSpinButtons="true" Placeholder="0"
-                                                         Style="max-width:70px;margin:0 auto;font-size:12px;font-weight:600;text-align:center" />
+                                                         Style="max-width:70px;margin:0 auto;font-size:13px;font-weight:700;color:white;text-align:center" />
                                     }
                                     else
                                     {
-                                        <span style="font-size:12px;font-weight:600">@(_effectifCible.GetValueOrDefault(pCap)?.ToString("F0") ?? "—")</span>
+                                        <span style="font-size:13px;font-weight:700;color:white">@(_effectifCible.GetValueOrDefault(pCap)?.ToString("F0") ?? "—")</span>
                                     }
                                 </td>
                             }
-                            <td style="text-align:center;font-size:12px;font-weight:700;padding:4px 8px;background:#DDE4EF;border-bottom:1px solid #C8D3E6">
+                            <td style="text-align:center;font-size:13px;font-weight:700;color:white;padding:4px 8px;background:#0F3A52;border-top:1px solid #2A6E9B">
                                 @{ var totEffCib = profils.Select(p => _effectifCible.GetValueOrDefault(p)).Where(v => v.HasValue).Sum(v => v!.Value); }
                                 @(profils.Any(p => _effectifCible.GetValueOrDefault(p).HasValue) ? totEffCib.ToString("F0") : "—")
                             </td>
-                            <td></td>
+                            <td style="background:#1A4E6B"></td>
                         </tr>
 
                         <!-- ── Ligne 3 : Remplissage portefeuilles ───────────── -->
-                        <tr style="background:#F5F7FA">
-                            <td class="ca-dim-td-segment ca-dim-sticky-col" style="font-size:11px;font-weight:600;color:#4A5568;padding:5px 12px;background:#F5F7FA">
+                        <tr style="background:#D6E8F7;border-left:4px solid #1A4E6B">
+                            <td class="ca-dim-td-segment ca-dim-sticky-col" style="font-size:11px;font-weight:700;color:#1A4E6B;padding:5px 12px;background:#D6E8F7;border-left:4px solid #1A4E6B">
                                 Remplissage portefeuilles existants<br/>
-                                <span style="font-weight:400;font-size:10px;color:#8A97A8">Effectif actuel − Total charge ETP</span>
+                                <span style="font-weight:400;font-size:10px;color:#4A7DA8">Effectif actuel − Total charge ETP</span>
                             </td>
                             @foreach (var p in profils)
                             {
                                 var rem = GetRemplissage(p);
-                                <td style="text-align:center;padding:5px 8px;font-size:12px;@DiffColor(rem, positifBon:true);border-bottom:1px solid #E8EDF2">
+                                <td style="text-align:center;padding:5px 8px;font-size:12px;background:#D6E8F7;@DiffColor(rem, positifBon:true);border-bottom:1px solid #B8D4EC">
                                     @FormatDiff(rem)
                                 </td>
                             }
-                            <td style="text-align:center;padding:5px 8px;font-size:12px;background:#EAECF0;border-bottom:1px solid #D5DAE3">
+                            <td style="text-align:center;padding:5px 8px;font-size:12px;background:#B8D4EC;border-bottom:1px solid #9ABFDF">
                                 @{ var totRem = profils.Select(p => GetRemplissage(p)).Where(v => v.HasValue).ToList(); }
                                 @if (totRem.Any()) { <span style="@DiffColor(totRem.Sum(v => v!.Value))">@FormatDiff(totRem.Sum(v => v!.Value))</span> } else { <span>—</span> }
                             </td>
-                            <td></td>
+                            <td style="background:#D6E8F7"></td>
                         </tr>
 
                         <!-- ── Ligne 4 : Evolution effectifs ─────────────────── -->
-                        <tr style="background:#F5F7FA">
-                            <td class="ca-dim-td-segment ca-dim-sticky-col" style="font-size:11px;font-weight:600;color:#4A5568;padding:5px 12px;background:#F5F7FA">
+                        <tr style="background:#D6E8F7;border-left:4px solid #1A4E6B">
+                            <td class="ca-dim-td-segment ca-dim-sticky-col" style="font-size:11px;font-weight:700;color:#1A4E6B;padding:5px 12px;background:#D6E8F7;border-left:4px solid #1A4E6B">
                                 Évolution des effectifs<br/>
-                                <span style="font-weight:400;font-size:10px;color:#8A97A8">Effectif cible − Effectif actuel</span>
+                                <span style="font-weight:400;font-size:10px;color:#4A7DA8">Effectif cible − Effectif actuel</span>
                             </td>
                             @foreach (var p in profils)
                             {
                                 var evo = GetEvolutionEffectifs(p);
-                                <td style="text-align:center;padding:5px 8px;font-size:12px;@DiffColor(evo, positifBon:true);border-bottom:1px solid #E8EDF2">
+                                <td style="text-align:center;padding:5px 8px;font-size:12px;background:#D6E8F7;@DiffColor(evo, positifBon:true);border-bottom:1px solid #B8D4EC">
                                     @FormatDiff(evo)
                                 </td>
                             }
-                            <td style="text-align:center;padding:5px 8px;font-size:12px;background:#EAECF0;border-bottom:1px solid #D5DAE3">
+                            <td style="text-align:center;padding:5px 8px;font-size:12px;background:#B8D4EC;border-bottom:1px solid #9ABFDF">
                                 @{ var totEvo = profils.Select(p => GetEvolutionEffectifs(p)).Where(v => v.HasValue).ToList(); }
                                 @if (totEvo.Any()) { <span style="@DiffColor(totEvo.Sum(v => v!.Value))">@FormatDiff(totEvo.Sum(v => v!.Value))</span> } else { <span>—</span> }
                             </td>
-                            <td></td>
+                            <td style="background:#D6E8F7"></td>
                         </tr>
 
                         <!-- ── Ligne 5 : Taux de concordance ─────────────────── -->
-                        <tr style="background:#F5F7FA">
-                            <td class="ca-dim-td-segment ca-dim-sticky-col" style="font-size:11px;font-weight:600;color:#4A5568;padding:5px 12px;background:#F5F7FA">
+                        <tr style="background:#D6E8F7;border-left:4px solid #1A4E6B">
+                            <td class="ca-dim-td-segment ca-dim-sticky-col" style="font-size:11px;font-weight:700;color:#1A4E6B;padding:5px 12px;background:#D6E8F7;border-left:4px solid #1A4E6B">
                                 Taux de concordance<br/>
-                                <span style="font-weight:400;font-size:10px;color:#8A97A8">ETP cible / Effectif cible (portefeuille moyen cible)</span>
+                                <span style="font-weight:400;font-size:10px;color:#4A7DA8">ETP cible / Effectif cible (portefeuille moyen cible)</span>
                             </td>
                             @foreach (var p in profils)
                             {
                                 var tc = GetTauxConcordance(p);
-                                <td style="text-align:center;padding:5px 8px;font-size:12px;font-weight:600;color:#1A4E6B;border-bottom:1px solid #E8EDF2">
+                                <td style="text-align:center;padding:5px 8px;font-size:12px;font-weight:700;color:#1A4E6B;background:#D6E8F7;border-bottom:1px solid #B8D4EC">
                                     @(tc.HasValue ? tc.Value.ToString("F2") : "—")
                                 </td>
                             }
-                            <td style="background:#EAECF0;border-bottom:1px solid #D5DAE3"></td>
-                            <td></td>
+                            <td style="background:#B8D4EC;border-bottom:1px solid #9ABFDF"></td>
+                            <td style="background:#D6E8F7"></td>
                         </tr>
 
                         <!-- ── Ligne 6 : Taux de rotation ─────────────────────── -->
-                        <tr style="background:#F5F7FA">
-                            <td class="ca-dim-td-segment ca-dim-sticky-col" style="font-size:11px;font-weight:600;color:#4A5568;padding:5px 12px;background:#F5F7FA">
+                        <tr style="background:#D6E8F7;border-left:4px solid #1A4E6B">
+                            <td class="ca-dim-td-segment ca-dim-sticky-col" style="font-size:11px;font-weight:700;color:#1A4E6B;padding:5px 12px;background:#D6E8F7;border-left:4px solid #1A4E6B">
                                 Taux de rotation du portefeuille (%)<br/>
-                                <span style="font-weight:400;font-size:10px;color:#8A97A8">À renseigner</span>
+                                <span style="font-weight:400;font-size:10px;color:#4A7DA8">À renseigner</span>
                             </td>
                             @foreach (var p in profils)
                             {
                                 var pCap = p;
-                                <td style="text-align:center;padding:4px 8px;border-bottom:1px solid #E8EDF2">
+                                <td style="text-align:center;padding:4px 8px;background:#D6E8F7;border-bottom:1px solid #B8D4EC">
                                     @if (vueEtp)
                                     {
                                         <MudNumericField T="double?"
@@ -439,28 +445,28 @@
                                                          Immediate="true" Variant="Variant.Text" Margin="Margin.Dense"
                                                          Format="F1" Min="0" Max="100" HideSpinButtons="true" Placeholder="0,0"
                                                          Adornment="Adornment.End" AdornmentText="%"
-                                                         Style="max-width:80px;margin:0 auto;font-size:12px;text-align:center" />
+                                                         Style="max-width:80px;margin:0 auto;font-size:12px;color:#1A4E6B;text-align:center" />
                                     }
                                     else
                                     {
-                                        <span style="font-size:12px">@(_tauxRotation.GetValueOrDefault(pCap).HasValue ? $"{_tauxRotation.GetValueOrDefault(pCap)!.Value:F1} %" : "—")</span>
+                                        <span style="font-size:12px;color:#1A4E6B;font-weight:600">@(_tauxRotation.GetValueOrDefault(pCap).HasValue ? $"{_tauxRotation.GetValueOrDefault(pCap)!.Value:F1} %" : "—")</span>
                                     }
                                 </td>
                             }
-                            <td style="background:#EAECF0;border-bottom:1px solid #D5DAE3"></td>
-                            <td></td>
+                            <td style="background:#B8D4EC;border-bottom:1px solid #9ABFDF"></td>
+                            <td style="background:#D6E8F7"></td>
                         </tr>
 
                         <!-- ── Ligne 7 : Taux d'entrée ────────────────────────── -->
-                        <tr style="background:#F5F7FA">
-                            <td class="ca-dim-td-segment ca-dim-sticky-col" style="font-size:11px;font-weight:600;color:#4A5568;padding:5px 12px;background:#F5F7FA">
+                        <tr style="background:#D6E8F7;border-left:4px solid #1A4E6B">
+                            <td class="ca-dim-td-segment ca-dim-sticky-col" style="font-size:11px;font-weight:700;color:#1A4E6B;padding:5px 12px;background:#D6E8F7;border-left:4px solid #1A4E6B">
                                 Taux d'entrée dans le portefeuille (%)<br/>
-                                <span style="font-weight:400;font-size:10px;color:#8A97A8">À renseigner</span>
+                                <span style="font-weight:400;font-size:10px;color:#4A7DA8">À renseigner</span>
                             </td>
                             @foreach (var p in profils)
                             {
                                 var pCap = p;
-                                <td style="text-align:center;padding:4px 8px;border-bottom:1px solid #E8EDF2">
+                                <td style="text-align:center;padding:4px 8px;background:#D6E8F7;border-bottom:1px solid #B8D4EC">
                                     @if (vueEtp)
                                     {
                                         <MudNumericField T="double?"
@@ -469,16 +475,16 @@
                                                          Immediate="true" Variant="Variant.Text" Margin="Margin.Dense"
                                                          Format="F1" Min="0" Max="100" HideSpinButtons="true" Placeholder="0,0"
                                                          Adornment="Adornment.End" AdornmentText="%"
-                                                         Style="max-width:80px;margin:0 auto;font-size:12px;text-align:center" />
+                                                         Style="max-width:80px;margin:0 auto;font-size:12px;color:#1A4E6B;text-align:center" />
                                     }
                                     else
                                     {
-                                        <span style="font-size:12px">@(_tauxEntree.GetValueOrDefault(pCap).HasValue ? $"{_tauxEntree.GetValueOrDefault(pCap)!.Value:F1} %" : "—")</span>
+                                        <span style="font-size:12px;color:#1A4E6B;font-weight:600">@(_tauxEntree.GetValueOrDefault(pCap).HasValue ? $"{_tauxEntree.GetValueOrDefault(pCap)!.Value:F1} %" : "—")</span>
                                     }
                                 </td>
                             }
-                            <td style="background:#EAECF0;border-bottom:1px solid #D5DAE3"></td>
-                            <td></td>
+                            <td style="background:#B8D4EC;border-bottom:1px solid #9ABFDF"></td>
+                            <td style="background:#D6E8F7"></td>
                         </tr>
 
                     </tbody>
@@ -545,6 +551,7 @@
         profils  = GetProfils();
         segments = GetSegments();
         rows     = BuildRows();
+        RecalcTotal();       // totalise les ETP existants mockés
         InitEffectifs();
         BuildFilterOptions();
         ApplyFilters();
@@ -602,14 +609,34 @@
             .Distinct().ToList();
 
     // ── Construction de la table ──────────────────────────────────────────
+
+    // Mock ETP existants par segment × profil (valeurs réalistes pour projection)
+    private static readonly Dictionary<string, Dictionary<string, double>> _mockEtpExistant =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["HDG Premium Potentiel"] = new(StringComparer.OrdinalIgnoreCase) { ["BANQUIER PRIVÉ"] = 0.30, ["DIR. BP"] = 0.10 },
+            ["HDG Premium Standard"]  = new(StringComparer.OrdinalIgnoreCase) { ["CGP"] = 0.85, ["BANQUIER PRIVÉ"] = 0.20 },
+            ["HDG Potentiel"]         = new(StringComparer.OrdinalIgnoreCase) { ["RESP. AGENCE"] = 1.20, ["RCP"] = 0.35 },
+            ["HDG Senior Epargnant"]  = new(StringComparer.OrdinalIgnoreCase) { ["RCP"] = 1.50, ["RESP. AGENCE"] = 0.40 },
+            ["HDG Standard"]          = new(StringComparer.OrdinalIgnoreCase) { ["RESP. AGENCE"] = 2.10, ["CONSEILLER CLIENTELE"] = 0.80 },
+            ["CI Potentiel"]          = new(StringComparer.OrdinalIgnoreCase) { ["CONSEILLER CLIENTELE"] = 3.60, ["RCP"] = 0.50 },
+            ["CI Standard"]           = new(StringComparer.OrdinalIgnoreCase) { ["CONSEILLER CLIENTELE"] = 7.80, ["CONSEILLER COMMERCIAL"] = 2.40 },
+            ["GP Potentiel"]          = new(StringComparer.OrdinalIgnoreCase) { ["CONSEILLER CLIENTELE"] = 3.90 },
+            ["GP Standard"]           = new(StringComparer.OrdinalIgnoreCase) { ["CONSEILLER COMMERCIAL"] = 11.50, ["CONSEILLER CLIENTELE"] = 3.10 },
+            ["Non segmenté"]          = new(StringComparer.OrdinalIgnoreCase) { ["CONSEILLER COMMERCIAL"] = 4.80 },
+        };
+
     private List<DimMatrixRow> BuildRows()
     {
         var dataRows = segments
             .Select(s => new DimMatrixRow
             {
                 Segment = s,
-                EtpParProfil              = profils.ToDictionary(p => p, _ => (double?)null),
-                EtpCibleSaisieParProfil   = profils.ToDictionary(p => p, _ => (double?)null)
+                EtpParProfil = profils.ToDictionary(
+                    p => p,
+                    p => _mockEtpExistant.TryGetValue(s, out var segDict) &&
+                         segDict.TryGetValue(p, out var v) ? (double?)v : null),
+                EtpCibleSaisieParProfil = profils.ToDictionary(p => p, _ => (double?)null)
             }).ToList();
 
         dataRows.Add(new DimMatrixRow
@@ -749,14 +776,28 @@
 
     // ── KPI : Effectifs et taux ───────────────────────────────────────────
 
+    // Mock effectifs actuel par profil (nb conseillers en poste)
+    private static readonly Dictionary<string, double> _mockEffectifActuel =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["DIR. BP"]                = 1,
+            ["BANQUIER PRIVÉ"]         = 3,
+            ["CGP"]                    = 2,
+            ["RESP. AGENCE"]           = 2,
+            ["RCP"]                    = 4,
+            ["CONSEILLER CLIENTELE"]   = 6,
+            ["CONSEILLER COMMERCIAL"]  = 5,
+        };
+
     private void InitEffectifs()
     {
         foreach (var p in profils)
         {
-            _effectifActuel.TryAdd(p, null);
-            _effectifCible .TryAdd(p, null);
-            _tauxRotation  .TryAdd(p, null);
-            _tauxEntree    .TryAdd(p, null);
+            if (!_effectifActuel.ContainsKey(p))
+                _effectifActuel[p] = _mockEffectifActuel.TryGetValue(p, out var v) ? v : null;
+            _effectifCible.TryAdd(p, null);
+            _tauxRotation .TryAdd(p, null);
+            _tauxEntree   .TryAdd(p, null);
         }
     }
 
