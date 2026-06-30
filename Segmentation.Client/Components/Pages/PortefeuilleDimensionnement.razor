@@ -147,10 +147,15 @@
                                 Profils conseillers
                             </th>
                             <th class="ca-dim-th-total" rowspan="2">
-                                Total ETP<br/>existant
+                                Total ETP<br/>
+                                <span style="font-size:10px;font-weight:400;opacity:0.85">▼ Cible / ▲ Existant</span>
                             </th>
-                            <th class="ca-dim-th-ctrl" rowspan="2">
+                            <th class="ca-dim-th-ctrl" rowspan="2" style="min-width:68px">
                                 Couverture
+                            </th>
+                            <th class="ca-dim-th-ctrl" rowspan="2" style="min-width:80px;background:#0F3A52;color:white;font-size:11px">
+                                Concordance<br/>
+                                <span style="font-size:9px;font-weight:400;opacity:0.8">% ETP priorisé</span>
                             </th>
                         </tr>
                         <!-- Sous-header profils -->
@@ -165,7 +170,6 @@
                     <tbody>
                         @foreach (var row in filteredRows)
                         {
-                            var rowTotal = GetRowTotal(row);
                             var coverage = GetCoverageLevel(row);
 
                             <tr class="@(row.IsTotal ? "ca-dim-tr-total" : "ca-dim-tr-data")">
@@ -199,7 +203,7 @@
                                                 {
                                                     <div style="font-size:12px;font-weight:700">▼ @etpCibleTot.Value.ToString("F2")</div>
                                                 }
-                                                <div style="font-size:11px;color:#FF8F00;font-style:italic">
+                                                <div style="font-size:11px;font-weight:700;font-style:italic;color:#FF6F00;background:linear-gradient(180deg,rgba(255,143,0,0.08) 0%,rgba(255,143,0,0.28) 100%);border-top:1px solid rgba(255,143,0,0.3);padding:1px 0">
                                                     @(etp.HasValue && etp > 0 ? etp.Value.ToString("F2") : "—")
                                                 </div>
                                             </div>
@@ -246,9 +250,9 @@
                                                 }
                                             </div>
 
-                                            <!-- ▲ EXISTANT (bas) — lecture seule, orange -->
-                                            <div class="@bottomCls" style="text-align:center">
-                                                <span style="font-size:11px;font-weight:600;color:#FF8F00;font-style:italic">
+                                            <!-- ▲ EXISTANT (bas) — lecture seule, fond orange gradient -->
+                                            <div class="@bottomCls" style="text-align:center;background:linear-gradient(180deg,rgba(255,143,0,0.08) 0%,rgba(255,143,0,0.28) 100%);border-top:1px solid rgba(255,143,0,0.3)">
+                                                <span style="font-size:11px;font-weight:700;color:#FF6F00;font-style:italic;text-shadow:0 0 6px rgba(255,200,0,0.3)">
                                                     @(etp.HasValue && etp > 0 ? etp.Value.ToString("F2") : "—")
                                                 </span>
                                             </div>
@@ -256,48 +260,80 @@
                                     </td>
                                 }
 
-                                <!-- Total ETP — Cible (haut) + Existant orange (bas) -->
-                                <td class="ca-dim-td-total" style="font-size:12px;text-align:center">
+                                <!-- Total ETP — Cible (haut) + Existant orange gradient (bas) -->
+                                <td class="ca-dim-td-total" style="font-size:12px;text-align:center;padding:0;vertical-align:middle">
                                     @{
-                                        var cibleTotRow = GetRowCibleTotal(row);
+                                        var cibleTotRow    = GetRowCibleTotal(row);
+                                        var existantTotRow = GetRowExistantTotal(row);
                                     }
-                                    @if (cibleTotRow.HasValue)
-                                    {
-                                        <div style="font-weight:700;font-size:12px">▼ @cibleTotRow.Value.ToString("F2")</div>
-                                    }
-                                    @if (rowTotal.HasValue)
-                                    {
-                                        var totStr = vueEtp ? rowTotal.Value.ToString("F2") : rowTotal.Value.ToString("N0");
-                                        <div style="color:#FF8F00;font-style:italic;font-size:11px">@totStr</div>
-                                    }
-                                    else if (!cibleTotRow.HasValue)
-                                    {
-                                        <span>—</span>
-                                    }
+                                    <div style="padding:4px 6px 2px">
+                                        @if (cibleTotRow.HasValue)
+                                        {
+                                            <div style="font-weight:700;font-size:13px">@cibleTotRow.Value.ToString("F2")</div>
+                                        }
+                                        else
+                                        {
+                                            <span style="color:#9AA5B1">—</span>
+                                        }
+                                    </div>
+                                    <div style="background:linear-gradient(180deg,rgba(255,143,0,0.10) 0%,rgba(255,143,0,0.30) 100%);border-top:1px solid rgba(255,143,0,0.35);padding:2px 6px 3px">
+                                        @if (existantTotRow.HasValue)
+                                        {
+                                            <span style="font-size:11px;font-weight:700;color:#FF6F00;font-style:italic">
+                                                @(vueEtp ? existantTotRow.Value.ToString("F2") : existantTotRow.Value.ToString("N0"))
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span style="font-size:11px;color:rgba(255,143,0,0.4)">—</span>
+                                        }
+                                    </div>
                                 </td>
 
-                                <!-- Indicateur couverture -->
-                                <td class="ca-dim-td-ctrl">
+                                <!-- Indicateur couverture (vert = cible ≈ existant ±10%) -->
+                                <td class="ca-dim-td-ctrl" style="text-align:center">
                                     @if (!row.IsTotal)
                                     {
                                         @switch (coverage)
                                         {
                                             case 2:
-                                                <MudTooltip Text="Tous les conseillers assignés sont renseignés">
+                                                <MudTooltip Text="ETP cible ≈ ETP existant (±10%) — Distribution cohérente">
                                                     <MudIcon Icon="@Icons.Material.Filled.CheckCircle"
                                                              Color="Color.Success" Size="Size.Small" />
                                                 </MudTooltip>
                                                 break;
                                             case 1:
-                                                <MudTooltip Text="Partiellement renseigné">
+                                                <MudTooltip Text="Écart significatif entre cible et existant">
                                                     <MudIcon Icon="@Icons.Material.Filled.RemoveCircle"
                                                              Color="Color.Warning" Size="Size.Small" />
                                                 </MudTooltip>
                                                 break;
                                             default:
-                                                <MudIcon Icon="@Icons.Material.Outlined.RadioButtonUnchecked"
-                                                         Style="color:#D0D5DA" Size="Size.Small" />
+                                                <MudTooltip Text="Aucune donnée ETP saisie">
+                                                    <MudIcon Icon="@Icons.Material.Outlined.RadioButtonUnchecked"
+                                                             Style="color:#D0D5DA" Size="Size.Small" />
+                                                </MudTooltip>
                                                 break;
+                                        }
+                                    }
+                                </td>
+
+                                <!-- Colonne Concordance — pureté distribution par segment -->
+                                <td class="ca-dim-td-ctrl" style="text-align:center;background:rgba(15,58,82,0.04)">
+                                    @if (!row.IsTotal)
+                                    {
+                                        var (concPct, concColor, concTip) = GetConcordance(row);
+                                        @if (concPct.HasValue)
+                                        {
+                                            <MudTooltip Text="@concTip">
+                                                <span style="@concColor;font-size:12px;font-weight:700">
+                                                    @concPct.Value.ToString("F0")%
+                                                </span>
+                                            </MudTooltip>
+                                        }
+                                        else
+                                        {
+                                            <span style="color:#C8D0DA;font-size:12px">—</span>
                                         }
                                     }
                                 </td>
@@ -337,6 +373,7 @@
                                 @(profils.Any(p => _effectifActuel.GetValueOrDefault(p).HasValue) ? totEffAct.ToString("F0") : "—")
                             </td>
                             <td style="background:#1A4E6B"></td>
+                            <td style="background:#1A4E6B"></td>
                         </tr>
 
                         <!-- ── Ligne 2 : Effectif cible ──────────────────────── -->
@@ -368,6 +405,7 @@
                                 @(profils.Any(p => _effectifCible.GetValueOrDefault(p).HasValue) ? totEffCib.ToString("F0") : "—")
                             </td>
                             <td style="background:#1A4E6B"></td>
+                            <td style="background:#1A4E6B"></td>
                         </tr>
 
                         <!-- ── Ligne 3 : Remplissage portefeuilles ───────────── -->
@@ -387,6 +425,7 @@
                                 @{ var totRem = profils.Select(p => GetRemplissage(p)).Where(v => v.HasValue).ToList(); }
                                 @if (totRem.Any()) { <span style="@DiffColor(totRem.Sum(v => v!.Value))">@FormatDiff(totRem.Sum(v => v!.Value))</span> } else { <span>—</span> }
                             </td>
+                            <td style="background:#D6E8F7"></td>
                             <td style="background:#D6E8F7"></td>
                         </tr>
 
@@ -408,6 +447,7 @@
                                 @if (totEvo.Any()) { <span style="@DiffColor(totEvo.Sum(v => v!.Value))">@FormatDiff(totEvo.Sum(v => v!.Value))</span> } else { <span>—</span> }
                             </td>
                             <td style="background:#D6E8F7"></td>
+                            <td style="background:#D6E8F7"></td>
                         </tr>
 
                         <!-- ── Ligne 5 : Taux de concordance ─────────────────── -->
@@ -424,6 +464,7 @@
                                 </td>
                             }
                             <td style="background:#B8D4EC;border-bottom:1px solid #9ABFDF"></td>
+                            <td style="background:#D6E8F7"></td>
                             <td style="background:#D6E8F7"></td>
                         </tr>
 
@@ -455,6 +496,7 @@
                             }
                             <td style="background:#B8D4EC;border-bottom:1px solid #9ABFDF"></td>
                             <td style="background:#D6E8F7"></td>
+                            <td style="background:#D6E8F7"></td>
                         </tr>
 
                         <!-- ── Ligne 7 : Taux d'entrée ────────────────────────── -->
@@ -484,6 +526,7 @@
                                 </td>
                             }
                             <td style="background:#B8D4EC;border-bottom:1px solid #9ABFDF"></td>
+                            <td style="background:#D6E8F7"></td>
                             <td style="background:#D6E8F7"></td>
                         </tr>
 
@@ -714,13 +757,41 @@
 
     // ── Indicateur couverture ─────────────────────────────────────────────
     // 0 = vide, 1 = partiel, 2 = complet
+    // Couverture : vert si ETP cible ≈ ETP existant (±10%), orange si écart, gris si vide
     private int GetCoverageLevel(DimMatrixRow row)
     {
         if (row.IsTotal) return -1;
-        var assigned = profils.Where(p => GetAssignmentLevel(row.Segment, p) > 0).ToList();
-        if (!assigned.Any()) return 0;
-        var filled = assigned.Count(p => (row.EtpParProfil.GetValueOrDefault(p) ?? 0) > 0);
-        return filled == 0 ? 0 : filled == assigned.Count ? 2 : 1;
+        var totalCible  = profils.Sum(p => row.EtpCibleSaisieParProfil.GetValueOrDefault(p) ?? 0);
+        var totalExist  = profils.Sum(p => row.EtpParProfil.GetValueOrDefault(p) ?? 0);
+        if (totalCible <= 0 && totalExist <= 0) return 0;
+        if (totalCible <= 0 || totalExist <= 0) return 1;
+        var ratio = totalCible / totalExist;
+        return (ratio >= 0.90 && ratio <= 1.10) ? 2 : 1;
+    }
+
+    // Concordance : pureté de la distribution par rapport aux conseillers priorisés
+    // Score pondéré : prioritaire = 1.0, secondaire = 0.66, tertiaire = 0.33
+    private (double? pct, string color, string tooltip) GetConcordance(DimMatrixRow row)
+    {
+        if (row.IsTotal) return (null, "", "");
+        var totalCible = profils.Sum(p => row.EtpCibleSaisieParProfil.GetValueOrDefault(p) ?? 0);
+        if (totalCible <= 0) return (null, "", "");
+
+        var etpPrio  = profils.Where(p => GetAssignmentLevel(row.Segment, p) == 1).Sum(p => row.EtpCibleSaisieParProfil.GetValueOrDefault(p) ?? 0);
+        var etpSec   = profils.Where(p => GetAssignmentLevel(row.Segment, p) == 2).Sum(p => row.EtpCibleSaisieParProfil.GetValueOrDefault(p) ?? 0);
+        var etpTert  = profils.Where(p => GetAssignmentLevel(row.Segment, p) == 3).Sum(p => row.EtpCibleSaisieParProfil.GetValueOrDefault(p) ?? 0);
+
+        var score = (etpPrio * 1.00 + etpSec * 0.66 + etpTert * 0.33) / totalCible * 100;
+
+        var color = score >= 80 ? "color:#2E7D32;font-weight:700" :
+                    score >= 55 ? "color:#E65100;font-weight:700" :
+                                  "color:#C62828;font-weight:700";
+
+        var pctPrio  = totalCible > 0 ? etpPrio / totalCible * 100 : 0;
+        var pctSec   = totalCible > 0 ? etpSec  / totalCible * 100 : 0;
+        var tip = $"Prioritaire : {pctPrio:F0}%  |  Secondaire : {pctSec:F0}%  |  Score pondéré : {score:F0}%";
+
+        return (score, color, tip);
     }
 
     // ── ETP CIBLE calculé depuis ReglesHypothèses ─────────────────────────
@@ -770,6 +841,13 @@
     private double? GetRowCibleTotal(DimMatrixRow row)
     {
         var vals = profils.Select(p => row.EtpCibleSaisieParProfil.GetValueOrDefault(p))
+                          .Where(v => v.HasValue).ToList();
+        return vals.Any() ? vals.Sum(v => v!.Value) : null;
+    }
+
+    private double? GetRowExistantTotal(DimMatrixRow row)
+    {
+        var vals = profils.Select(p => row.EtpParProfil.GetValueOrDefault(p))
                           .Where(v => v.HasValue).ToList();
         return vals.Any() ? vals.Sum(v => v!.Value) : null;
     }
