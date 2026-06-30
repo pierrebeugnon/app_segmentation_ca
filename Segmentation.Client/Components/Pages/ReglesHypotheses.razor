@@ -252,160 +252,139 @@
                         </MudGrid>
                     </div>
 
-                    <!-- Sous-tableau Banque Privée -->
-                    <div style="padding:8px 16px 4px">
-                        <MudText Typo="Typo.subtitle2"
-                                 Style="font-weight:700;color:#1A4E6B;letter-spacing:.5px;text-transform:uppercase;font-size:12px">
-                            Banque Privée
-                        </MudText>
-                    </div>
+                    <!-- ── Types d'agence — temps commercial hérité par profil ── -->
+                    @{
+                        var typesAgence = model.ConseillersProfils
+                            .Where(p => !string.IsNullOrWhiteSpace(p.LigneMetier))
+                            .Select(p => p.LigneMetier!)
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+                    }
 
-                    <MudTable Items="@model.ConseillersProfils.Where(p => ProfilsBanquePrivee.Contains(p.Profil ?? string.Empty, StringComparer.OrdinalIgnoreCase)).ToList()"
-                              Dense="true"
-                              Hover="true"
-                              Elevation="0"
-                              Striped="true"
-                              Class="ca-temps-table"
-                              Style="overflow:visible;margin-bottom:16px">
+                    @foreach (var typeAgence in typesAgence)
+                    {
+                        var profilsDuType     = model.ConseillersProfils
+                            .Where(p => p.LigneMetier?.Equals(typeAgence, StringComparison.OrdinalIgnoreCase) == true)
+                            .ToList();
+                        var tpCommercialType  = GetTempsCommercialByType(typeAgence);
+                        var tpNonComType      = 100.0 - tpCommercialType;
+                        var volHoraireType    = GetVolumeHoraireByType(typeAgence);
+                        var baselineType      = GetBaselineTempsCommercialByType(typeAgence);
+                        var ecartType         = tpCommercialType - baselineType;
+                        var typeLabel         = FormatTypeAgenceLabel(typeAgence);
 
-                        <HeaderContent>
-                            <MudTh>Profil conseiller</MudTh>
-                            <MudTh Style="text-align:center">Part temps commercial (%)</MudTh>
-                            <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Part temps non commercial (%)
-                            </MudTh>
-                            <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Volume horaire par conseiller dédié à la gestion <br /> de portefeuilles (en heures/an)
-                            </MudTh>
+                        <!-- Bloc type d'agence -->
+                        <div style="padding:8px 16px 4px;margin-top:12px">
+                            <MudText Typo="Typo.subtitle2"
+                                     Style="font-weight:700;color:#1A4E6B;letter-spacing:.5px;text-transform:uppercase;font-size:12px">
+                                @typeLabel
+                            </MudText>
+                        </div>
 
-                            @if (modeSimulation)
-                            {
-                                <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
-                                    Référence
+                        <!-- Carte paramétrage du type (le parent modifiable) -->
+                        <MudPaper Elevation="0" Class="pa-3 mx-4 mb-3"
+                                  Style="background:#F0F4FF;border:1px solid #C5D0E8;border-radius:8px;overflow:visible">
+                            <MudGrid Spacing="2" AlignItems="Center.Center">
+
+                                <!-- Temps commercial — unique champ modifiable -->
+                                <MudItem xs="12" sm="3">
+                                    <MudText Typo="Typo.caption" Style="color:#6C7A89;display:block;margin-bottom:4px">
+                                        Temps commercial — @typeLabel
+                                    </MudText>
+                                    <MudNumericField T="double"
+                                                     Value="@tpCommercialType"
+                                                     ValueChanged="@(v => SetTempsCommercialByType(typeAgence, v))"
+                                                     Immediate="true"
+                                                     Variant="Variant.Outlined"
+                                                     Margin="Margin.Dense"
+                                                     Min="0"
+                                                     Max="100"
+                                                     Step="5"
+                                                     Format="F0"
+                                                     Adornment="Adornment.End"
+                                                     AdornmentText="%"
+                                                     Style="max-width:130px;background:#FFFDE7"
+                                                     HideSpinButtons="true" />
+                                </MudItem>
+
+                                <!-- Temps non commercial (calculé) -->
+                                <MudItem xs="12" sm="3">
+                                    <MudText Typo="Typo.caption" Style="color:#6C7A89;display:block;margin-bottom:4px">
+                                        Temps non commercial
+                                    </MudText>
+                                    <MudText Style="font-weight:700;color:#6C7A89;font-size:16px;padding-top:4px">
+                                        @tpNonComType.ToString("F0") %
+                                    </MudText>
+                                </MudItem>
+
+                                <!-- Volume horaire (calculé) -->
+                                <MudItem xs="12" sm="3">
+                                    <MudText Typo="Typo.caption" Style="color:#6C7A89;display:block;margin-bottom:4px">
+                                        Volume horaire / conseiller
+                                    </MudText>
+                                    <MudText Style="font-weight:700;color:#1A4E6B;font-size:16px;padding-top:4px">
+                                        @volHoraireType.ToString("F1") h/an
+                                    </MudText>
+                                </MudItem>
+
+                                <!-- Simulation : référence + écart -->
+                                @if (modeSimulation)
+                                {
+                                    <MudItem xs="12" sm="3">
+                                        <MudText Typo="Typo.caption" Style="color:#6C7A89;display:block;margin-bottom:4px">
+                                            Référence / Écart
+                                        </MudText>
+                                        <MudText Style="color:#6C7A89;font-size:13px;padding-top:4px">
+                                            @baselineType.ToString("F0")%
+                                            <span style="@GetDeltaStyle(ecartType);margin-left:8px;font-weight:700">
+                                                @FormatDelta(ecartType, "%")
+                                            </span>
+                                        </MudText>
+                                    </MudItem>
+                                }
+
+                            </MudGrid>
+                        </MudPaper>
+
+                        <!-- Profils hérités (lecture seule) -->
+                        <MudTable Items="@profilsDuType"
+                                  Dense="true"
+                                  Hover="true"
+                                  Elevation="0"
+                                  Striped="true"
+                                  Class="ca-temps-table"
+                                  Style="overflow:visible;margin-bottom:16px">
+                            <HeaderContent>
+                                <MudTh>Profil conseiller</MudTh>
+                                <MudTh Style="text-align:center;background:#EEF1F5;color:#1A4E6B">
+                                    Temps commercial hérité
                                 </MudTh>
-                                <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
-                                    Écart
+                                <MudTh Style="text-align:center;background:#EEF1F5;color:#1A4E6B">
+                                    Temps non commercial
                                 </MudTh>
-                            }
-                        </HeaderContent>
-
-                        <RowTemplate>
-                            @{
-                                var volumeActuel = GetVolumeHoraire(context);
-                                var volumeReference = GetBaselineVolumeHoraireByProfil(context.Profil);
-                                var ecartVolume = volumeActuel - volumeReference;
-                            }
-
-                            <MudTd Style="font-weight:600;color:#1A4E6B">
-                                @context.Profil
-                            </MudTd>
-
-                            <MudTd Style="text-align:center;background:#FFFDE7">
-                                <MudNumericField T="double"
-                                                 Value="@GetPartTempsCommercialPctDisplay(context)"
-                                                 ValueChanged="@(v => SetPartTempsCommercialPctFromDisplay(context, v))"
-                                                 Immediate="true"
-                                                 Variant="Variant.Outlined"
-                                                 Margin="Margin.Dense"
-                                                 Min="0"
-                                                 Max="100"
-                                                 Step="5"
-                                                 Format="F0"
-                                                 Adornment="Adornment.End"
-                                                 AdornmentText="%"
-                                                 Style="max-width:110px;margin:0 auto"
-                                                 HideSpinButtons="true" />
-                            </MudTd>
-
-                            <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89;font-style:italic">
-                                @GetPartTempsNonCommercialPctDisplay(context).ToString("F0")%
-                            </MudTd>
-
-                            <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B;font-style:italic">
-                                @volumeActuel.ToString("F1")
-                            </MudTd>
-
-                            @if (modeSimulation)
-                            {
-                                <MudTd Style="text-align:center;background:#F5F7FA;color:#6C7A89">
-                                    @volumeReference.ToString("F1")
+                                <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
+                                    Volume horaire (h/an)
+                                </MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd Style="font-weight:600;color:#1A4E6B">
+                                    @context.Profil
                                 </MudTd>
-
-                                <MudTd Style="@GetDeltaCellStyle(ecartVolume)">
-                                    @FormatDelta(ecartVolume, "h")
+                                <MudTd Style="text-align:center;background:#EEF1F5;color:#52617A">
+                                    <MudIcon Icon="@Icons.Material.Outlined.AccountTree"
+                                             Size="Size.Small"
+                                             Style="font-size:12px;vertical-align:middle;margin-right:3px;opacity:0.6" />
+                                    @GetPartTempsCommercialPctDisplay(context).ToString("F0") %
                                 </MudTd>
-                            }
-                        </RowTemplate>
-                    </MudTable>
-
-                    <!-- Sous-tableau Retail -->
-                    <div style="padding:8px 16px 4px">
-                        <MudText Typo="Typo.subtitle2"
-                                 Style="font-weight:700;color:#1A4E6B;letter-spacing:.5px;text-transform:uppercase;font-size:12px">
-                            Retail
-                        </MudText>
-                    </div>
-
-                    <MudTable Items="@model.ConseillersProfils.Where(p => !ProfilsBanquePrivee.Contains(p.Profil ?? string.Empty, StringComparer.OrdinalIgnoreCase)).ToList()"
-                              Dense="true"
-                              Hover="true"
-                              Elevation="0"
-                              Striped="true"
-                              Class="ca-temps-table"
-                              Style="overflow:visible">
-
-                        <HeaderContent>
-                            <MudTh>Profil conseiller</MudTh>
-                            <MudTh Style="text-align:center">Part temps commercial (%)</MudTh>
-                            <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Part temps non commercial (%)
-                            </MudTh>
-                            <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                                Volume horaire par conseiller dédié à la gestion <br /> de portefeuilles (en heures/an)
-                            </MudTh>
-
-                            @if (modeSimulation)
-                            {
-                                <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
-                                    Référence
-                                </MudTh>
-                                <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
-                                    Écart
-                                </MudTh>
-                            }
-                        </HeaderContent>
-
-                        <RowTemplate>
-                            @{
-                                var volumeActuel2 = GetVolumeHoraire(context);
-                                var volumeReference2 = GetBaselineVolumeHoraireByProfil(context.Profil);
-                                var ecartVolume2 = volumeActuel2 - volumeReference2;
-                            }
-
-                            <MudTd Style="font-weight:600;color:#1A4E6B">
-                                @context.Profil
-                            </MudTd>
-
-                            <MudTd Style="text-align:center;background:#FFFDE7">
-                                <MudNumericField T="double"
-                                                 Value="@GetPartTempsCommercialPctDisplay(context)"
-                                                 ValueChanged="@(v => SetPartTempsCommercialPctFromDisplay(context, v))"
-                                                 Immediate="true"
-                                                 Variant="Variant.Outlined"
-                                                 Margin="Margin.Dense"
-                                                 Min="0"
-                                                 Max="100"
-                                                 Step="5"
-                                                 Format="F0"
-                                                 Adornment="Adornment.End"
-                                                 AdornmentText="%"
-                                                 Style="max-width:110px;margin:0 auto"
-                                                 HideSpinButtons="true" />
-                            </MudTd>
-
-                            <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89;font-style:italic">
-                                @GetPartTempsNonCommercialPctDisplay(context).ToString("F0")%
-                            </MudTd>
+                                <MudTd Style="text-align:center;background:#EEF1F5;color:#6C7A89;font-style:italic">
+                                    @GetPartTempsNonCommercialPctDisplay(context).ToString("F0") %
+                                </MudTd>
+                                <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B;font-style:italic">
+                                    @GetVolumeHoraire(context).ToString("F1")
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
 
                             <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B;font-style:italic">
                                 @volumeActuel2.ToString("F1")
@@ -929,6 +908,49 @@
             return 0;
 
         return model.HeuresParSemaine * model.NbSemainesParAn;
+    }
+
+    // ── Helpers type d'agence — héritage temps commercial ────────────────
+
+    private static string FormatTypeAgenceLabel(string lm) =>
+        string.IsNullOrWhiteSpace(lm) ? "" :
+        string.Join(" ", lm.Split(' ')
+            .Select(w => w.Length > 0 ? char.ToUpperInvariant(w[0]) + w[1..].ToLower() : w));
+
+    /// <summary>Retourne le % temps commercial du type d'agence (valeur du premier profil du groupe).</summary>
+    private double GetTempsCommercialByType(string ligneMetier)
+    {
+        var profil = model?.ConseillersProfils
+            .FirstOrDefault(p => p.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true);
+        return profil != null ? GetPartTempsCommercialPctDisplay(profil) : 0;
+    }
+
+    /// <summary>Volume horaire calculé pour un type d'agence.</summary>
+    private double GetVolumeHoraireByType(string ligneMetier)
+    {
+        var profil = model?.ConseillersProfils
+            .FirstOrDefault(p => p.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true);
+        return profil != null ? GetVolumeHoraire(profil) : 0;
+    }
+
+    /// <summary>Propage le % temps commercial à tous les profils du type d'agence.</summary>
+    private void SetTempsCommercialByType(string ligneMetier, double pct)
+    {
+        if (model == null) return;
+        foreach (var p in model.ConseillersProfils
+            .Where(p => p.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true))
+        {
+            SetPartTempsCommercialPctFromDisplay(p, pct);
+        }
+    }
+
+    /// <summary>Retourne le % baseline du type d'agence (pour mode simulation).</summary>
+    private double GetBaselineTempsCommercialByType(string ligneMetier)
+    {
+        var profil = model?.ConseillersProfils
+            .FirstOrDefault(p => p.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true);
+        if (profil == null) return 0;
+        return GetBaselinePartCommercialeRatioByProfil(profil.Profil) * 100;
     }
 
     private double GetPartTempsCommercialRatio(ConseillerTempsProfil profil)
