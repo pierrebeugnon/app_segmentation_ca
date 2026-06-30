@@ -282,33 +282,44 @@
                         </div>
 
                         <!-- Table unifiée : ligne parent modifiable + lignes profils héritées -->
-                        <table class="ca-temps-type-table">
+                        <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:20px;table-layout:fixed">
+                            <colgroup>
+                                <col style="width:28%">
+                                <col style="width:20%">
+                                <col style="width:20%">
+                                <col style="width:22%">
+                                @if (modeSimulation)
+                                {
+                                    <col style="width:5%">
+                                    <col style="width:5%">
+                                }
+                            </colgroup>
                             <thead>
-                                <tr>
-                                    <th class="ca-ttt-col-profil">Profil conseiller</th>
-                                    <th class="ca-ttt-col-tps">Part temps commercial (%)</th>
-                                    <th class="ca-ttt-col-ntps">Part temps non commercial (%)</th>
-                                    <th class="ca-ttt-col-vol">Volume horaire par conseiller dédié à la gestion de portefeuilles (en heures/an)</th>
+                                <tr style="background:#1A4E6B;color:white">
+                                    <th style="padding:8px 12px;font-weight:600;text-align:left;font-size:11px;border-right:1px solid rgba(255,255,255,0.15);white-space:normal;line-height:1.3">Profil conseiller</th>
+                                    <th style="padding:8px 12px;font-weight:600;text-align:center;font-size:11px;border-right:1px solid rgba(255,255,255,0.15);white-space:normal;line-height:1.3">Part temps commercial (%)</th>
+                                    <th style="padding:8px 12px;font-weight:600;text-align:center;font-size:11px;border-right:1px solid rgba(255,255,255,0.15);white-space:normal;line-height:1.3;background:rgba(0,0,0,0.12)">Part temps non commercial (%)</th>
+                                    <th style="padding:8px 12px;font-weight:600;text-align:center;font-size:11px;border-right:1px solid rgba(255,255,255,0.15);white-space:normal;line-height:1.3;background:rgba(0,0,0,0.12)">Volume horaire par conseiller dédié à la gestion de portefeuilles (en heures/an)</th>
                                     @if (modeSimulation)
                                     {
-                                        <th class="ca-ttt-col-sim">Référence</th>
-                                        <th class="ca-ttt-col-sim">Écart</th>
+                                        <th style="padding:8px 12px;font-weight:600;text-align:center;font-size:11px;border-right:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.18)">Référence</th>
+                                        <th style="padding:8px 12px;font-weight:600;text-align:center;font-size:11px;background:rgba(0,0,0,0.18)">Écart</th>
                                     }
                                 </tr>
                             </thead>
                             <tbody>
                                 <!-- Ligne parent — type d'agence (modifiable) -->
-                                <tr class="ca-ttt-parent-row">
-                                    <td class="ca-ttt-parent-name">
-                                        <span class="ca-ttt-parent-badge">TYPE</span>
+                                <tr>
+                                    <td style="background:#EEF3FB;border-bottom:2px solid #1A4E6B;padding:7px 12px;vertical-align:middle;font-weight:700;color:#1A4E6B;font-size:12.5px">
+                                        <span style="display:inline-block;background:#1A4E6B;color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;margin-right:6px;letter-spacing:.5px;text-transform:uppercase;vertical-align:middle">TYPE</span>
                                         @typeLabel
                                     </td>
-                                    <td class="ca-ttt-parent-edit">
+                                    <td style="background:#FFFDE7;border-bottom:2px solid #1A4E6B;padding:4px 8px;vertical-align:middle;text-align:center;overflow:visible">
                                         <MudNumericField T="double"
                                                          Value="@tpCommercialType"
                                                          ValueChanged="@(v => SetTempsCommercialByType(typeAgence, v))"
                                                          Immediate="true"
-                                                         Variant="Variant.Text"
+                                                         Variant="Variant.Outlined"
                                                          Margin="Margin.Dense"
                                                          Min="0"
                                                          Max="100"
@@ -319,36 +330,39 @@
                                                          Style="max-width:110px;margin:0 auto"
                                                          HideSpinButtons="true" />
                                     </td>
-                                    <td class="ca-ttt-parent-calc">@tpNonComType.ToString("F0") %</td>
-                                    <td class="ca-ttt-parent-vol">@volHoraireType.ToString("F1") h</td>
+                                    <td style="background:#DDE4F0;border-bottom:2px solid #1A4E6B;padding:7px 12px;vertical-align:middle;text-align:center;font-weight:700;color:#4A5568">@tpNonComType.ToString("F0") %</td>
+                                    <td style="background:#DDE4F0;border-bottom:2px solid #1A4E6B;padding:7px 12px;vertical-align:middle;text-align:center;font-weight:700;color:#1A4E6B">@volHoraireType.ToString("F1") h</td>
                                     @if (modeSimulation)
                                     {
-                                        <td class="ca-ttt-sim-ref">@baselineType.ToString("F0") %</td>
-                                        <td style="@GetDeltaCellStyle(ecartType);text-align:center;padding:6px 10px">
+                                        <td style="background:#F2F5F8;border-bottom:2px solid #1A4E6B;padding:7px 10px;text-align:center;color:#6C7A89;font-size:11px">@baselineType.ToString("F0") %</td>
+                                        <td style="@GetDeltaCellStyle(ecartType);border-bottom:2px solid #1A4E6B;text-align:center;padding:7px 10px">
                                             @FormatDelta(ecartType, "%")
                                         </td>
                                     }
                                 </tr>
                                 <!-- Lignes enfants — profils hérités (lecture seule) -->
+                                @{int rowIdx = 0;}
                                 @foreach (var p in profilsDuType)
                                 {
-                                    <tr class="ca-ttt-child-row">
-                                        <td class="ca-ttt-child-name">
-                                            <span class="ca-ttt-inherit-arrow">↳</span>@p.Profil
+                                    var rowBg = rowIdx % 2 == 0 ? "#FAFBFC" : "white";
+                                    rowIdx++;
+                                    <tr>
+                                        <td style="background:@rowBg;padding:6px 12px;border-bottom:1px solid #E8EDF2;vertical-align:middle;color:#2C3E50;font-size:12.5px">
+                                            <span style="color:#8595A4;margin-right:5px;font-size:12px">↳</span>@p.Profil
                                         </td>
-                                        <td class="ca-ttt-child-tps">
+                                        <td style="background:#F5F5F0;padding:6px 12px;border-bottom:1px solid #E8EDF2;vertical-align:middle;text-align:center;color:#4A5568">
                                             @GetPartTempsCommercialPctDisplay(p).ToString("F0") %
                                         </td>
-                                        <td class="ca-ttt-child-ntps">
+                                        <td style="background:#EEF1F5;padding:6px 12px;border-bottom:1px solid #E8EDF2;vertical-align:middle;text-align:center;color:#6C7A89;font-style:italic">
                                             @GetPartTempsNonCommercialPctDisplay(p).ToString("F0") %
                                         </td>
-                                        <td class="ca-ttt-child-vol">
+                                        <td style="background:#E8EDF2;padding:6px 12px;border-bottom:1px solid #E8EDF2;vertical-align:middle;text-align:center;font-weight:700;color:#1A4E6B">
                                             @GetVolumeHoraire(p).ToString("F1")
                                         </td>
                                         @if (modeSimulation)
                                         {
-                                            <td class="ca-ttt-sim-ref">—</td>
-                                            <td class="ca-ttt-sim-ref">—</td>
+                                            <td style="background:#F5F7FA;padding:6px 10px;border-bottom:1px solid #E8EDF2;text-align:center;color:#6C7A89;font-size:11px">—</td>
+                                            <td style="background:#F5F7FA;padding:6px 10px;border-bottom:1px solid #E8EDF2;text-align:center;color:#6C7A89;font-size:11px">—</td>
                                         }
                                     </tr>
                                 }
