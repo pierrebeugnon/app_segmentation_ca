@@ -280,9 +280,9 @@
                                     <span style="color:rgba(255,255,255,0.75);font-size:13px">Commercial</span>
                                     <div style="background:#FFF9C4;border:2px solid #F9C825;border-radius:6px;padding:6px 14px 6px 16px;display:inline-flex;align-items:center;gap:4px">
                                         <input type="number"
-                                               value="@tpCommercial"
+                                               value="@_tempsCommerciauxParType.GetValueOrDefault(typeAgence, 0)"
                                                @onchange="@(e => SetTempsCommercialByTypeSafe(typeAgence, (string?)e.Value))"
-                                               min="0" max="100" step="5"
+                                               min="0" max="100"
                                                style="background:transparent;border:none;color:#1A4E6B;font-weight:700;font-size:16px;width:46px;text-align:center;padding:0;outline:none;-moz-appearance:textfield" />
                                         <span style="color:#1A4E6B;font-weight:700;font-size:16px">%</span>
                                     </div>
@@ -580,6 +580,8 @@
     private ReglesHypothesesModel? model;
     private bool modeSimulation = false;
     private SimulationSnapshot? snapshotInitial;
+    // Source de vérité stable pour les % commerciaux par type (évite les re-calculs LINQ en boucle)
+    private Dictionary<string, double> _tempsCommerciauxParType = new();
 
     private readonly Dictionary<string, List<string>> _optionsProfilsParSegment =
         new(StringComparer.OrdinalIgnoreCase);
@@ -620,6 +622,19 @@
         model = StateService.Regles;
         BuildOptionsProfilsParSegment();
         snapshotInitial = CreateSnapshot();
+        InitTempsCommerciauxParType();
+    }
+
+    private void InitTempsCommerciauxParType()
+    {
+        _tempsCommerciauxParType.Clear();
+        if (model?.ConseillersProfils == null) return;
+        foreach (var t in model.ConseillersProfils
+            .Where(p => !string.IsNullOrWhiteSpace(p.LigneMetier))
+            .Select(p => p.LigneMetier!).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            _tempsCommerciauxParType[t] = GetTempsCommercialByType(t);
+        }
     }
 
     private void ToggleModeSimulation()
@@ -869,6 +884,7 @@
     private void SetTempsCommercialByType(string ligneMetier, double pct)
     {
         if (model == null) return;
+        _tempsCommerciauxParType[ligneMetier] = pct;   // source de vérité dict en premier
         foreach (var p in model.ConseillersProfils
             .Where(x => x.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true))
         {
