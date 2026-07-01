@@ -440,114 +440,122 @@
                         </tr>
                     }
                     </tbody>
-                </table>
-            </div>
-        </MudPaper>
 
-        <!-- ══════════════════════════════════════════════════════════
-             BLOC KPI — Indicateurs par conseiller individuel (slot)
-             Colonnes = même granularité que le tableau de répartition
-        ══════════════════════════════════════════════════════════ -->
-        <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden;margin-top:10px">
-            <div class="ca-dim-scroll-wrapper">
-                <table style="border-collapse:collapse;min-width:max-content;width:100%">
-                    <colgroup>
-                        <col style="min-width:330px;width:330px" />
-                        @foreach (var slot in _slots)
-                        {
-                            <col style="min-width:88px;width:88px" />
-                        }
-                    </colgroup>
-                    <!-- En-tête avec labels individuels des conseillers -->
-                    <thead>
-                        <tr style="background:#12293D">
-                            <th style="text-align:left;padding:5px 14px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);letter-spacing:.5px;text-transform:uppercase">
-                                Indicateur KPI
-                            </th>
-                            @foreach (var slot in _slots)
+                    <!-- ═══════════════════════════════════════════════════════
+                         TBODY KPI — intégré dans la même table, même colonnes
+                         Colonne 1 = label KPI (sticky)
+                         Colonnes 2..N+1 = valeur par conseiller individuel
+                         Colonne N+2 = total agrégé (Total ETP)
+                         Colonnes N+3, N+4 = vides (Couverture / Concordance)
+                    ═══════════════════════════════════════════════════════ -->
+                    <tbody>
+                        <!-- Séparateur visuel entre data et KPI -->
+                        <tr style="background:#0D2035">
+                            <td style="padding:3px 12px;font-size:9px;font-weight:700;color:rgba(255,255,255,0.45);letter-spacing:1px;text-transform:uppercase">
+                                Indicateurs KPI
+                            </td>
+                            @for (int _i = 0; _i < _slots.Count + 3; _i++)
                             {
-                                var isGrey = !slot.IsCible;
-                                <th style="text-align:center;padding:5px 3px;@(isGrey ? "opacity:0.4" : "")">
-                                    <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.9)">@slot.Label</div>
-                                    <div style="font-size:9px;color:rgba(255,255,255,0.5)">@_profilShort.GetValueOrDefault(slot.Profil, slot.Profil)</div>
-                                </th>
+                                <td style="background:#0D2035"></td>
                             }
                         </tr>
-                    </thead>
-                    <tbody>
-                        <!-- ── Remplissage des portefeuilles ─────────────────── -->
+
+                        <!-- ── Remplissage des portefeuilles ────────────────── -->
+                        @{
+                            var kpiRmpList  = _slots.Select(s => GetRemplissageForSlot(s)).ToList();
+                            var kpiRmpTotal = kpiRmpList.Any(v => v.HasValue) ? (double?)kpiRmpList.Sum(v => v ?? 0) : null;
+                        }
                         <tr style="background:#1A3558">
-                            <td style="padding:7px 14px;font-size:11px;font-weight:600;color:white">
+                            <td class="ca-dim-sticky-col" style="background:#1A3558;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
                                 Remplissage des portefeuilles existant
-                                <span style="font-size:10px;font-weight:400;opacity:0.7;margin-left:6px">
-                                    (1 ETP capacité − charge ETP existant)
-                                </span>
+                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">1 ETP capacité − charge ETP existant</div>
                             </td>
                             @foreach (var slot in _slots)
                             {
                                 var rmp = GetRemplissageForSlot(slot);
-                                <td style="text-align:center;padding:7px 4px;font-size:12px;@DiffColor(rmp, positifBon: true);@(!slot.IsCible ? "opacity:0.35" : "")">
-                                    @FormatDiff(rmp)
-                                </td>
+                                <td style="text-align:center;padding:6px 3px;font-size:11px;@DiffColor(rmp, positifBon:true);@(!slot.IsCible ? "opacity:0.35" : "")">@FormatDiff(rmp)</td>
                             }
+                            <td style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;background:#162840;@DiffColor(kpiRmpTotal, positifBon:true)">@FormatDiff(kpiRmpTotal)</td>
+                            <td style="background:#1A3558"></td>
+                            <td style="background:#1A3558"></td>
                         </tr>
-                        <!-- ── Evolution des effectifs ────────────────────────── -->
+
+                        <!-- ── Evolution des effectifs ───────────────────────── -->
+                        @{
+                            var kpiEvoList  = _slots.Select(s => GetEvolutionForSlot(s)).ToList();
+                            var kpiEvoTotal = (double)kpiEvoList.Sum();
+                        }
                         <tr style="background:#1C3D62">
-                            <td style="padding:7px 14px;font-size:11px;font-weight:600;color:white">
+                            <td class="ca-dim-sticky-col" style="background:#1C3D62;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
                                 Evolution des effectifs
-                                <span style="font-size:10px;font-weight:400;opacity:0.7;margin-left:6px">
-                                    (Cible − Actuel par conseiller)
-                                </span>
+                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Cible − Actuel par conseiller</div>
                             </td>
                             @foreach (var slot in _slots)
                             {
                                 var evo = GetEvolutionForSlot(slot);
-                                <td style="text-align:center;padding:7px 4px;font-size:12px;@DiffColor(evo, positifBon: true);@(!slot.IsCible ? "opacity:0.35" : "")">
-                                    @FormatDiff(evo)
-                                </td>
+                                <td style="text-align:center;padding:6px 3px;font-size:11px;@DiffColor(evo, positifBon:true);@(!slot.IsCible ? "opacity:0.35" : "")">@FormatDiff(evo)</td>
                             }
+                            <td style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;background:#182F4A;@DiffColor(kpiEvoTotal, positifBon:true)">@FormatDiff(kpiEvoTotal)</td>
+                            <td style="background:#1C3D62"></td>
+                            <td style="background:#1C3D62"></td>
                         </tr>
-                        <!-- ── Taux de concordance ────────────────────────────── -->
+
+                        <!-- ── Taux de concordance ───────────────────────────── -->
+                        @{
+                            var kpiConcList  = _slots.Select(s => GetEtpCibleSaisieTotal(s.Id)).ToList();
+                            var kpiConcTotal = kpiConcList.Any(v => v.HasValue) ? (double?)kpiConcList.Sum(v => v ?? 0) : null;
+                        }
                         <tr style="background:#1F446A">
-                            <td style="padding:7px 14px;font-size:11px;font-weight:600;color:white">
-                                Taux de concordance du portefeuille par conseiller
-                                <span style="font-size:10px;font-weight:400;opacity:0.7;margin-left:6px">
-                                    (Total ETP cible saisi pour ce conseiller)
-                                </span>
+                            <td class="ca-dim-sticky-col" style="background:#1F446A;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
+                                Concordance du portefeuille par conseiller
+                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Total ETP cible saisi pour ce conseiller</div>
                             </td>
                             @foreach (var slot in _slots)
                             {
                                 var conc = GetEtpCibleSaisieTotal(slot.Id);
-                                <td style="text-align:center;padding:7px 4px;font-size:12px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
+                                <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
                                     @(conc.HasValue ? conc.Value.ToString("F2") : "—")
                                 </td>
                             }
+                            <td style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;color:white;background:#193252">
+                                @(kpiConcTotal.HasValue ? kpiConcTotal.Value.ToString("F2") : "—")
+                            </td>
+                            <td style="background:#1F446A"></td>
+                            <td style="background:#1F446A"></td>
                         </tr>
-                        <!-- ── Taux de rotation ───────────────────────────────── -->
+
+                        <!-- ── Taux de rotation ──────────────────────────────── -->
                         <tr style="background:#224A72">
-                            <td style="padding:7px 14px;font-size:11px;font-weight:600;color:white">
+                            <td class="ca-dim-sticky-col" style="background:#224A72;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal">
                                 Taux de rotation du portefeuille
                             </td>
                             @foreach (var slot in _slots)
                             {
                                 var rot = _tauxRotation.GetValueOrDefault(slot.Id);
-                                <td style="text-align:center;padding:7px 4px;font-size:12px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
+                                <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
                                     @(rot.HasValue ? rot.Value.ToString("P1") : "—")
                                 </td>
                             }
+                            <td style="background:#1B3959"></td>
+                            <td style="background:#224A72"></td>
+                            <td style="background:#224A72"></td>
                         </tr>
-                        <!-- ── Taux d'entrée ──────────────────────────────────── -->
+
+                        <!-- ── Taux d'entrée ─────────────────────────────────── -->
                         <tr style="background:#24507A">
-                            <td style="padding:7px 14px;font-size:11px;font-weight:600;color:white">
+                            <td class="ca-dim-sticky-col" style="background:#24507A;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal">
                                 Taux d'entrée dans le portefeuille
                             </td>
                             @foreach (var slot in _slots)
                             {
                                 var ent = _tauxEntree.GetValueOrDefault(slot.Id);
-                                <td style="text-align:center;padding:7px 4px;font-size:12px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
+                                <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
                                     @(ent.HasValue ? ent.Value.ToString("P1") : "—")
                                 </td>
                             }
+                            <td style="background:#1C3C5E"></td>
+                            <td style="background:#24507A"></td>
+                            <td style="background:#24507A"></td>
                         </tr>
                     </tbody>
                 </table>
