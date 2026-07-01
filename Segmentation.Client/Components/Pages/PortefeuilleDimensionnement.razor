@@ -1112,9 +1112,11 @@
         return totalCible - totalExist;
     }
 
-    // ── Concordance : % ETP assigné au type de conseiller PRIORITAIRE ─────
-    // 100% = toute la répartition est dans le type désigné prioritaire
-    // Ex.  : 0.80 ETP prioritaire / 1.00 total → 80%
+    // ── Concordance : % ETP assigné à un type DÉSIGNÉ dans R&H ───────────
+    // Concordant  = type de conseiller de niveau 1, 2 ou 3 pour ce segment
+    // Non-concordant = type absent des R&H pour ce segment (niveau 0)
+    // 100% = toute la répartition est dans des types désignés
+    // Ex. : 0.80 dans prio/sec/tert + 0.20 hors R&H → 80%
     private (double? pct, string color, string tooltip) GetConcordance(DimMatrixRow row)
     {
         if (row.IsTotal) return (null, "", "");
@@ -1122,18 +1124,29 @@
         var totalCible  = activeSlots.Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
         if (totalCible <= 0) return (null, "", "Aucune saisie");
 
-        // ETP assigné au(x) conseiller(s) de niveau PRIORITAIRE (level 1)
-        var etpPrio    = activeSlots
-            .Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 1)
+        // ETP dans les types DÉSIGNÉS (niveaux 1, 2 ou 3 dans R&H)
+        var etpDesigne    = activeSlots
+            .Where(s => GetAssignmentLevel(row.Segment, s.Profil) > 0)
             .Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-        var etpNonPrio = totalCible - etpPrio;
+        var etpHorsRH     = totalCible - etpDesigne;
 
-        var pct   = etpPrio / totalCible * 100.0;
+        // Détail par niveau (pour le tooltip)
+        var etpPrio  = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 1).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
+        var etpSec   = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 2).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
+        var etpTert  = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 3).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
+
+        var pct   = etpDesigne / totalCible * 100.0;
         var color = pct >= 99.9 ? "color:#2E7D32;font-weight:700" :
                     pct >= 80   ? "color:#E65100;font-weight:700" :
                                   "color:#C62828;font-weight:700";
-        return (pct, color,
-            $"ETP prioritaire : {etpPrio:F2} ({pct:F0}%)  |  ETP non prioritaire : {etpNonPrio:F2} ({100 - pct:F0}%)");
+
+        var tooltip = $"Concordance : {pct:F0}% dans les types R&H\n" +
+                      $"  ▸ Prioritaire  : {etpPrio:F2} ETP\n" +
+                      $"  ▸ Secondaire   : {etpSec:F2} ETP\n" +
+                      $"  ▸ Tertiaire    : {etpTert:F2} ETP\n" +
+                      $"  ✗ Hors R&H     : {etpHorsRH:F2} ETP";
+
+        return (pct, color, tooltip);
     }
 
     // ── ETP CIBLE calculé depuis ReglesHypothèses ─────────────────────────
