@@ -1,1 +1,1 @@
-const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
+The attribute 'onclick' is used two or more times for this element. Attributes must be unique (case-insensitive). The attribute 'onclick' is used by the '@onclick' directive attribute.
