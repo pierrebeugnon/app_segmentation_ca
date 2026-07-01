@@ -713,9 +713,10 @@
 
                         <!-- ── Taux de rotation ──────────────────────────────── -->
                         @{
-                            var rotAllCible = _slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
-                            var rotAllExist = _slots.Where(s => s.IsCible).Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
-                            double? kpiRotTotal = rotAllCible > 0 ? (rotAllCible - rotAllExist) / rotAllCible * 100.0 : null;
+                            var rotAllCible = Math.Round(_slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2);
+                            var rotAllExist = Math.Round(_slots.Where(s => s.IsCible).Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0), 2);
+                            var rotDiff     = Math.Round(rotAllCible - rotAllExist, 2);
+                            double? kpiRotTotal = rotAllCible > 0 ? rotDiff / rotAllCible * 100.0 : null;
                         }
                         <tr style="background:#224A72">
                             <td class="ca-dim-sticky-col" style="background:#224A72;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
@@ -751,8 +752,10 @@
 
                         <!-- ── Taux d'entrée ─────────────────────────────────── -->
                         @{
-                            var entAllCible = _slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
-                            double? kpiEntTotal = entAllCible > 0 ? entAllCible : null;
+                            var entAllCible = Math.Round(_slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2);
+                            var entAllExist = Math.Round(_slots.Where(s => s.IsCible).Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0), 2);
+                            var entDiff     = Math.Round(Math.Max(0, entAllCible - entAllExist), 2);
+                            double? kpiEntTotal = entAllCible > 0 ? entDiff : null;
                         }
                         <tr style="background:#24507A">
                             <td class="ca-dim-sticky-col" style="background:#24507A;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
@@ -1277,38 +1280,48 @@
     }
 
     // ── KPI taux de rotation par slot ─────────────────────────────────────
-    // (totalCible − totalExistant) / totalCible × 100
-    // Positif = croissance (cible > existant), Négatif = réduction
+    // (Cible − Existant) / Cible × 100
+    // Arrondi à 2 décimales pour éviter les écarts de précision
+    // (valeurs affichées F2 ≠ valeurs internes brutes)
     private double? GetTauxRotation(ConseillerSlot slot)
     {
-        var cible = GetEtpCibleSaisieTotal(slot.Id);
-        if (!cible.HasValue || cible.Value <= 0) return null;
-        var exist = GetTotalEtpExistantForSlot(slot.Id) ?? 0;
-        return (cible.Value - exist) / cible.Value * 100.0;
+        var cible = Math.Round(GetEtpCibleSaisieTotal(slot.Id) ?? 0, 2);
+        if (cible <= 0) return null;
+        var exist = Math.Round(GetTotalEtpExistantForSlot(slot.Id) ?? 0, 2);
+        var diff  = Math.Round(cible - exist, 2);
+        return diff / cible * 100.0;
     }
 
     private double? GetTauxRotationForProfil(string profil)
     {
         var slots      = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
-        var totalCible = slots.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
+        var totalCible = Math.Round(slots.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2);
         if (totalCible <= 0) return null;
-        var totalExist = slots.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
-        return (totalCible - totalExist) / totalCible * 100.0;
+        var totalExist = Math.Round(slots.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0), 2);
+        var diff       = Math.Round(totalCible - totalExist, 2);
+        return diff / totalCible * 100.0;
     }
 
-    // ── KPI taux d'entrée par slot ────────────────────────────────────────
-    // Les affectations cibles représentent toujours de nouvelles entrées
-    // (indépendamment du volume existant).
-    // Taux d'entrée = ETP cible saisi (valeur absolue)
-    // Exemple : cible = 0.2, existant = 0.6 → 0.2 en nouvelle entrée
-    private double? GetTauxEntreeSlot(ConseillerSlot slot) =>
-        GetEtpCibleSaisieTotal(slot.Id);
+    // ── KPI entrées dans le portefeuille par slot ─────────────────────────
+    // Entrées = max(0, cible − existant) arrondi à 2 décimales
+    // Si cible = existant (même volume, même métier) → 0 (aucune nouvelle entrée)
+    // Si cible > existant → croissance nette = nouvelles entrées
+    private double? GetTauxEntreeSlot(ConseillerSlot slot)
+    {
+        var cible   = Math.Round(GetEtpCibleSaisieTotal(slot.Id) ?? 0, 2);
+        if (cible <= 0) return null;
+        var exist   = Math.Round(GetTotalEtpExistantForSlot(slot.Id) ?? 0, 2);
+        var entrees = Math.Round(Math.Max(0, cible - exist), 2);
+        return entrees;
+    }
 
     private double? GetTauxEntreeForProfil(string profil)
     {
-        var slots = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
-        var total = slots.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
-        return total > 0 ? total : null;
+        var slots      = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
+        var totalCible = Math.Round(slots.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2);
+        if (totalCible <= 0) return null;
+        var totalExist = Math.Round(slots.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0), 2);
+        return Math.Round(Math.Max(0, totalCible - totalExist), 2);
     }
 
     // ── KPI par slot individuel ───────────────────────────────────────────
