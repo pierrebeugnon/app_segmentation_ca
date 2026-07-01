@@ -183,8 +183,14 @@
                                            @(isRemoved ? "background:#F5F5F5" : isNew ? "background:#F1FBF4" : "background:#EBF3FF")">
                                     @if (isActive)
                                     {
-                                        <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
-                                            <span style="color:#1A4E6B;font-weight:700">✓</span>
+                                        <div style="display:flex;flex-direction:column;align-items:center;gap:0px">
+                                            <MudNumericField T="double"
+                                                             Value="@s.EtpCible"
+                                                             ValueChanged="@(v => { s.EtpCible = v; StateHasChanged(); })"
+                                                             Format="F2" Step="0.25" Min="0.1" Max="2.0"
+                                                             HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
+                                                             Style="width:58px"
+                                                             InputStyle="text-align:center;font-size:12px;font-weight:700;color:#1A4E6B;padding:1px 2px" />
                                             <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
                                                            Size="Size.Small"
                                                            Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
@@ -203,8 +209,14 @@
                                     }
                                     else if (isNew)
                                     {
-                                        <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
-                                            <span style="color:#2E7D32;font-weight:700;font-size:10px">+ Planifié</span>
+                                        <div style="display:flex;flex-direction:column;align-items:center;gap:0px">
+                                            <MudNumericField T="double"
+                                                             Value="@s.EtpCible"
+                                                             ValueChanged="@(v => { s.EtpCible = v; StateHasChanged(); })"
+                                                             Format="F2" Step="0.25" Min="0.1" Max="2.0"
+                                                             HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
+                                                             Style="width:58px"
+                                                             InputStyle="text-align:center;font-size:12px;font-weight:700;color:#2E7D32;padding:1px 2px" />
                                             <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
                                                            Size="Size.Small"
                                                            Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
@@ -214,7 +226,7 @@
                                 </td>
                             }
                             <td style="text-align:center;padding:5px;font-weight:700;font-size:13px;background:#D6E8F7;color:#1A4E6B;border-bottom:1px solid #D0DFF0">
-                                @_slots.Count(s => s.IsCible)
+                                @_slots.Where(s => s.IsCible).Sum(s => s.EtpCible).ToString("F2")
                             </td>
                         </tr>
                         <!-- ── Ligne Actuel (en bas) ──────────────────────────────── -->
@@ -230,7 +242,14 @@
                                            @(isGrey ? "background:#F5F5F5;color:#9AA5B1" : isNew ? "background:#F1FBF4" : "background:#FFF8F2")">
                                     @if (slot.IsActuel)
                                     {
-                                        <span style="@(isGrey ? "color:#BDBDBD" : "color:#E65100;font-weight:700")">✓</span>
+                                        var slotRef = slot;
+                                        <MudNumericField T="double"
+                                                         Value="@slotRef.EtpActuel"
+                                                         ValueChanged="@(v => { slotRef.EtpActuel = v; StateHasChanged(); })"
+                                                         Format="F2" Step="0.25" Min="0.1" Max="2.0"
+                                                         HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
+                                                         Style="width:58px"
+                                                         InputStyle="@($"text-align:center;font-size:12px;font-weight:700;padding:1px 2px;{(isGrey ? "color:#BDBDBD" : "color:#E65100")}")" />
                                     }
                                     else
                                     {
@@ -239,7 +258,7 @@
                                 </td>
                             }
                             <td style="text-align:center;padding:5px;font-weight:700;font-size:13px;background:#FAEEE0;color:#E65100">
-                                @_slots.Count(s => s.IsActuel)
+                                @_slots.Where(s => s.IsActuel).Sum(s => s.EtpActuel).ToString("F2")
                             </td>
                         </tr>
                     </tbody>

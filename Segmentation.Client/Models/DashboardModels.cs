@@ -169,9 +169,13 @@ namespace Segmentation.Client.Models
         /// <summary>Label court affiché dans le tableau, ex. "BP-2"</summary>
         public string Label    { get; set; } = "";
         /// <summary>Présent dans l'effectif actuel</summary>
-        public bool   IsActuel { get; set; } = true;
+        public bool   IsActuel   { get; set; } = true;
         /// <summary>Conservé dans le scénario cible (false = grisé dans le tableau)</summary>
-        public bool   IsCible  { get; set; } = true;
+        public bool   IsCible    { get; set; } = true;
+        /// <summary>ETP de ce poste dans l'effectif actuel (1 = temps plein)</summary>
+        public double EtpActuel  { get; set; } = 1.0;
+        /// <summary>ETP de ce poste dans le scénario cible (1 = temps plein)</summary>
+        public double EtpCible   { get; set; } = 1.0;
     }
 
     // ── Vue Dimensionnement fusionnée (ETP + Volume) ──────────────────────────

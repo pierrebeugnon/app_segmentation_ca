@@ -891,6 +891,11 @@ html, body {
     background-color: #EEF4FA;
 }
 
+/* Centrage de l'input numérique Cible dans la table principale */
+.ca-dim-etp-input input {
+    text-align: center !important;
+}
+
 /* Wrapper interne cellule donnée */
 .ca-dim-cell-inner {
     display: flex;
