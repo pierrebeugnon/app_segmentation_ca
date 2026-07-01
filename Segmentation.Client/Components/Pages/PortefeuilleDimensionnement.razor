@@ -366,7 +366,7 @@
                                                                      ValueChanged="@(v => SetEtpCible(row, s.Id, v))"
                                                                      Format="F2" Step="0.25"
                                                                      HideSpinButtons="true"
-                                                                     Variant="Variant.Outlined"
+                                                                     Variant="Variant.Text"
                                                                      Margin="Margin.Dense"
                                                                      Class="ca-dim-etp-input"
                                                                      Style="width:64px"
@@ -413,14 +413,14 @@
                             <td style="text-align:center;padding:4px">
                                 @if (!row.IsTotal)
                                 {
-                                    var (icon, bg, fg) = coverage switch
+                                    var (mudIcon, fg) = coverage switch
                                     {
-                                        2 => ("check_circle", "#E8F5E9", "#2E7D32"),
-                                        1 => ("warning",       "#FFF8E1", "#E65100"),
-                                        _ => ("radio_button_unchecked", "#F5F5F5", "#BDBDBD")
+                                        2 => (Icons.Material.Filled.CheckCircle, "#2E7D32"),
+                                        1 => (Icons.Material.Filled.Warning,     "#E65100"),
+                                        _ => (Icons.Material.Outlined.RadioButtonUnchecked, "#BDBDBD")
                                     };
                                     <MudTooltip Text="@(coverage == 2 ? "ETP cible ≈ ETP existant (±10%)" : coverage == 1 ? "Écart cible / existant > 10%" : "Aucune saisie")">
-                                        <span class="material-icons" style="font-size:18px;color:@fg">@icon</span>
+                                        <MudIcon Icon="@mudIcon" Style="@($"font-size:18px;color:{fg}")" />
                                     </MudTooltip>
                                 }
                             </td>
@@ -678,8 +678,30 @@
 
     private void RemoveSlotFromCible(ConseillerSlot slot)
     {
+        // Cibles actifs du même type (hors le slot retiré) qui absorbent la charge
+        var receivers = _slots
+            .Where(s => s.Id != slot.Id && s.IsCible &&
+                        s.Profil.Equals(slot.Profil, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // Si aucun du même type, on ventile sur tous les actifs restants
+        if (!receivers.Any())
+            receivers = _slots.Where(s => s.Id != slot.Id && s.IsCible).ToList();
+
+        foreach (var row in rows.Where(r => !r.IsTotal))
+        {
+            var charge = row.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id);
+            if (charge.HasValue && charge.Value > 0 && receivers.Any())
+            {
+                var part = charge.Value / receivers.Count;
+                foreach (var r in receivers)
+                    row.EtpCibleSaisieParProfil[r.Id] =
+                        (row.EtpCibleSaisieParProfil.GetValueOrDefault(r.Id) ?? 0) + part;
+            }
+            row.EtpCibleSaisieParProfil[slot.Id] = null;
+        }
+
         slot.IsCible = false;
-        foreach (var row in rows) row.EtpCibleSaisieParProfil[slot.Id] = null;
         RecalcTotal();
     }
 
@@ -851,16 +873,9 @@
         ApplyFilters();
     }
 
-    // ── Code couleur existant vs cible ────────────────────────────────────
-    private static string GetExistantColor(double? existant, double? cible)
-    {
-        if (!existant.HasValue || existant.Value <= 0) return "color:#9AA5B1";
-        if (!cible.HasValue    || cible.Value    <= 0) return "";
-        var ratio = existant.Value / cible.Value;
-        if (ratio > 1.10) return "color:#C62828";
-        if (ratio < 0.90) return "color:#E65100";
-        return "color:#2E7D32";
-    }
+    // ── Code couleur existant — toujours orange ───────────────────────────
+    private static string GetExistantColor(double? existant, double? _ = null) =>
+        (!existant.HasValue || existant.Value <= 0) ? "color:#9AA5B1" : "color:#E65100;font-weight:600";
 
     // ── Indicateur couverture ─────────────────────────────────────────────
     private int GetCoverageLevel(DimMatrixRow row)
