@@ -183,13 +183,15 @@
                                            @(isRemoved ? "background:#F5F5F5" : isNew ? "background:#F1FBF4" : "background:#EBF3FF")">
                                     @if (isActive || isNew)
                                     {
-                                        <MudNumericField T="double"
-                                                         Value="@s.EtpCible"
-                                                         ValueChanged="@(v => { s.EtpCible = v; StateHasChanged(); })"
-                                                         Format="F2" Step="0.25" Min="0.1" Max="2.0"
-                                                         HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
-                                                         Style="width:58px"
-                                                         InputStyle="@($"text-align:center;font-size:12px;font-weight:700;padding:1px 2px;{(isNew ? "color:#2E7D32" : "color:#1A4E6B")}")" />
+                                        <div style="display:flex;justify-content:center;align-items:center">
+                                            <MudNumericField T="double"
+                                                             Value="@s.EtpCible"
+                                                             ValueChanged="@(v => { s.EtpCible = v; StateHasChanged(); })"
+                                                             Format="F2" Step="0.25" Min="0.1" Max="2.0"
+                                                             HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
+                                                             Style="width:58px"
+                                                             InputStyle="@($"text-align:center;font-size:12px;font-weight:700;padding:1px 2px;{(isNew ? "color:#2E7D32" : "color:#1A4E6B")}")" />
+                                        </div>
                                     }
                                     else if (isRemoved)
                                     {
@@ -612,7 +614,7 @@
                         <tr style="background:#1A3558">
                             <td class="ca-dim-sticky-col" style="background:#1A3558;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
                                 Remplissage des portefeuilles existant
-                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Charge ETP − Effectif ETP du conseiller</div>
+                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Charge ETP cible − Capacité ETP conseiller</div>
                             </td>
                             @foreach (var profil in profils)
                             {
@@ -1222,14 +1224,14 @@
         return vals.Any() ? vals.Sum(v => v!.Value) : null;
     }
 
-    // Remplissage par slot = charge ETP existant − EtpActuel du conseiller
-    // Résultat négatif → conseiller sous-chargé (capacité non utilisée)
-    // Résultat positif → conseiller surchargé (charge dépasse sa capacité)
+    // Remplissage par slot = charge ETP CIBLE saisie − EtpCible du conseiller
+    // Résultat négatif → conseiller sous-chargé (des ETP cible restent non attribués)
+    // Résultat positif → conseiller surchargé (charge cible dépasse sa capacité cible)
     private double? GetRemplissageForSlot(ConseillerSlot slot)
     {
-        if (!slot.IsActuel) return null;
-        var etp = GetTotalEtpExistantForSlot(slot.Id);
-        return etp.HasValue ? etp.Value - slot.EtpActuel : null;
+        if (!slot.IsCible) return null;
+        var etp = GetEtpCibleSaisieTotal(slot.Id);
+        return etp.HasValue ? etp.Value - slot.EtpCible : null;
     }
 
     // Evolution par slot : +1 si nouveau planifié, -1 si retiré, 0 si stable
