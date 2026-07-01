@@ -443,6 +443,114 @@
                 </table>
             </div>
         </MudPaper>
+
+        <!-- ══════════════════════════════════════════════════════════
+             BLOC KPI — Indicateurs agrégés par type de profil
+             (même format qu'avant, colonnes = profils)
+        ══════════════════════════════════════════════════════════ -->
+        <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden;margin-top:10px">
+            <div class="ca-dim-scroll-wrapper">
+                <table style="border-collapse:collapse;min-width:max-content;width:100%">
+                    <colgroup>
+                        <col style="min-width:330px;width:330px" />
+                        @foreach (var p in profils)
+                        {
+                            <col style="min-width:110px;width:110px" />
+                        }
+                    </colgroup>
+                    <!-- En-tête discret avec noms des profils -->
+                    <thead>
+                        <tr style="background:#12293D">
+                            <th style="text-align:left;padding:5px 14px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);letter-spacing:.5px;text-transform:uppercase">
+                                Indicateur KPI
+                            </th>
+                            @foreach (var p in profils)
+                            {
+                                <th style="text-align:center;padding:5px 4px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.7)">
+                                    @_profilShort.GetValueOrDefault(p, p)
+                                </th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- ── Remplissage des portefeuilles ─────────────────── -->
+                        <tr style="background:#1A3558">
+                            <td style="padding:7px 14px;font-size:11px;font-weight:600;color:white">
+                                Remplissage des portefeuilles existant
+                                <span style="font-size:10px;font-weight:400;opacity:0.7;margin-left:6px">
+                                    (Effectif actuel − Total charge ETP existant)
+                                </span>
+                            </td>
+                            @foreach (var p in profils)
+                            {
+                                var rmp = GetRemplissage(p);
+                                <td style="text-align:center;padding:7px 4px;font-size:12px;@DiffColor(rmp, positifBon: true)">
+                                    @FormatDiff(rmp)
+                                </td>
+                            }
+                        </tr>
+                        <!-- ── Evolution des effectifs ────────────────────────── -->
+                        <tr style="background:#1C3D62">
+                            <td style="padding:7px 14px;font-size:11px;font-weight:600;color:white">
+                                Evolution des effectifs
+                                <span style="font-size:10px;font-weight:400;opacity:0.7;margin-left:6px">
+                                    (Effectif cible − Effectif actuel)
+                                </span>
+                            </td>
+                            @foreach (var p in profils)
+                            {
+                                var evo = GetEvolutionEffectifs(p);
+                                <td style="text-align:center;padding:7px 4px;font-size:12px;@DiffColor(evo, positifBon: true)">
+                                    @FormatDiff(evo)
+                                </td>
+                            }
+                        </tr>
+                        <!-- ── Taux de concordance ────────────────────────────── -->
+                        <tr style="background:#1F446A">
+                            <td style="padding:7px 14px;font-size:11px;font-weight:600;color:white">
+                                Taux de concordance du portefeuille par conseiller
+                                <span style="font-size:10px;font-weight:400;opacity:0.7;margin-left:6px">
+                                    (Total ETP cible / Effectif cible)
+                                </span>
+                            </td>
+                            @foreach (var p in profils)
+                            {
+                                var conc = GetTauxConcordance(p);
+                                <td style="text-align:center;padding:7px 4px;font-size:12px;color:white">
+                                    @(conc.HasValue ? conc.Value.ToString("F2") : "—")
+                                </td>
+                            }
+                        </tr>
+                        <!-- ── Taux de rotation ───────────────────────────────── -->
+                        <tr style="background:#224A72">
+                            <td style="padding:7px 14px;font-size:11px;font-weight:600;color:white">
+                                Taux de rotation du portefeuille
+                            </td>
+                            @foreach (var p in profils)
+                            {
+                                var rot = _tauxRotation.GetValueOrDefault(p);
+                                <td style="text-align:center;padding:7px 4px;font-size:12px;color:white">
+                                    @(rot.HasValue ? rot.Value.ToString("P1") : "—")
+                                </td>
+                            }
+                        </tr>
+                        <!-- ── Taux d'entrée ──────────────────────────────────── -->
+                        <tr style="background:#24507A">
+                            <td style="padding:7px 14px;font-size:11px;font-weight:600;color:white">
+                                Taux d'entrée dans le portefeuille
+                            </td>
+                            @foreach (var p in profils)
+                            {
+                                var ent = _tauxEntree.GetValueOrDefault(p);
+                                <td style="text-align:center;padding:7px 4px;font-size:12px;color:white">
+                                    @(ent.HasValue ? ent.Value.ToString("P1") : "—")
+                                </td>
+                            }
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </MudPaper>
     }
 
     <div class="ca-footer">© 2025 Crédit Agricole Nord de France — Plateforme de Dimensionnement</div>
@@ -454,6 +562,10 @@
     private List<string> segments = new();
     private List<DimMatrixRow> rows = new();
     private List<ConseillerSlot> _slots = new();
+
+    // ── KPI — Indicateurs agrégés par profil ──────────────────────────────
+    private Dictionary<string, double?> _tauxRotation = new();
+    private Dictionary<string, double?> _tauxEntree   = new();
 
     // ── Filtres ───────────────────────────────────────────────────────────
     private string? filtreRegion  = null;
@@ -512,6 +624,7 @@
         _slots   = BuildSlots();
         rows     = BuildRows();
         RecalcTotal();
+        InitEffectifs();
         BuildFilterOptions();
         ApplyFilters();
     }
@@ -813,4 +926,76 @@
                          .Where(v => v.HasValue).ToList();
         return vals.Any() ? vals.Sum(v => v!.Value) : null;
     }
+
+    // ── KPI : init taux (rotation / entrée en mock null pour l'instant) ───
+    private void InitEffectifs()
+    {
+        foreach (var p in profils)
+        {
+            _tauxRotation.TryAdd(p, null);
+            _tauxEntree  .TryAdd(p, null);
+        }
+    }
+
+    // ── KPI : effectifs dérivés depuis les slots ──────────────────────────
+    private double GetEffectifActuel(string profil) =>
+        _slots.Count(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsActuel);
+
+    private double GetEffectifCible(string profil) =>
+        _slots.Count(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible);
+
+    // Total ETP existant agrégé par type de profil (depuis la ligne Total)
+    private double? GetTotalEtpExistant(string profil)
+    {
+        var totalRow = rows.LastOrDefault(r => r.IsTotal);
+        if (totalRow == null) return null;
+        var vals = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase))
+                         .Select(s => totalRow.EtpParProfil.GetValueOrDefault(s.Id))
+                         .Where(v => v.HasValue).ToList();
+        return vals.Any() ? vals.Sum(v => v!.Value) : null;
+    }
+
+    // Total ETP cible saisi agrégé par type de profil (depuis la ligne Total)
+    private double? GetTotalEtpCible(string profil)
+    {
+        var totalRow = rows.LastOrDefault(r => r.IsTotal);
+        if (totalRow == null) return null;
+        var vals = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase))
+                         .Select(s => totalRow.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id))
+                         .Where(v => v.HasValue).ToList();
+        return vals.Any() ? vals.Sum(v => v!.Value) : null;
+    }
+
+    // Remplissage = Effectif actuel − Total charge ETP existant
+    private double? GetRemplissage(string profil)
+    {
+        var etp = GetTotalEtpExistant(profil);
+        return etp.HasValue ? GetEffectifActuel(profil) - etp.Value : null;
+    }
+
+    // Evolution = Effectif cible − Effectif actuel
+    private double? GetEvolutionEffectifs(string profil)
+    {
+        var act = GetEffectifActuel(profil);
+        var cib = GetEffectifCible(profil);
+        return cib - act;
+    }
+
+    // Taux de concordance = Total ETP cible / Effectif cible
+    private double? GetTauxConcordance(string profil)
+    {
+        var etpCib = GetTotalEtpCible(profil);
+        var effCib = GetEffectifCible(profil);
+        return (etpCib.HasValue && effCib > 0) ? etpCib.Value / effCib : null;
+    }
+
+    // ── Formatage ─────────────────────────────────────────────────────────
+    private static string FormatDiff(double? v, string suffix = "") =>
+        v.HasValue ? (v.Value >= 0 ? $"+{v.Value:F2}{suffix}" : $"{v.Value:F2}{suffix}") : "—";
+
+    private static string DiffColor(double? v, bool positifBon = true) =>
+        !v.HasValue ? "color:white" :
+        v.Value > 0 ? (positifBon ? "color:#A5D6A7;font-weight:700" : "color:#EF9A9A;font-weight:700") :
+        v.Value < 0 ? (positifBon ? "color:#EF9A9A;font-weight:700" : "color:#A5D6A7;font-weight:700") :
+        "color:rgba(255,255,255,0.6);font-weight:600";
 }
