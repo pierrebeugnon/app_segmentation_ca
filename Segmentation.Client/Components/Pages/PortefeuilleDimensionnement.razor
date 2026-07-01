@@ -678,28 +678,9 @@
 
     private void RemoveSlotFromCible(ConseillerSlot slot)
     {
-        // Cibles actifs du même type (hors le slot retiré) qui absorbent la charge
-        var receivers = _slots
-            .Where(s => s.Id != slot.Id && s.IsCible &&
-                        s.Profil.Equals(slot.Profil, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        // Si aucun du même type, on ventile sur tous les actifs restants
-        if (!receivers.Any())
-            receivers = _slots.Where(s => s.Id != slot.Id && s.IsCible).ToList();
-
-        foreach (var row in rows.Where(r => !r.IsTotal))
-        {
-            var charge = row.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id);
-            if (charge.HasValue && charge.Value > 0 && receivers.Any())
-            {
-                var part = charge.Value / receivers.Count;
-                foreach (var r in receivers)
-                    row.EtpCibleSaisieParProfil[r.Id] =
-                        (row.EtpCibleSaisieParProfil.GetValueOrDefault(r.Id) ?? 0) + part;
-            }
+        // La charge cible du slot devient vacante — l'utilisateur la redistribue manuellement
+        foreach (var row in rows)
             row.EtpCibleSaisieParProfil[slot.Id] = null;
-        }
 
         slot.IsCible = false;
         RecalcTotal();
