@@ -189,7 +189,6 @@
                                                              ValueChanged="@(v => { s.EtpCible = v; StateHasChanged(); })"
                                                              Format="F2" Step="0.25" Min="0.1" Max="2.0"
                                                              HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
-                                                             Style="width:58px"
                                                              InputStyle="@($"text-align:center;font-size:12px;font-weight:700;padding:1px 2px;{(isNew ? "color:#2E7D32" : "color:#1A4E6B")}")" />
                                         </div>
                                     }
@@ -751,28 +750,41 @@
                         </tr>
 
                         <!-- ── Taux d'entrée ─────────────────────────────────── -->
+                        @{
+                            var entAllCible = _slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
+                            var entAllExist = _slots.Where(s => s.IsCible).Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
+                            double? kpiEntTotal = entAllCible > 0
+                                ? (entAllCible > entAllExist ? (entAllCible - entAllExist) / entAllCible * 100.0 : 0.0)
+                                : null;
+                        }
                         <tr style="background:#24507A">
-                            <td class="ca-dim-sticky-col" style="background:#24507A;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal">
+                            <td class="ca-dim-sticky-col" style="background:#24507A;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
                                 Taux d'entrée dans le portefeuille
+                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">(Cible − Exist.) × [Cible &gt; Exist.] / Cible</div>
                             </td>
                             @foreach (var profil in profils)
                             {
                                 if (_collapsedProfils.Contains(profil))
                                 {
-                                    <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;font-style:italic">—</td>
+                                    var ent = GetTauxEntreeForProfil(profil);
+                                    <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;@DiffColor(ent, positifBon:true)">
+                                        @(ent.HasValue ? $"{ent.Value:+0.0;-0.0;0.0}%" : "—")
+                                    </td>
                                 }
                                 else
                                 {
                                     foreach (var slot in _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)))
                                     {
-                                        var ent = _tauxEntree.GetValueOrDefault(slot.Id);
-                                        <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
-                                            @(ent.HasValue ? ent.Value.ToString("P1") : "—")
+                                        var ent = GetTauxEntreeSlot(slot);
+                                        <td style="text-align:center;padding:6px 3px;font-size:11px;@DiffColor(ent, positifBon:true);@(!slot.IsCible ? "opacity:0.35" : "")">
+                                            @(ent.HasValue ? $"{ent.Value:+0.0;-0.0;0.0}%" : "—")
                                         </td>
                                     }
                                 }
                             }
-                            <td style="background:#1C3C5E"></td>
+                            <td style="text-align:center;padding:6px 4px;font-size:12px;font-weight:700;background:#1C3C5E;@DiffColor(kpiEntTotal, positifBon:true)">
+                                @(kpiEntTotal.HasValue ? $"{kpiEntTotal.Value:+0.0;-0.0;0.0}%" : "—")
+                            </td>
                             <td style="background:#24507A"></td>
                             <td style="background:#24507A"></td>
                         </tr>
@@ -1285,6 +1297,26 @@
         if (totalCible <= 0) return null;
         var totalExist = slots.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
         return (totalCible - totalExist) / totalCible * 100.0;
+    }
+
+    // ── KPI taux d'entrée par slot ────────────────────────────────────────
+    // (Cible − Existant) × (Cible > Existant) / Cible × 100
+    // = part de croissance nette si cible > existant, sinon 0
+    private double? GetTauxEntreeSlot(ConseillerSlot slot)
+    {
+        var cible = GetEtpCibleSaisieTotal(slot.Id);
+        if (!cible.HasValue || cible.Value <= 0) return null;
+        var exist = GetTotalEtpExistantForSlot(slot.Id) ?? 0;
+        return cible.Value > exist ? (cible.Value - exist) / cible.Value * 100.0 : 0.0;
+    }
+
+    private double? GetTauxEntreeForProfil(string profil)
+    {
+        var slots      = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
+        var totalCible = slots.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
+        if (totalCible <= 0) return null;
+        var totalExist = slots.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
+        return totalCible > totalExist ? (totalCible - totalExist) / totalCible * 100.0 : 0.0;
     }
 
     // ── KPI par slot individuel ───────────────────────────────────────────
