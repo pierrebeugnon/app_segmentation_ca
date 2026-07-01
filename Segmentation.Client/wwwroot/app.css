@@ -671,8 +671,8 @@ html, body {
 .ca-dim-scroll-wrapper {
     overflow-x: auto;
     overflow-y: auto;
-    max-height: calc(100vh - 300px);
-    min-height: 250px;
+    max-height: calc(100vh - 200px);
+    min-height: 300px;
     -webkit-overflow-scrolling: touch;
 }
 
