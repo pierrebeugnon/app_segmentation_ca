@@ -107,14 +107,14 @@
     {
         <!-- ══════════════════════════════════════════════════════════
              BLOC 0 — EFFECTIFS CONSEILLERS
-             Actuel (orange) : conseillers en poste
+             Existant (orange) : conseillers en poste
              Cible  (bleu)   : scénario cible — ajout / suppression
         ══════════════════════════════════════════════════════════ -->
         <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden;margin-bottom:12px">
             <div class="ca-section-header" style="display:flex;align-items:center;gap:10px">
                 <span class="ca-section-badge">0</span>
                 Effectifs Conseillers
-                <MudTooltip Text="Ligne ▲ Actuel : conseillers présents aujourd'hui. Ligne ▼ Cible : scénario simulé. Supprimez un conseiller (×) pour griser sa colonne dans le tableau. Ajoutez-en un nouveau (+ Ajouter) pour l'intégrer à la répartition cible.">
+                <MudTooltip Text="Ligne ▲ Existant : conseillers présents aujourd'hui. Ligne ▼ Cible : scénario simulé. Supprimez un conseiller (×) pour griser sa colonne dans le tableau. Ajoutez-en un nouveau (+ Ajouter) pour l'intégrer à la répartition cible.">
                     <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small"
                              Style="color:rgba(255,255,255,0.65)" />
                 </MudTooltip>
@@ -168,60 +168,32 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- ── Ligne Cible (en haut) ─────────────────────────────── -->
+                        <!-- ── Ligne Cible (en haut) — ETP uniquement, sans bouton ── -->
                         <tr>
                             <td style="padding:7px 12px;font-size:12px;font-weight:700;color:#1A4E6B;background:#EBF3FF;border-bottom:1px solid #D0DFF0;position:sticky;left:0;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
                                 ▼ Cible
                             </td>
                             @foreach (var slot in _slots)
                             {
-                                var s = slot;
+                                var s         = slot;
                                 var isRemoved = slot.IsActuel && !slot.IsCible;
                                 var isNew     = !slot.IsActuel && slot.IsCible;
                                 var isActive  = slot.IsActuel && slot.IsCible;
-                                <td style="text-align:center;padding:4px 2px;font-size:12px;border-bottom:1px solid #D0DFF0;
+                                <td style="text-align:center;padding:6px 2px;font-size:12px;border-bottom:1px solid #D0DFF0;
                                            @(isRemoved ? "background:#F5F5F5" : isNew ? "background:#F1FBF4" : "background:#EBF3FF")">
-                                    @if (isActive)
+                                    @if (isActive || isNew)
                                     {
-                                        <div style="display:flex;flex-direction:column;align-items:center;gap:0px">
-                                            <MudNumericField T="double"
-                                                             Value="@s.EtpCible"
-                                                             ValueChanged="@(v => { s.EtpCible = v; StateHasChanged(); })"
-                                                             Format="F2" Step="0.25" Min="0.1" Max="2.0"
-                                                             HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
-                                                             Style="width:58px"
-                                                             InputStyle="text-align:center;font-size:12px;font-weight:700;color:#1A4E6B;padding:1px 2px" />
-                                            <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
-                                                           Size="Size.Small"
-                                                           Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
-                                                           OnClick="@(() => RemoveSlotFromCible(s))" />
-                                        </div>
+                                        <MudNumericField T="double"
+                                                         Value="@s.EtpCible"
+                                                         ValueChanged="@(v => { s.EtpCible = v; StateHasChanged(); })"
+                                                         Format="F2" Step="0.25" Min="0.1" Max="2.0"
+                                                         HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
+                                                         Style="width:58px"
+                                                         InputStyle="@($"text-align:center;font-size:12px;font-weight:700;padding:1px 2px;{(isNew ? "color:#2E7D32" : "color:#1A4E6B")}")" />
                                     }
                                     else if (isRemoved)
                                     {
-                                        <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
-                                            <span style="color:#9AA5B1;font-size:12px">✗</span>
-                                            <MudIconButton Icon="@Icons.Material.Outlined.AddCircleOutline"
-                                                           Size="Size.Small"
-                                                           Style="padding:0;width:18px;height:18px;color:#2E7D32;opacity:0.7"
-                                                           OnClick="@(() => RestoreSlot(s))" />
-                                        </div>
-                                    }
-                                    else if (isNew)
-                                    {
-                                        <div style="display:flex;flex-direction:column;align-items:center;gap:0px">
-                                            <MudNumericField T="double"
-                                                             Value="@s.EtpCible"
-                                                             ValueChanged="@(v => { s.EtpCible = v; StateHasChanged(); })"
-                                                             Format="F2" Step="0.25" Min="0.1" Max="2.0"
-                                                             HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
-                                                             Style="width:58px"
-                                                             InputStyle="text-align:center;font-size:12px;font-weight:700;color:#2E7D32;padding:1px 2px" />
-                                            <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
-                                                           Size="Size.Small"
-                                                           Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
-                                                           OnClick="@(() => RemoveNewSlot(s))" />
-                                        </div>
+                                        <span style="color:#9AA5B1;font-size:12px">✗</span>
                                     }
                                 </td>
                             }
@@ -229,32 +201,52 @@
                                 @_slots.Where(s => s.IsCible).Sum(s => s.EtpCible).ToString("F2")
                             </td>
                         </tr>
-                        <!-- ── Ligne Actuel (en bas) ──────────────────────────────── -->
+                        <!-- ── Ligne Existant (en bas) — lecture seule + bouton action ── -->
                         <tr>
                             <td style="padding:7px 12px;font-size:12px;font-weight:700;color:#E65100;background:#FFF8F2;position:sticky;left:0;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
-                                ▲ Actuel
+                                ▲ Existant
                             </td>
                             @foreach (var slot in _slots)
                             {
-                                var isGrey = !slot.IsCible && slot.IsActuel;
-                                var isNew  = !slot.IsActuel;
-                                <td style="text-align:center;padding:5px 3px;font-size:13px;
-                                           @(isGrey ? "background:#F5F5F5;color:#9AA5B1" : isNew ? "background:#F1FBF4" : "background:#FFF8F2")">
-                                    @if (slot.IsActuel)
-                                    {
-                                        var slotRef = slot;
-                                        <MudNumericField T="double"
-                                                         Value="@slotRef.EtpActuel"
-                                                         ValueChanged="@(v => { slotRef.EtpActuel = v; StateHasChanged(); })"
-                                                         Format="F2" Step="0.25" Min="0.1" Max="2.0"
-                                                         HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
-                                                         Style="width:58px"
-                                                         InputStyle="@($"text-align:center;font-size:12px;font-weight:700;padding:1px 2px;{(isGrey ? "color:#BDBDBD" : "color:#E65100")}")" />
-                                    }
-                                    else
-                                    {
-                                        <span style="color:#BDBDBD;font-size:10px">—</span>
-                                    }
+                                var s         = slot;
+                                var isRemoved = slot.IsActuel && !slot.IsCible;
+                                var isNew     = !slot.IsActuel && slot.IsCible;
+                                var isActive  = slot.IsActuel && slot.IsCible;
+                                <td style="text-align:center;padding:4px 2px;
+                                           @(isRemoved ? "background:#F5F5F5" : isNew ? "background:#F1FBF4" : "background:#FFF8F2")">
+                                    <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+                                        @if (slot.IsActuel)
+                                        {
+                                            <span style="font-size:12px;font-weight:700;@(isRemoved ? "color:#BDBDBD" : "color:#E65100")">
+                                                @slot.EtpActuel.ToString("F2")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span style="color:#BDBDBD;font-size:10px">—</span>
+                                        }
+                                        @if (isActive)
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
+                                                           Size="Size.Small"
+                                                           Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
+                                                           OnClick="@(() => RemoveSlotFromCible(s))" />
+                                        }
+                                        else if (isRemoved)
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Outlined.AddCircleOutline"
+                                                           Size="Size.Small"
+                                                           Style="padding:0;width:18px;height:18px;color:#2E7D32;opacity:0.7"
+                                                           OnClick="@(() => RestoreSlot(s))" />
+                                        }
+                                        else if (isNew)
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
+                                                           Size="Size.Small"
+                                                           Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
+                                                           OnClick="@(() => RemoveNewSlot(s))" />
+                                        }
+                                    </div>
                                 </td>
                             }
                             <td style="text-align:center;padding:5px;font-weight:700;font-size:13px;background:#FAEEE0;color:#E65100">
@@ -648,7 +640,7 @@
                         <tr style="background:#1C3D62">
                             <td class="ca-dim-sticky-col" style="background:#1C3D62;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
                                 Evolution des effectifs
-                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Cible − Actuel par conseiller</div>
+                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Cible − Existant par conseiller</div>
                             </td>
                             @foreach (var profil in profils)
                             {
