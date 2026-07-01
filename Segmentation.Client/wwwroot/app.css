@@ -881,23 +881,36 @@ html, body {
     background-color: #EEF4FA;
 }
 
-/* Partie haute — EXISTANT (modifiable) */
+/* Wrapper interne cellule donnée */
+.ca-dim-cell-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+/* Partie haute — CIBLE (hauteur fixe pour cohérence repli/déplié) */
 .ca-dim-cell-top {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 6px 6px 4px;
-    min-height: 32px;
+    padding: 2px 4px;
+    height: 32px;      /* fixe — ne varie pas selon le contenu */
+    width: 100%;
+    box-sizing: border-box;
 }
 
-/* Partie basse — EXISTANT (lecture seule, fond orange) */
+/* Partie basse — EXISTANT (hauteur fixe, fond orange) */
 .ca-dim-cell-bottom {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2px 6px 4px;
-    min-height: 22px;
-    border-top: 2px solid rgba(255,143,0,0.45);
+    padding: 2px 4px;
+    height: 20px;      /* fixe */
+    width: 100%;
+    box-sizing: border-box;
+    border-top: 1.5px solid #FFCC80;
+    background: #FFF0D6;
 }
 /* Zone EXISTANT : fond orange opaque — pas de superposition avec le vert de la cible */
 .ca-dim-cell-bottom-assigned { background: #FFF0D6; }

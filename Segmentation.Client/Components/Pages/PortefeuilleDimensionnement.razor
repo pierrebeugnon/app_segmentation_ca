@@ -287,13 +287,13 @@
                         {
                             if (_collapsedProfils.Contains(profil))
                             {
-                                <col style="min-width:100px;width:100px" />
+                                <col style="min-width:90px;width:90px" />
                             }
                             else
                             {
                                 foreach (var _ in _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)))
                                 {
-                                    <col style="min-width:88px;width:88px" />
+                                    <col style="min-width:90px;width:90px" />
                                 }
                             }
                         }
@@ -411,13 +411,13 @@
                                         }
                                         else if (vueEtp)
                                         {
-                                            <div style="display:flex;flex-direction:column;align-items:center;gap:0;width:100%">
-                                                <div style="width:100%;display:flex;justify-content:center;padding:3px 2px 2px">
+                                            <div class="ca-dim-cell-inner">
+                                                <div class="ca-dim-cell-top">
                                                     <span style="font-size:11px;font-weight:600;color:#1A4E6B">
                                                         @(aggCib.HasValue ? aggCib.Value.ToString("F2") : "—")
                                                     </span>
                                                 </div>
-                                                <div style="width:100%;background:#FFF0D6;border-top:1.5px solid #FFCC80;display:flex;justify-content:center;padding:2px">
+                                                <div class="ca-dim-cell-bottom">
                                                     <span style="@GetExistantColor(aggExist);font-size:10px;font-weight:600;font-style:italic">
                                                         @(aggExist.HasValue ? aggExist.Value.ToString("F2") : "—")
                                                     </span>
@@ -459,8 +459,8 @@
                                             }
                                             else if (vueEtp)
                                             {
-                                                <div style="display:flex;flex-direction:column;align-items:center;gap:0;width:100%">
-                                                    <div style="width:100%;display:flex;justify-content:center;padding:3px 2px 2px">
+                                                <div class="ca-dim-cell-inner">
+                                                    <div class="ca-dim-cell-top">
                                                         @if (s.IsCible)
                                                         {
                                                             <MudNumericField T="double?"
@@ -479,7 +479,7 @@
                                                             <span style="font-size:11px;color:#9AA5B1">—</span>
                                                         }
                                                     </div>
-                                                    <div style="width:100%;background:#FFF0D6;border-top:1.5px solid #FFCC80;display:flex;justify-content:center;padding:2px">
+                                                    <div class="ca-dim-cell-bottom">
                                                         <span style="@GetExistantColor(etp);font-size:10px;font-weight:600;font-style:italic">
                                                             @(etp.HasValue ? etp.Value.ToString("F2") : "—")
                                                         </span>
