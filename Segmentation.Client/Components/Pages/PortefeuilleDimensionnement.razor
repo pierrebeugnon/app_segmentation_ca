@@ -367,10 +367,10 @@
                     <tbody>
                     @foreach (var row in filteredRows)
                     {
-                        var coverage    = GetCoverageLevel(row);
-                        var concordance = GetConcordance(row);
-                        var rowCible    = GetRowCibleTotal(row);
-                        var rowExist    = GetRowExistantTotal(row);
+                        var coverageDiff = GetCoverageDiff(row);
+                        var concordance  = GetConcordance(row);
+                        var rowCible     = GetRowCibleTotal(row);
+                        var rowExist     = GetRowExistantTotal(row);
 
                         <tr class="@(row.IsTotal ? "ca-dim-tr-total" : "ca-dim-tr-data")">
                             <!-- Segment label -->
@@ -511,31 +511,62 @@
                                 }
                             </td>
 
-                            <!-- ── Colonne Couverture ───────────────────────────── -->
-                            <td style="text-align:center;padding:4px">
+                            <!-- ── Colonne Couverture : différence cible − charge ── -->
+                            <td style="text-align:center;padding:4px 3px">
                                 @if (!row.IsTotal)
                                 {
-                                    var (mudIcon, fg) = coverage switch
+                                    @if (!coverageDiff.HasValue)
                                     {
-                                        2 => (Icons.Material.Filled.CheckCircle, "#2E7D32"),
-                                        1 => (Icons.Material.Filled.Warning,     "#E65100"),
-                                        _ => (Icons.Material.Outlined.RadioButtonUnchecked, "#BDBDBD")
-                                    };
-                                    <MudTooltip Text="@(coverage == 2 ? "ETP cible ≈ ETP existant (±10%)" : coverage == 1 ? "Écart cible / existant > 10%" : "Aucune saisie")">
-                                        <MudIcon Icon="@mudIcon" Style="@($"font-size:18px;color:{fg}")" />
-                                    </MudTooltip>
+                                        <span style="color:#BDBDBD;font-size:11px">—</span>
+                                    }
+                                    else
+                                    {
+                                        var diff  = coverageDiff.Value;
+                                        var absDiff = Math.Abs(diff);
+                                        var (diffFg, diffBg, diffTooltip, diffIcon) = diff switch
+                                        {
+                                            _ when absDiff < 0.01 =>
+                                                ("#2E7D32", "#E8F5E9", "Couverture complète", Icons.Material.Filled.CheckCircle),
+                                            _ when diff < 0 =>
+                                                ("#C62828", "#FFEBEE", $"Sous-couverture : {diff:F2} ETP manquant", Icons.Material.Filled.ArrowDropDown),
+                                            _ =>
+                                                ("#E65100", "#FFF3E0", $"Sur-répartition : +{diff:F2} ETP au-delà de la charge", Icons.Material.Filled.ArrowDropUp)
+                                        };
+                                        <MudTooltip Text="@diffTooltip">
+                                            <div style="display:flex;flex-direction:column;align-items:center;gap:0;
+                                                        background:@diffBg;border-radius:5px;padding:2px 4px;min-width:48px">
+                                                <MudIcon Icon="@diffIcon" Style="@($"font-size:14px;color:{diffFg};line-height:1")" />
+                                                <span style="font-size:10px;font-weight:700;color:@diffFg;line-height:1.2">
+                                                    @(absDiff < 0.01 ? "OK" : (diff > 0 ? "+" : "") + diff.ToString("F2"))
+                                                </span>
+                                            </div>
+                                        </MudTooltip>
+                                    }
                                 }
                             </td>
 
-                            <!-- ── Colonne Concordance ─────────────────────────── -->
-                            <td style="text-align:center;padding:4px">
+                            <!-- ── Colonne Concordance : % ETP dans type prioritaire ── -->
+                            <td style="text-align:center;padding:4px 3px">
                                 @if (!row.IsTotal && concordance.pct.HasValue)
                                 {
+                                    var pct = concordance.pct.Value;
+                                    var (concBg, concFg) = pct switch
+                                    {
+                                        _ when pct >= 99.9 => ("#E8F5E9", "#2E7D32"),
+                                        _ when pct >= 80   => ("#FFF3E0", "#E65100"),
+                                        _                  => ("#FFEBEE", "#C62828")
+                                    };
                                     <MudTooltip Text="@concordance.tooltip">
-                                        <span style="@concordance.color;font-size:12px">
-                                            @concordance.pct.Value.ToString("F0")%
-                                        </span>
+                                        <div style="background:@concBg;border-radius:5px;padding:2px 6px;min-width:48px">
+                                            <span style="font-size:12px;font-weight:700;color:@concFg">
+                                                @pct.ToString("F0")%
+                                            </span>
+                                        </div>
                                     </MudTooltip>
+                                }
+                                else if (!row.IsTotal)
+                                {
+                                    <span style="color:#BDBDBD;font-size:11px">—</span>
                                 }
                             </td>
 
@@ -1066,38 +1097,43 @@
     private static string GetExistantColor(double? existant, double? _ = null) =>
         (!existant.HasValue || existant.Value <= 0) ? "color:#9AA5B1" : "color:#E65100;font-weight:600";
 
-    // ── Indicateur couverture ─────────────────────────────────────────────
-    private int GetCoverageLevel(DimMatrixRow row)
+    // ── Couverture : différence entre ETP distribué et charge ETP ────────
+    // Résultat = totalCible − totalExist
+    //   = 0   → couverture complète (vert)
+    //   < 0   → sous-couverture (rouge)   — il manque des ETP assignés
+    //   > 0   → sur-répartition (orange)  — plus assigné que la charge
+    private double? GetCoverageDiff(DimMatrixRow row)
     {
-        if (row.IsTotal) return -1;
+        if (row.IsTotal) return null;
         var activeSlots = _slots.Where(s => s.IsCible).ToList();
         var totalCible  = activeSlots.Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
         var totalExist  = _slots.Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
-        if (totalCible <= 0 && totalExist <= 0) return 0;
-        if (totalCible <= 0 || totalExist <= 0) return 1;
-        var ratio = totalCible / totalExist;
-        return (ratio >= 0.90 && ratio <= 1.10) ? 2 : 1;
+        if (totalCible <= 0 && totalExist <= 0) return null;
+        return totalCible - totalExist;
     }
 
-    // ── Concordance : pureté de la distribution ───────────────────────────
+    // ── Concordance : % ETP assigné au type de conseiller PRIORITAIRE ─────
+    // 100% = toute la répartition est dans le type désigné prioritaire
+    // Ex.  : 0.80 ETP prioritaire / 1.00 total → 80%
     private (double? pct, string color, string tooltip) GetConcordance(DimMatrixRow row)
     {
         if (row.IsTotal) return (null, "", "");
         var activeSlots = _slots.Where(s => s.IsCible).ToList();
         var totalCible  = activeSlots.Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-        if (totalCible <= 0) return (null, "", "");
+        if (totalCible <= 0) return (null, "", "Aucune saisie");
 
-        var etpPrio = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 1).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-        var etpSec  = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 2).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-        var etpTert = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 3).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
+        // ETP assigné au(x) conseiller(s) de niveau PRIORITAIRE (level 1)
+        var etpPrio    = activeSlots
+            .Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 1)
+            .Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
+        var etpNonPrio = totalCible - etpPrio;
 
-        var score = (etpPrio * 1.00 + etpSec * 0.66 + etpTert * 0.33) / totalCible * 100;
-        var color = score >= 80 ? "color:#2E7D32;font-weight:700" :
-                    score >= 55 ? "color:#E65100;font-weight:700" :
+        var pct   = etpPrio / totalCible * 100.0;
+        var color = pct >= 99.9 ? "color:#2E7D32;font-weight:700" :
+                    pct >= 80   ? "color:#E65100;font-weight:700" :
                                   "color:#C62828;font-weight:700";
-        var pctPrio = etpPrio / totalCible * 100;
-        var pctSec  = etpSec  / totalCible * 100;
-        return (score, color, $"Prioritaire : {pctPrio:F0}%  |  Secondaire : {pctSec:F0}%  |  Score pondéré : {score:F0}%");
+        return (pct, color,
+            $"ETP prioritaire : {etpPrio:F2} ({pct:F0}%)  |  ETP non prioritaire : {etpNonPrio:F2} ({100 - pct:F0}%)");
     }
 
     // ── ETP CIBLE calculé depuis ReglesHypothèses ─────────────────────────
