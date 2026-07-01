@@ -280,34 +280,92 @@
 
             <div class="ca-dim-scroll-wrapper">
                 <table class="ca-dim-table">
-                    <!-- Colgroup : largeurs uniformes par conseiller individuel -->
+                    <!-- Colgroup : 1 col agrégée si replié, N cols si déplié -->
                     <colgroup>
                         <col style="min-width:160px;width:160px" />
-                        @foreach (var slot in _slots)
+                        @foreach (var profil in profils)
                         {
-                            <col style="min-width:88px;width:88px" />
+                            if (_collapsedProfils.Contains(profil))
+                            {
+                                <col style="min-width:100px;width:100px" />
+                            }
+                            else
+                            {
+                                foreach (var _ in _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    <col style="min-width:88px;width:88px" />
+                                }
+                            }
                         }
                         <col style="min-width:100px;width:100px" />
                         <col style="min-width:68px;width:68px" />
                         <col style="min-width:82px;width:82px" />
                     </colgroup>
                     <thead>
-                        <tr class="ca-dim-superheader">
-                            <th class="ca-dim-sticky-col" style="min-width:160px;text-align:left;padding-left:12px">
+                        <!-- ── Ligne 1 : super-en-tête par métier avec bouton +/− ── -->
+                        <tr style="background:#0A1F30">
+                            <th class="ca-dim-sticky-col"
+                                style="min-width:160px;text-align:left;padding:5px 12px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);letter-spacing:.5px;text-transform:uppercase;background:#0A1F30">
                                 Segments
                             </th>
-                            @foreach (var slot in _slots)
+                            @foreach (var profil in profils)
                             {
-                                var isGrey = !slot.IsCible;
-                                var isNew  = !slot.IsActuel && slot.IsCible;
-                                <th class="ca-dim-th-profil"
-                                    style="@(isGrey ? "background:#D8DEE8;color:#8A9BB0;text-decoration:line-through;opacity:0.65" :
-                                             isNew  ? "background:#2E8B57;color:white" : "")">
-                                    <div style="font-size:11px;font-weight:700">@slot.Label</div>
-                                    <div style="font-size:9px;font-weight:400;opacity:0.75">
-                                        @_profilShort.GetValueOrDefault(slot.Profil, slot.Profil)
+                                var p          = profil;
+                                var isCollapsed = _collapsedProfils.Contains(profil);
+                                var slotsGroup  = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)).ToList();
+                                var span        = isCollapsed ? 1 : slotsGroup.Count;
+                                <th colspan="@span"
+                                    style="text-align:center;padding:4px 6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.85);
+                                           border-left:2px solid rgba(255,255,255,0.15);letter-spacing:.3px;text-transform:uppercase">
+                                    <div style="display:flex;align-items:center;justify-content:center;gap:5px">
+                                        <span>@_profilShort.GetValueOrDefault(profil, profil)</span>
+                                        <button onclick="void(0)" @onclick="@(() => ToggleProfil(p))"
+                                                style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:3px;
+                                                       width:16px;height:16px;font-size:11px;font-weight:700;cursor:pointer;
+                                                       display:flex;align-items:center;justify-content:center;line-height:1;padding:0">
+                                            @(isCollapsed ? "+" : "−")
+                                        </button>
                                     </div>
+                                    @if (isCollapsed)
+                                    {
+                                        <div style="font-size:8px;font-weight:400;opacity:0.55;margin-top:1px">@slotsGroup.Count conseiller(s)</div>
+                                    }
                                 </th>
+                            }
+                            <th colspan="3"
+                                style="text-align:center;padding:4px 6px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);
+                                       border-left:2px solid rgba(255,255,255,0.15)">
+                            </th>
+                        </tr>
+                        <!-- ── Ligne 2 : colonnes individuelles (ou étiquette agrégée) ── -->
+                        <tr class="ca-dim-superheader">
+                            <th class="ca-dim-sticky-col" style="min-width:160px;text-align:left;padding-left:12px;font-size:11px">
+                            </th>
+                            @foreach (var profil in profils)
+                            {
+                                if (_collapsedProfils.Contains(profil))
+                                {
+                                    <th class="ca-dim-th-profil" style="background:#1C3654;font-style:italic;opacity:0.85">
+                                        <div style="font-size:10px;font-weight:600">Σ @_profilShort.GetValueOrDefault(profil, profil)</div>
+                                        <div style="font-size:8px;font-weight:400;opacity:0.7">agrégé</div>
+                                    </th>
+                                }
+                                else
+                                {
+                                    foreach (var slot in _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)))
+                                    {
+                                        var isGrey = !slot.IsCible;
+                                        var isNew  = !slot.IsActuel && slot.IsCible;
+                                        <th class="ca-dim-th-profil"
+                                            style="@(isGrey ? "background:#D8DEE8;color:#8A9BB0;text-decoration:line-through;opacity:0.65" :
+                                                     isNew  ? "background:#2E8B57;color:white" : "")">
+                                            <div style="font-size:11px;font-weight:700">@slot.Label</div>
+                                            <div style="font-size:9px;font-weight:400;opacity:0.75">
+                                                @_profilShort.GetValueOrDefault(slot.Profil, slot.Profil)
+                                            </div>
+                                        </th>
+                                    }
+                                }
                             }
                             <th class="ca-dim-th-profil" style="background:#1C3F5E">
                                 Total ETP<br />
@@ -329,71 +387,115 @@
                             <!-- Segment label -->
                             <td class="ca-dim-td-segment ca-dim-sticky-col">@row.Segment</td>
 
-                            <!-- ── Cells par conseiller individuel ──────────────── -->
-                            @foreach (var slot in _slots)
+                            <!-- ── Cellules par métier : agrégé ou détail selon état ── -->
+                            @foreach (var profil in profils)
                             {
-                                var s    = slot;
-                                var lvl  = GetAssignmentLevel(row.Segment, s.Profil);
-                                var etp  = row.EtpParProfil.GetValueOrDefault(s.Id);
-                                var cib  = row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id);
-
-                                <td class="ca-dim-td-merged" style="@GetMergedCellStyle(lvl, row.IsTotal, !s.IsCible);text-align:center;padding:2px">
-                                    @if (row.IsTotal)
-                                    {
-                                        <!-- Ligne Total charge ETP -->
-                                        var totCib  = GetEtpCibleSaisieTotal(s.Id);
-                                        var totExist = etp;
-                                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 2px">
-                                            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                @(totCib.HasValue ? totCib.Value.ToString("F2") : "—")
-                                            </span>
-                                            <div style="border-top:1.5px solid #C5CAD0;width:60%;margin:2px 0"></div>
-                                            <span style="font-size:10px;color:#E65100">
-                                                @(totExist.HasValue ? totExist.Value.ToString("F2") : "—")
-                                            </span>
-                                        </div>
-                                    }
-                                    else if (vueEtp)
-                                    {
-                                        <!-- Cellule ETP : ▼ Cible (modifiable) en haut, ▲ Existant en bas -->
-                                        <div style="display:flex;flex-direction:column;align-items:center;gap:0;width:100%">
-                                            <!-- ▼ Cible -->
-                                            <div style="width:100%;display:flex;justify-content:center;padding:3px 2px 2px">
-                                                @if (s.IsCible)
-                                                {
-                                                    <MudNumericField T="double?"
-                                                                     Value="@cib"
-                                                                     ValueChanged="@(v => SetEtpCible(row, s.Id, v))"
-                                                                     Format="F2" Step="0.25"
-                                                                     HideSpinButtons="true"
-                                                                     Variant="Variant.Text"
-                                                                     Margin="Margin.Dense"
-                                                                     Class="ca-dim-etp-input"
-                                                                     Style="width:64px"
-                                                                     InputStyle="text-align:center;font-size:11px;font-weight:600;padding:2px 4px" />
-                                                }
-                                                else
-                                                {
-                                                    <span style="font-size:11px;color:#9AA5B1">—</span>
-                                                }
-                                            </div>
-                                            <!-- ▲ Existant -->
-                                            <div style="width:100%;background:#FFF0D6;border-top:1.5px solid #FFCC80;display:flex;justify-content:center;padding:2px">
-                                                <span style="@GetExistantColor(etp, cib);font-size:10px;font-weight:600;font-style:italic">
-                                                    @(etp.HasValue ? etp.Value.ToString("F2") : "—")
+                                if (_collapsedProfils.Contains(profil))
+                                {
+                                    // ── Vue consolidée : 1 cellule agrégée par métier ──
+                                    var aggExist = GetAggregateExistantForProfil(row, profil);
+                                    var aggCib   = GetAggregateCibleForProfil(row, profil);
+                                    var aggTotal = GetEtpCibleSaisieTotalForProfil(profil);
+                                    <td class="ca-dim-td-merged" style="text-align:center;padding:2px;background:#F0F4FA;border-left:2px solid #C4CFDD">
+                                        @if (row.IsTotal)
+                                        {
+                                            <div style="display:flex;flex-direction:column;align-items:center;padding:4px 2px">
+                                                <span style="font-weight:700;font-size:12px;color:#1A4E6B">
+                                                    @(aggTotal.HasValue ? aggTotal.Value.ToString("F2") : "—")
+                                                </span>
+                                                <div style="border-top:1.5px solid #C5CAD0;width:60%;margin:2px 0"></div>
+                                                <span style="font-size:10px;color:#E65100">
+                                                    @(aggExist.HasValue ? aggExist.Value.ToString("F2") : "—")
                                                 </span>
                                             </div>
-                                        </div>
-                                    }
-                                    else
+                                        }
+                                        else if (vueEtp)
+                                        {
+                                            <div style="display:flex;flex-direction:column;align-items:center;gap:0;width:100%">
+                                                <div style="width:100%;display:flex;justify-content:center;padding:3px 2px 2px">
+                                                    <span style="font-size:11px;font-weight:600;color:#1A4E6B">
+                                                        @(aggCib.HasValue ? aggCib.Value.ToString("F2") : "—")
+                                                    </span>
+                                                </div>
+                                                <div style="width:100%;background:#FFF0D6;border-top:1.5px solid #FFCC80;display:flex;justify-content:center;padding:2px">
+                                                    <span style="@GetExistantColor(aggExist);font-size:10px;font-weight:600;font-style:italic">
+                                                        @(aggExist.HasValue ? aggExist.Value.ToString("F2") : "—")
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span style="font-size:11px;font-weight:600;color:#1A4E6B">
+                                                @(aggCib.HasValue ? aggCib.Value.ToString("F2") : "—")
+                                            </span>
+                                        }
+                                    </td>
+                                }
+                                else
+                                {
+                                    // ── Vue détail : 1 cellule par conseiller ──────────
+                                    foreach (var slot in _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)))
                                     {
-                                        <!-- Vue Volume (lecture seule) -->
-                                        var etpCible = GetEtpCible(row.Segment, s.Profil);
-                                        <span style="font-size:11px;font-weight:600">
-                                            @(etpCible.HasValue ? etpCible.Value.ToString("F2") : "—")
-                                        </span>
+                                        var s    = slot;
+                                        var lvl  = GetAssignmentLevel(row.Segment, s.Profil);
+                                        var etp  = row.EtpParProfil.GetValueOrDefault(s.Id);
+                                        var cib  = row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id);
+
+                                        <td class="ca-dim-td-merged" style="@GetMergedCellStyle(lvl, row.IsTotal, !s.IsCible);text-align:center;padding:2px">
+                                            @if (row.IsTotal)
+                                            {
+                                                var totCib   = GetEtpCibleSaisieTotal(s.Id);
+                                                var totExist = etp;
+                                                <div style="display:flex;flex-direction:column;align-items:center;padding:4px 2px">
+                                                    <span style="font-weight:700;font-size:12px;color:#1A4E6B">
+                                                        @(totCib.HasValue ? totCib.Value.ToString("F2") : "—")
+                                                    </span>
+                                                    <div style="border-top:1.5px solid #C5CAD0;width:60%;margin:2px 0"></div>
+                                                    <span style="font-size:10px;color:#E65100">
+                                                        @(totExist.HasValue ? totExist.Value.ToString("F2") : "—")
+                                                    </span>
+                                                </div>
+                                            }
+                                            else if (vueEtp)
+                                            {
+                                                <div style="display:flex;flex-direction:column;align-items:center;gap:0;width:100%">
+                                                    <div style="width:100%;display:flex;justify-content:center;padding:3px 2px 2px">
+                                                        @if (s.IsCible)
+                                                        {
+                                                            <MudNumericField T="double?"
+                                                                             Value="@cib"
+                                                                             ValueChanged="@(v => SetEtpCible(row, s.Id, v))"
+                                                                             Format="F2" Step="0.25"
+                                                                             HideSpinButtons="true"
+                                                                             Variant="Variant.Text"
+                                                                             Margin="Margin.Dense"
+                                                                             Class="ca-dim-etp-input"
+                                                                             Style="width:64px"
+                                                                             InputStyle="text-align:center;font-size:11px;font-weight:600;padding:2px 4px" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <span style="font-size:11px;color:#9AA5B1">—</span>
+                                                        }
+                                                    </div>
+                                                    <div style="width:100%;background:#FFF0D6;border-top:1.5px solid #FFCC80;display:flex;justify-content:center;padding:2px">
+                                                        <span style="@GetExistantColor(etp);font-size:10px;font-weight:600;font-style:italic">
+                                                            @(etp.HasValue ? etp.Value.ToString("F2") : "—")
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                var etpCible = GetEtpCible(row.Segment, s.Profil);
+                                                <span style="font-size:11px;font-weight:600">
+                                                    @(etpCible.HasValue ? etpCible.Value.ToString("F2") : "—")
+                                                </span>
+                                            }
+                                        </td>
                                     }
-                                </td>
+                                }
                             }
 
                             <!-- ── Colonne Total ETP ────────────────────────────── -->
@@ -454,7 +556,7 @@
                             <td style="padding:3px 12px;font-size:9px;font-weight:700;color:rgba(255,255,255,0.45);letter-spacing:1px;text-transform:uppercase">
                                 Indicateurs KPI
                             </td>
-                            @for (int _i = 0; _i < _slots.Count + 3; _i++)
+                            @for (int _i = 0; _i < VisibleSlotColumnCount + 3; _i++)
                             {
                                 <td style="background:#0D2035"></td>
                             }
@@ -462,18 +564,29 @@
 
                         <!-- ── Remplissage des portefeuilles ────────────────── -->
                         @{
-                            var kpiRmpList  = _slots.Select(s => GetRemplissageForSlot(s)).ToList();
-                            var kpiRmpTotal = kpiRmpList.Any(v => v.HasValue) ? (double?)kpiRmpList.Sum(v => v ?? 0) : null;
+                            var kpiRmpTotal = _slots.Any(s => GetRemplissageForSlot(s).HasValue)
+                                ? (double?)_slots.Sum(s => GetRemplissageForSlot(s) ?? 0) : null;
                         }
                         <tr style="background:#1A3558">
                             <td class="ca-dim-sticky-col" style="background:#1A3558;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
                                 Remplissage des portefeuilles existant
                                 <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">1 ETP capacité − charge ETP existant</div>
                             </td>
-                            @foreach (var slot in _slots)
+                            @foreach (var profil in profils)
                             {
-                                var rmp = GetRemplissageForSlot(slot);
-                                <td style="text-align:center;padding:6px 3px;font-size:11px;@DiffColor(rmp, positifBon:true);@(!slot.IsCible ? "opacity:0.35" : "")">@FormatDiff(rmp)</td>
+                                if (_collapsedProfils.Contains(profil))
+                                {
+                                    var rmp = GetRemplissageForProfil(profil);
+                                    <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;@DiffColor(rmp, positifBon:true)">@FormatDiff(rmp)</td>
+                                }
+                                else
+                                {
+                                    foreach (var slot in _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)))
+                                    {
+                                        var rmp = GetRemplissageForSlot(slot);
+                                        <td style="text-align:center;padding:6px 3px;font-size:11px;@DiffColor(rmp, positifBon:true);@(!slot.IsCible ? "opacity:0.35" : "")">@FormatDiff(rmp)</td>
+                                    }
+                                }
                             }
                             <td style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;background:#162840;@DiffColor(kpiRmpTotal, positifBon:true)">@FormatDiff(kpiRmpTotal)</td>
                             <td style="background:#1A3558"></td>
@@ -481,19 +594,27 @@
                         </tr>
 
                         <!-- ── Evolution des effectifs ───────────────────────── -->
-                        @{
-                            var kpiEvoList  = _slots.Select(s => GetEvolutionForSlot(s)).ToList();
-                            var kpiEvoTotal = (double)kpiEvoList.Sum();
-                        }
+                        @{ var kpiEvoTotal = (double)_slots.Sum(s => GetEvolutionForSlot(s)); }
                         <tr style="background:#1C3D62">
                             <td class="ca-dim-sticky-col" style="background:#1C3D62;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
                                 Evolution des effectifs
                                 <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Cible − Actuel par conseiller</div>
                             </td>
-                            @foreach (var slot in _slots)
+                            @foreach (var profil in profils)
                             {
-                                var evo = GetEvolutionForSlot(slot);
-                                <td style="text-align:center;padding:6px 3px;font-size:11px;@DiffColor(evo, positifBon:true);@(!slot.IsCible ? "opacity:0.35" : "")">@FormatDiff(evo)</td>
+                                if (_collapsedProfils.Contains(profil))
+                                {
+                                    var evo = GetEvolutionForProfil(profil);
+                                    <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;@DiffColor(evo, positifBon:true)">@FormatDiff(evo)</td>
+                                }
+                                else
+                                {
+                                    foreach (var slot in _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)))
+                                    {
+                                        var evo = GetEvolutionForSlot(slot);
+                                        <td style="text-align:center;padding:6px 3px;font-size:11px;@DiffColor(evo, positifBon:true);@(!slot.IsCible ? "opacity:0.35" : "")">@FormatDiff(evo)</td>
+                                    }
+                                }
                             }
                             <td style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;background:#182F4A;@DiffColor(kpiEvoTotal, positifBon:true)">@FormatDiff(kpiEvoTotal)</td>
                             <td style="background:#1C3D62"></td>
@@ -502,20 +623,33 @@
 
                         <!-- ── Taux de concordance ───────────────────────────── -->
                         @{
-                            var kpiConcList  = _slots.Select(s => GetEtpCibleSaisieTotal(s.Id)).ToList();
-                            var kpiConcTotal = kpiConcList.Any(v => v.HasValue) ? (double?)kpiConcList.Sum(v => v ?? 0) : null;
+                            var kpiConcTotal = _slots.Any(s => GetEtpCibleSaisieTotal(s.Id).HasValue)
+                                ? (double?)_slots.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0) : null;
                         }
                         <tr style="background:#1F446A">
                             <td class="ca-dim-sticky-col" style="background:#1F446A;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
                                 Concordance du portefeuille par conseiller
                                 <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Total ETP cible saisi pour ce conseiller</div>
                             </td>
-                            @foreach (var slot in _slots)
+                            @foreach (var profil in profils)
                             {
-                                var conc = GetEtpCibleSaisieTotal(slot.Id);
-                                <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
-                                    @(conc.HasValue ? conc.Value.ToString("F2") : "—")
-                                </td>
+                                if (_collapsedProfils.Contains(profil))
+                                {
+                                    var conc = GetEtpCibleSaisieTotalForProfil(profil);
+                                    <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;color:white">
+                                        @(conc.HasValue ? conc.Value.ToString("F2") : "—")
+                                    </td>
+                                }
+                                else
+                                {
+                                    foreach (var slot in _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)))
+                                    {
+                                        var conc = GetEtpCibleSaisieTotal(slot.Id);
+                                        <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
+                                            @(conc.HasValue ? conc.Value.ToString("F2") : "—")
+                                        </td>
+                                    }
+                                }
                             }
                             <td style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;color:white;background:#193252">
                                 @(kpiConcTotal.HasValue ? kpiConcTotal.Value.ToString("F2") : "—")
@@ -529,12 +663,22 @@
                             <td class="ca-dim-sticky-col" style="background:#224A72;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal">
                                 Taux de rotation du portefeuille
                             </td>
-                            @foreach (var slot in _slots)
+                            @foreach (var profil in profils)
                             {
-                                var rot = _tauxRotation.GetValueOrDefault(slot.Id);
-                                <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
-                                    @(rot.HasValue ? rot.Value.ToString("P1") : "—")
-                                </td>
+                                if (_collapsedProfils.Contains(profil))
+                                {
+                                    <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;font-style:italic">—</td>
+                                }
+                                else
+                                {
+                                    foreach (var slot in _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)))
+                                    {
+                                        var rot = _tauxRotation.GetValueOrDefault(slot.Id);
+                                        <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
+                                            @(rot.HasValue ? rot.Value.ToString("P1") : "—")
+                                        </td>
+                                    }
+                                }
                             }
                             <td style="background:#1B3959"></td>
                             <td style="background:#224A72"></td>
@@ -546,12 +690,22 @@
                             <td class="ca-dim-sticky-col" style="background:#24507A;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal">
                                 Taux d'entrée dans le portefeuille
                             </td>
-                            @foreach (var slot in _slots)
+                            @foreach (var profil in profils)
                             {
-                                var ent = _tauxEntree.GetValueOrDefault(slot.Id);
-                                <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
-                                    @(ent.HasValue ? ent.Value.ToString("P1") : "—")
-                                </td>
+                                if (_collapsedProfils.Contains(profil))
+                                {
+                                    <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;font-style:italic">—</td>
+                                }
+                                else
+                                {
+                                    foreach (var slot in _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)))
+                                    {
+                                        var ent = _tauxEntree.GetValueOrDefault(slot.Id);
+                                        <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
+                                            @(ent.HasValue ? ent.Value.ToString("P1") : "—")
+                                        </td>
+                                    }
+                                }
                             }
                             <td style="background:#1C3C5E"></td>
                             <td style="background:#24507A"></td>
@@ -572,6 +726,60 @@
     private List<string> segments = new();
     private List<DimMatrixRow> rows = new();
     private List<ConseillerSlot> _slots = new();
+
+    // ── Vue détail / consolidée par métier ────────────────────────────────
+    // Métiers présents dans ce set → colonne agrégée (repliée)
+    private HashSet<string> _collapsedProfils = new();
+
+    private void ToggleProfil(string profil)
+    {
+        if (!_collapsedProfils.Remove(profil))
+            _collapsedProfils.Add(profil);
+    }
+
+    // Nombre total de colonnes "slots" visibles (pour les cellules colspan/count)
+    private int VisibleSlotColumnCount =>
+        profils.Sum(p => _collapsedProfils.Contains(p)
+            ? 1
+            : _slots.Count(s => s.Profil.Equals(p, StringComparison.OrdinalIgnoreCase)));
+
+    // ETP existant agrégé pour un profil sur une ligne
+    private double? GetAggregateExistantForProfil(DimMatrixRow row, string profil)
+    {
+        var vals = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase))
+                         .Select(s => row.EtpParProfil.GetValueOrDefault(s.Id))
+                         .Where(v => v.HasValue).ToList();
+        return vals.Any() ? vals.Sum(v => v!.Value) : null;
+    }
+
+    // ETP cible saisi agrégé pour un profil sur une ligne
+    private double? GetAggregateCibleForProfil(DimMatrixRow row, string profil)
+    {
+        var vals = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible)
+                         .Select(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id))
+                         .Where(v => v.HasValue).ToList();
+        return vals.Any() ? vals.Sum(v => v!.Value) : null;
+    }
+
+    // KPI agrégés par profil
+    private double? GetRemplissageForProfil(string profil)
+    {
+        var slotsOfProfil = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)).ToList();
+        var vals = slotsOfProfil.Select(s => GetRemplissageForSlot(s)).Where(v => v.HasValue).ToList();
+        return vals.Any() ? vals.Sum(v => v!.Value) : null;
+    }
+
+    private double GetEvolutionForProfil(string profil) =>
+        _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase))
+              .Sum(s => GetEvolutionForSlot(s));
+
+    private double? GetEtpCibleSaisieTotalForProfil(string profil)
+    {
+        var vals = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase))
+                         .Select(s => GetEtpCibleSaisieTotal(s.Id))
+                         .Where(v => v.HasValue).ToList();
+        return vals.Any() ? vals.Sum(v => v!.Value) : null;
+    }
 
     // ── KPI — Indicateurs agrégés par profil ──────────────────────────────
     private Dictionary<string, double?> _tauxRotation = new();
