@@ -160,6 +160,20 @@ namespace Segmentation.Client.Models
         public List<RegleAffectation> ReglesAffectation { get; set; } = new();
     }
 
+    // ── Conseiller individuel (slot) dans le scénario de dimensionnement ─────
+    public class ConseillerSlot
+    {
+        public string Id       { get; set; } = Guid.NewGuid().ToString("N")[..8];
+        /// <summary>Type de profil, ex. "BANQUIER PRIVÉ"</summary>
+        public string Profil   { get; set; } = "";
+        /// <summary>Label court affiché dans le tableau, ex. "BP-2"</summary>
+        public string Label    { get; set; } = "";
+        /// <summary>Présent dans l'effectif actuel</summary>
+        public bool   IsActuel { get; set; } = true;
+        /// <summary>Conservé dans le scénario cible (false = grisé dans le tableau)</summary>
+        public bool   IsCible  { get; set; } = true;
+    }
+
     // ── Vue Dimensionnement fusionnée (ETP + Volume) ──────────────────────────
     public class DimMatrixRow
     {
