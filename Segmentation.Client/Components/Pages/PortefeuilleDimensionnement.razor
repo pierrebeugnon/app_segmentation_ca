@@ -145,7 +145,7 @@
                 </div>
             </div>
 
-            <div class="ca-dim-scroll-wrapper">
+            <div class="ca-dim-scroll-wrapper" style="max-height:none;overflow-y:visible">
                 <table style="border-collapse:collapse;min-width:max-content;width:100%">
                     <colgroup>
                         <col style="min-width:140px;width:140px" />
@@ -157,7 +157,7 @@
                     </colgroup>
                     <thead>
                         <tr>
-                            <th style="text-align:left;padding:6px 12px;font-size:11px;color:#6C7A89;background:#F8FAFD;border-bottom:2px solid #E2E8F0">
+                            <th style="text-align:left;padding:6px 12px;font-size:11px;color:#6C7A89;background:#F8FAFD;border-bottom:2px solid #E2E8F0;position:sticky;left:0;z-index:3;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
                                 Conseiller
                             </th>
                             @foreach (var slot in _slots)
@@ -180,7 +180,7 @@
                     <tbody>
                         <!-- ── Ligne Cible (en haut) ─────────────────────────────── -->
                         <tr>
-                            <td style="padding:7px 12px;font-size:12px;font-weight:700;color:#1A4E6B;background:#EBF3FF;border-bottom:1px solid #D0DFF0">
+                            <td style="padding:7px 12px;font-size:12px;font-weight:700;color:#1A4E6B;background:#EBF3FF;border-bottom:1px solid #D0DFF0;position:sticky;left:0;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
                                 ▼ Cible
                             </td>
                             @foreach (var slot in _slots)
@@ -229,7 +229,7 @@
                         </tr>
                         <!-- ── Ligne Actuel (en bas) ──────────────────────────────── -->
                         <tr>
-                            <td style="padding:7px 12px;font-size:12px;font-weight:700;color:#E65100;background:#FFF8F2">
+                            <td style="padding:7px 12px;font-size:12px;font-weight:700;color:#E65100;background:#FFF8F2;position:sticky;left:0;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
                                 ▲ Actuel
                             </td>
                             @foreach (var slot in _slots)

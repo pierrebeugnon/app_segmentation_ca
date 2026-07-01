@@ -667,9 +667,12 @@ html, body {
     flex: 1;
 }
 
-/* Wrapper scrollable horizontal */
+/* Wrapper scrollable horizontal + vertical */
 .ca-dim-scroll-wrapper {
     overflow-x: auto;
+    overflow-y: auto;
+    max-height: calc(100vh - 300px);
+    min-height: 250px;
     -webkit-overflow-scrolling: touch;
 }
 
@@ -803,7 +806,23 @@ html, body {
     background: white;
     box-shadow: 2px 0 4px rgba(0,0,0,0.06);
 }
-thead .ca-dim-sticky-col { background: #1A4E6B !important; z-index: 4; }
+
+/* ── Sticky scroll header — coller l'en-tête au scroll vertical ── */
+/* Toutes les cellules de l'en-tête collent en haut */
+.ca-dim-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    background: #12374C; /* couleur de ca-dim-superheader */
+}
+/* Coin supérieur gauche : sticky sur les deux axes (top + left) */
+.ca-dim-table thead th.ca-dim-sticky-col {
+    top:        0;
+    left:       0;
+    z-index:    12;
+    background: #1A4E6B !important;
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.12);
+}
 
 .ca-dim-td-segment {
     padding: 7px 14px;
