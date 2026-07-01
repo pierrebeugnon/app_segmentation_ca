@@ -620,25 +620,25 @@
                         <tr style="background:#1A3558">
                             <td class="ca-dim-sticky-col" style="background:#1A3558;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
                                 Remplissage des portefeuilles existant
-                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">1 ETP capacité − charge ETP existant</div>
+                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Charge ETP − Effectif ETP du conseiller</div>
                             </td>
                             @foreach (var profil in profils)
                             {
                                 if (_collapsedProfils.Contains(profil))
                                 {
                                     var rmp = GetRemplissageForProfil(profil);
-                                    <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;@DiffColor(rmp, positifBon:true)">@FormatDiff(rmp)</td>
+                                    <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;@DiffColor(rmp, positifBon:false)">@FormatDiff(rmp)</td>
                                 }
                                 else
                                 {
                                     foreach (var slot in _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)))
                                     {
                                         var rmp = GetRemplissageForSlot(slot);
-                                        <td style="text-align:center;padding:6px 3px;font-size:11px;@DiffColor(rmp, positifBon:true);@(!slot.IsCible ? "opacity:0.35" : "")">@FormatDiff(rmp)</td>
+                                        <td style="text-align:center;padding:6px 3px;font-size:11px;@DiffColor(rmp, positifBon:false);@(!slot.IsCible ? "opacity:0.35" : "")">@FormatDiff(rmp)</td>
                                     }
                                 }
                             }
-                            <td style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;background:#162840;@DiffColor(kpiRmpTotal, positifBon:true)">@FormatDiff(kpiRmpTotal)</td>
+                            <td style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;background:#162840;@DiffColor(kpiRmpTotal, positifBon:false)">@FormatDiff(kpiRmpTotal)</td>
                             <td style="background:#1A3558"></td>
                             <td style="background:#1A3558"></td>
                         </tr>
@@ -1230,12 +1230,14 @@
         return vals.Any() ? vals.Sum(v => v!.Value) : null;
     }
 
-    // Remplissage par slot = 1 ETP capacité − charge ETP existant du slot
+    // Remplissage par slot = charge ETP existant − EtpActuel du conseiller
+    // Résultat négatif → conseiller sous-chargé (capacité non utilisée)
+    // Résultat positif → conseiller surchargé (charge dépasse sa capacité)
     private double? GetRemplissageForSlot(ConseillerSlot slot)
     {
         if (!slot.IsActuel) return null;
         var etp = GetTotalEtpExistantForSlot(slot.Id);
-        return etp.HasValue ? 1.0 - etp.Value : null;
+        return etp.HasValue ? etp.Value - slot.EtpActuel : null;
     }
 
     // Evolution par slot : +1 si nouveau planifié, -1 si retiré, 0 si stable
