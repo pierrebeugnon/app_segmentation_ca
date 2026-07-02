@@ -317,20 +317,19 @@
                                 var slotsGroup  = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)).ToList();
                                 var span        = isCollapsed ? 1 : slotsGroup.Count;
                                 <th colspan="@span"
-                                    style="text-align:center;padding:4px 6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.85);
+                                    style="text-align:center;padding:5px 6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.90);
                                            border-left:2px solid rgba(255,255,255,0.15);letter-spacing:.3px;text-transform:uppercase">
-                                    <div style="display:flex;align-items:center;justify-content:center;gap:5px">
+                                    <div style="display:flex;align-items:center;justify-content:center;gap:6px">
                                         <span>@_profilShort.GetValueOrDefault(profil, profil)</span>
-                                        <button @onclick="@(() => ToggleProfil(p))"
-                                                style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:3px;
-                                                       width:16px;height:16px;font-size:11px;font-weight:700;cursor:pointer;
-                                                       display:flex;align-items:center;justify-content:center;line-height:1;padding:0">
-                                            @(isCollapsed ? "+" : "−")
+                                        <button class="ca-profil-toggle @(isCollapsed ? "" : "is-expanded")"
+                                                @onclick="@(() => ToggleProfil(p))">
+                                            <MudIcon Icon="@(isCollapsed ? Icons.Material.Filled.Add : Icons.Material.Filled.Remove)"
+                                                     Style="font-size:13px;color:white;display:block" />
                                         </button>
                                     </div>
                                     @if (isCollapsed)
                                     {
-                                        <div style="font-size:8px;font-weight:400;opacity:0.55;margin-top:1px">@slotsGroup.Count conseiller(s)</div>
+                                        <div style="font-size:8px;font-weight:400;opacity:0.60;margin-top:2px">@slotsGroup.Count conseiller(s)</div>
                                     }
                                 </th>
                             }
@@ -442,8 +441,11 @@
                                         var lvl  = GetAssignmentLevel(row.Segment, s.Profil);
                                         var etp  = row.EtpParProfil.GetValueOrDefault(s.Id);
                                         var cib  = row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id);
+                                        // Rouge si ETP cible saisi sur un conseiller non désigné dans R&H
+                                        var cibNonPrio = !row.IsTotal && lvl == 0 && s.IsCible && cib.HasValue && cib.Value > 0;
 
-                                        <td class="ca-dim-td-merged" style="@GetMergedCellStyle(lvl, row.IsTotal, !s.IsCible);text-align:center;padding:2px">
+                                        <td class="ca-dim-td-merged" style="@GetMergedCellStyle(lvl, row.IsTotal, !s.IsCible);text-align:center;padding:2px;
+                                                   @(cibNonPrio ? "outline:2px solid #C62828;outline-offset:-2px;" : "")">
                                             @if (row.IsTotal)
                                             {
                                                 var totCib   = GetEtpCibleSaisieTotal(s.Id);
@@ -472,7 +474,7 @@
                                                                              Variant="Variant.Text"
                                                                              Margin="Margin.Dense"
                                                                              Class="ca-dim-etp-input"
-                                                                             InputStyle="text-align:center;font-size:11px;font-weight:600;padding:2px 4px" />
+                                                                             InputStyle="@($"text-align:center;font-size:11px;font-weight:600;padding:2px 4px;{(cibNonPrio ? "color:#C62828;" : "")}")" />
                                                         }
                                                         else
                                                         {

@@ -773,6 +773,36 @@ html, body {
     background: #1A4E6B;
     z-index: 3;
 }
+/* ── Bouton toggle repli/déploi d'un groupe métier ─────────────── */
+.ca-profil-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.18);
+    border: 1.5px solid rgba(255,255,255,0.45);
+    color: white;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1;
+    padding: 0;
+    flex-shrink: 0;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+    user-select: none;
+}
+.ca-profil-toggle:hover {
+    background: rgba(255,255,255,0.35);
+    border-color: rgba(255,255,255,0.70);
+    transform: scale(1.12);
+}
+.ca-profil-toggle.is-expanded {
+    background: rgba(255,255,255,0.28);
+    border-color: rgba(255,255,255,0.65);
+}
+
 .ca-dim-th-profil {
     text-align: center;
     padding: 8px 8px;
