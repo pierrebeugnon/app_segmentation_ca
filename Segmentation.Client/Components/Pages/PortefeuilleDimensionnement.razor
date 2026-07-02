@@ -756,8 +756,7 @@
                         <!-- ── Taux d'entrée ─────────────────────────────────── -->
                         @{
                             var entAllCible = Math.Round(_slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2);
-                            var entAllExist = Math.Round(_slots.Where(s => s.IsCible).Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0), 2);
-                            var entDiff     = Math.Round(Math.Max(0, entAllCible - entAllExist), 2);
+                            var entDiff     = GetTauxEntreeTotal();
                             double? kpiEntTotal = entAllCible > 0 ? entDiff : null;
                         }
                         <tr style="background:#24507A">
@@ -1306,16 +1305,27 @@
     }
 
     // ── KPI entrées dans le portefeuille par slot ─────────────────────────
-    // Entrées = max(0, cible − existant) arrondi à 2 décimales
-    // Si cible = existant (même volume, même métier) → 0 (aucune nouvelle entrée)
-    // Si cible > existant → croissance nette = nouvelles entrées
+    // Entrées = somme, PAR SEGMENT, de max(0, cible − existant) — arrondi à 2 décimales.
+    // Le calcul se fait cellule par cellule (segment × conseiller) et non sur les totaux
+    // agrégés : un ETP existant réaffecté d'un segment vers un autre pour le même
+    // conseiller compte comme une nouvelle entrée dans le segment de destination
+    // (l'existant n'y était pas déjà distribué), même si le volume total du
+    // conseiller ne change pas.
+    // Ex. : Existant HDG P-BP 0.4 / Cible HDG P-BP 0 + Cible GP Standard 0.4
+    //       → 0 (retrait) + 0.4 (nouvelle entrée) = 0.4 point de nouvelles entrées.
+    private double GetEntreesCell(DimMatrixRow row, string slotId)
+    {
+        var c = Math.Round(row.EtpCibleSaisieParProfil.GetValueOrDefault(slotId) ?? 0, 2);
+        var e = Math.Round(row.EtpParProfil.GetValueOrDefault(slotId) ?? 0, 2);
+        return Math.Max(0, c - e);
+    }
+
     private double? GetTauxEntreeSlot(ConseillerSlot slot)
     {
-        var cible   = Math.Round(GetEtpCibleSaisieTotal(slot.Id) ?? 0, 2);
+        var cible = Math.Round(GetEtpCibleSaisieTotal(slot.Id) ?? 0, 2);
         if (cible <= 0) return null;
-        var exist   = Math.Round(GetTotalEtpExistantForSlot(slot.Id) ?? 0, 2);
-        var entrees = Math.Round(Math.Max(0, cible - exist), 2);
-        return entrees;
+        var entrees = rows.Where(r => !r.IsTotal).Sum(r => GetEntreesCell(r, slot.Id));
+        return Math.Round(entrees, 2);
     }
 
     private double? GetTauxEntreeForProfil(string profil)
@@ -1323,8 +1333,15 @@
         var slots      = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
         var totalCible = Math.Round(slots.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2);
         if (totalCible <= 0) return null;
-        var totalExist = Math.Round(slots.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0), 2);
-        return Math.Round(Math.Max(0, totalCible - totalExist), 2);
+        var entrees = rows.Where(r => !r.IsTotal).Sum(r => slots.Sum(s => GetEntreesCell(r, s.Id)));
+        return Math.Round(entrees, 2);
+    }
+
+    private double GetTauxEntreeTotal()
+    {
+        var activeSlots = _slots.Where(s => s.IsCible).ToList();
+        var entrees = rows.Where(r => !r.IsTotal).Sum(r => activeSlots.Sum(s => GetEntreesCell(r, s.Id)));
+        return Math.Round(entrees, 2);
     }
 
     // ── KPI par slot individuel ───────────────────────────────────────────
