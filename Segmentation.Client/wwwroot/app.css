@@ -1155,3 +1155,20 @@ html, body {
 /* Gap utility */
 .gap-3 { gap: 12px !important; }
 .gap-4 { gap: 16px !important; }
+
+/* ── Overrides finaux (priorité maximale sur .ca-dim-table .mud-input) ──
+   Placés en fin de fichier + spécificité renforcée pour battre à coup sûr
+   la règle générique ".ca-dim-table .mud-input { color:inherit !important }" */
+.ca-dim-table td .ca-eff-etp-input input,
+.ca-dim-table td .ca-dim-etp-input input {
+    text-align: center !important;
+}
+.ca-dim-table td .ca-etp-nonprio input,
+.ca-dim-table td .ca-etp-nonprio.mud-input {
+    color: #C62828 !important;
+    font-weight: 800 !important;
+}
+.ca-eff-etp-input input {
+    text-align: center !important;
+    width: 100% !important;
+}

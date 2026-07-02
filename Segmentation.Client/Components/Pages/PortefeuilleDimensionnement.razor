@@ -474,8 +474,8 @@
                                                                              HideSpinButtons="true"
                                                                              Variant="Variant.Text"
                                                                              Margin="Margin.Dense"
-                                                                             Class="ca-dim-etp-input"
-                                                                             InputStyle="@($"text-align:center;font-size:11px;font-weight:700;padding:2px 4px;{(cibNonPrio ? "color:#C62828;" : "")}")" />
+                                                                             Class="@($"ca-dim-etp-input{(cibNonPrio ? " ca-etp-nonprio" : "")}")"
+                                                                             InputStyle="text-align:center;font-size:11px;font-weight:700;padding:2px 4px" />
                                                         }
                                                         else
                                                         {
