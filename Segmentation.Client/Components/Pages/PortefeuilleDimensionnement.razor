@@ -323,7 +323,7 @@
                                            border-left:2px solid rgba(255,255,255,0.15);letter-spacing:.3px;text-transform:uppercase">
                                     <div style="display:flex;align-items:center;justify-content:center;gap:6px">
                                         <span>@_profilShort.GetValueOrDefault(profil, profil)</span>
-                                        <button class="ca-profil-toggle @(isCollapsed ? "" : "is-expanded")"
+                                        <button class="ca-profil-toggle"
                                                 @onclick="@(() => ToggleProfil(p))">
                                             <MudIcon Icon="@(isCollapsed ? Icons.Material.Filled.Add : Icons.Material.Filled.Remove)"
                                                      Style="font-size:13px;color:white;display:block" />
