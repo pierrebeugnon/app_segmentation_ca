@@ -183,12 +183,14 @@
                                            @(isRemoved ? "background:#F5F5F5" : isNew ? "background:#F1FBF4" : "background:#EBF3FF")">
                                     @if (isActive || isNew)
                                     {
-                                        <div style="display:flex;justify-content:center;align-items:center">
+                                        <div style="display:flex;justify-content:center;align-items:center;width:100%">
                                             <MudNumericField T="double"
                                                              Value="@s.EtpCible"
                                                              ValueChanged="@(v => { s.EtpCible = v; StateHasChanged(); })"
-                                                             Format="F2" Step="0.25" Min="0.1" Max="2.0"
+                                                             Format="F2" Step="0.25" Min="0" Max="2.0"
                                                              HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
+                                                             Class="ca-eff-etp-input"
+                                                             Style="width:100%"
                                                              InputStyle="@($"text-align:center;font-size:12px;font-weight:700;padding:1px 2px;{(isNew ? "color:#2E7D32" : "color:#1A4E6B")}")" />
                                         </div>
                                     }
@@ -444,8 +446,7 @@
                                         // Rouge si ETP cible saisi sur un conseiller non désigné dans R&H
                                         var cibNonPrio = !row.IsTotal && lvl == 0 && s.IsCible && cib.HasValue && cib.Value > 0;
 
-                                        <td class="ca-dim-td-merged" style="@GetMergedCellStyle(lvl, row.IsTotal, !s.IsCible);text-align:center;padding:2px;
-                                                   @(cibNonPrio ? "outline:2px solid #C62828;outline-offset:-2px;" : "")">
+                                        <td class="ca-dim-td-merged" style="@GetMergedCellStyle(lvl, row.IsTotal, !s.IsCible);text-align:center;padding:2px">
                                             @if (row.IsTotal)
                                             {
                                                 var totCib   = GetEtpCibleSaisieTotal(s.Id);
@@ -469,12 +470,12 @@
                                                             <MudNumericField T="double?"
                                                                              Value="@cib"
                                                                              ValueChanged="@(v => SetEtpCible(row, s.Id, v))"
-                                                                             Format="F2" Step="0.25"
+                                                                             Format="F2" Step="0.25" Min="0"
                                                                              HideSpinButtons="true"
                                                                              Variant="Variant.Text"
                                                                              Margin="Margin.Dense"
                                                                              Class="ca-dim-etp-input"
-                                                                             InputStyle="@($"text-align:center;font-size:11px;font-weight:600;padding:2px 4px;{(cibNonPrio ? "color:#C62828;" : "")}")" />
+                                                                             InputStyle="@($"text-align:center;font-size:11px;font-weight:700;padding:2px 4px;{(cibNonPrio ? "color:#C62828;" : "")}")" />
                                                         }
                                                         else
                                                         {

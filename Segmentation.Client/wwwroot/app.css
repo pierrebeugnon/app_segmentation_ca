@@ -926,6 +926,12 @@ html, body {
     text-align: center !important;
 }
 
+/* Centrage de l'input numérique dans le bloc Effectifs conseillers */
+.ca-eff-etp-input input {
+    text-align: center !important;
+    width: 100% !important;
+}
+
 /* Wrapper interne cellule donnée */
 .ca-dim-cell-inner {
     display: flex;
