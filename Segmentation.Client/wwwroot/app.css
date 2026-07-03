@@ -843,20 +843,30 @@ html, body {
 }
 
 /* ── Sticky scroll header — coller l'en-tête au scroll vertical ── */
-/* Toutes les cellules de l'en-tête collent en haut */
-.ca-dim-table thead th {
+/* 2 lignes d'en-tête empilées (et non superposées) lors du scroll vertical */
+.ca-dim-table thead tr:nth-child(1) th {
     position: sticky;
     top: 0;
     z-index: 8;
-    background: #12374C; /* couleur de ca-dim-superheader */
+    background: #0A1F30;
+    height: 38px;
+    box-sizing: border-box;
+}
+.ca-dim-table thead tr:nth-child(2) th {
+    position: sticky;
+    top: 38px; /* hauteur fixe de la 1re ligne d'en-tête */
+    z-index: 7;
+    background: #12374C;
 }
 /* Coin supérieur gauche : sticky sur les deux axes (top + left) */
 .ca-dim-table thead th.ca-dim-sticky-col {
-    top:        0;
     left:       0;
     z-index:    12;
     background: #1A4E6B !important;
     box-shadow: 2px 2px 4px rgba(0,0,0,0.12);
+}
+.ca-dim-table thead tr:nth-child(1) th.ca-dim-sticky-col {
+    height: 38px;
 }
 
 .ca-dim-td-segment {
