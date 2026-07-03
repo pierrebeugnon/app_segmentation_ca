@@ -677,11 +677,14 @@ html, body {
     flex: 1;
 }
 
-/* Wrapper scrollable horizontal + vertical */
+/* Wrapper scrollable horizontal uniquement.
+   overflow-y:clip (et non "auto") pour NE PAS créer de conteneur de scroll
+   vertical imbriqué : le header sticky doit se caler sur le scroll de la
+   page (ou du conteneur principal MudBlazor), pas sur ce wrapper local qui,
+   sans hauteur maximale, ne scrolle jamais lui-même. */
 .ca-dim-scroll-wrapper {
     overflow-x: auto;
-    overflow-y: auto;
-    max-height: calc(100vh - 200px);
+    overflow-y: clip;
     min-height: 300px;
     -webkit-overflow-scrolling: touch;
 }
@@ -849,12 +852,14 @@ html, body {
     top: 0;
     z-index: 8;
     background: #0A1F30;
-    height: 38px;
+    height: 40px;
+    max-height: 40px;
+    overflow: hidden;
     box-sizing: border-box;
 }
 .ca-dim-table thead tr:nth-child(2) th {
     position: sticky;
-    top: 38px; /* hauteur fixe de la 1re ligne d'en-tête */
+    top: 40px; /* hauteur fixe de la 1re ligne d'en-tête */
     z-index: 7;
     background: #12374C;
 }
@@ -866,7 +871,8 @@ html, body {
     box-shadow: 2px 2px 4px rgba(0,0,0,0.12);
 }
 .ca-dim-table thead tr:nth-child(1) th.ca-dim-sticky-col {
-    height: 38px;
+    height: 40px;
+    max-height: 40px;
 }
 
 .ca-dim-td-segment {
