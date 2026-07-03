@@ -647,95 +647,104 @@
                             <td style="background:#1C3D62"></td>
                         </tr>
 
-                        <!-- ── Remplissage des portefeuilles (en %) ─────────── -->
+                        <!-- ── Remplissage des portefeuilles (taux réel, ▼ cible / ▲ existant) ── -->
                         @{
-                            var kpiRmpTotal = GetRemplissageTotal();
+                            var kpiRmpCibTotal = GetRemplissageTotal();
+                            var kpiRmpExiTotal = GetRemplissageExistantTotal();
                         }
                         <tr style="background:#1A3558">
                             <td class="ca-dim-sticky-col" style="background:#1A3558;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
-                                Taux de remplissage des portefeuilles cible (vs existant). 
-                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Sous chaque valeur : <span style="color:#90CAF9">ETP cible</span> / <span style="color:#FFB74D">ETP existant</span></div>
+                                Taux de remplissage des portefeuilles (ETP réparti ÷ capacité du conseiller)
+                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">▼ Cible &nbsp;/&nbsp; ▲ Existant</div>
                             </td>
                             @foreach (var profil in profils)
                             {
                                 if (_collapsedProfils.Contains(profil))
                                 {
-                                    var rmp = GetRemplissageForProfil(profil);
-                                    var (rmpCib, rmpExi) = GetCibleExistantPairForProfil(profil);
-                                    <td style="text-align:center;padding:4px 3px;font-style:italic">
-                                        <div style="font-size:11px;@DiffColor(rmp, positifBon:false)">@(rmp.HasValue ? $"{rmp.Value:+0.0;-0.0;0.0}%" : "—")</div>
-                                        <div style="font-size:8px;font-weight:400"><span style="color:#90CAF9">@rmpCib.ToString("F2")</span>/<span style="color:#FFB74D">@rmpExi.ToString("F2")</span></div>
+                                    var rmpCib = GetRemplissageForProfil(profil);
+                                    var rmpExi = GetRemplissageExistantForProfil(profil);
+                                    <td style="text-align:center;padding:3px;font-style:italic">
+                                        <div style="font-size:11px;@RemplissageColor(rmpCib)">@(rmpCib.HasValue ? $"{rmpCib.Value:F0}%" : "—")</div>
+                                        <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
+                                        <div style="font-size:9px;@RemplissageColor(rmpExi)">@(rmpExi.HasValue ? $"{rmpExi.Value:F0}%" : "—")</div>
                                     </td>
                                 }
                                 else
                                 {
                                     foreach (var slot in SlotsForProfil(profil))
                                     {
-                                        var rmp = GetRemplissageForSlot(slot);
-                                        var (rmpCib, rmpExi) = GetCibleExistantPair(slot);
-                                        <td style="text-align:center;padding:4px 3px;@(!slot.IsCible ? "opacity:0.35" : "")">
-                                            <div style="font-size:11px;@DiffColor(rmp, positifBon:false)">@(rmp.HasValue ? $"{rmp.Value:+0.0;-0.0;0.0}%" : "—")</div>
-                                            <div style="font-size:8px;font-weight:400"><span style="color:#90CAF9">@rmpCib.ToString("F2")</span>/<span style="color:#FFB74D">@rmpExi.ToString("F2")</span></div>
+                                        var rmpCib = GetRemplissageForSlot(slot);
+                                        var rmpExi = GetRemplissageExistantForSlot(slot);
+                                        <td style="text-align:center;padding:3px;@(!slot.IsCible ? "opacity:0.35" : "")">
+                                            <div style="font-size:11px;@RemplissageColor(rmpCib)">@(rmpCib.HasValue ? $"{rmpCib.Value:F0}%" : "—")</div>
+                                            <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
+                                            <div style="font-size:9px;@RemplissageColor(rmpExi)">@(rmpExi.HasValue ? $"{rmpExi.Value:F0}%" : "—")</div>
                                         </td>
                                     }
                                 }
                             }
                             <td style="background:#1A3558"></td>
-                            <td style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;background:#162840;@DiffColor(kpiRmpTotal, positifBon:false)">
-                                @(kpiRmpTotal.HasValue ? $"{kpiRmpTotal.Value:+0.0;-0.0;0.0}%" : "—")
+                            <td style="text-align:center;padding:3px;background:#162840">
+                                <div style="font-size:12px;@RemplissageColor(kpiRmpCibTotal)">@(kpiRmpCibTotal.HasValue ? $"{kpiRmpCibTotal.Value:F0}%" : "—")</div>
+                                <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
+                                <div style="font-size:9px;@RemplissageColor(kpiRmpExiTotal)">@(kpiRmpExiTotal.HasValue ? $"{kpiRmpExiTotal.Value:F0}%" : "—")</div>
                             </td>
                             <td style="background:#1A3558"></td>
                             <td style="background:#1A3558"></td>
                         </tr>
 
-                        <!-- ── Concordance du portefeuille par conseiller ─────── -->
+                        <!-- ── Concordance du portefeuille par conseiller (▼ cible / ▲ existant) ── -->
                         @{
-                            // Total global : concordance sur l'ensemble des slots actifs
+                            // Total global cible : concordance sur l'ensemble des slots actifs
                             var allCibleConc   = _slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
                             var allDesigneConc = _slots.Where(s => s.IsCible)
                                 .Sum(s => rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, s.Profil) > 0)
                                               .Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0));
-                            double? kpiConcTotal = allCibleConc > 0 ? allDesigneConc / allCibleConc * 100.0 : null;
-                            var kpiConcColor = kpiConcTotal switch
-                            {
-                                null                   => "color:white",
-                                >= 99.9                => "color:#A5D6A7;font-weight:700",
-                                >= 80                  => "color:#FFD54F;font-weight:700",
-                                _                      => "color:#EF9A9A;font-weight:700"
-                            };
+                            double? kpiConcCibTotal = allCibleConc > 0 ? allDesigneConc / allCibleConc * 100.0 : null;
+
+                            // Total global existant (pour comparaison)
+                            var allExistConc   = _slots.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
+                            var allDesigneExistConc = _slots
+                                .Sum(s => rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, s.Profil) > 0)
+                                              .Sum(r => r.EtpParProfil.GetValueOrDefault(s.Id) ?? 0));
+                            double? kpiConcExiTotal = allExistConc > 0 ? allDesigneExistConc / allExistConc * 100.0 : null;
                         }
                         <tr style="background:#1F446A">
                             <td class="ca-dim-sticky-col" style="background:#1F446A;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
                                 Taux de concordance par conseiller ("pureté" des portefeuilles)
-                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Sous chaque valeur : <span style="color:#90CAF9">ETP cible</span> / <span style="color:#FFB74D">ETP existant</span></div>
+                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">▼ Cible &nbsp;/&nbsp; ▲ Existant</div>
                             </td>
                             @foreach (var profil in profils)
                             {
                                 if (_collapsedProfils.Contains(profil))
                                 {
-                                    var (concPct, concColor) = GetConcordanceForProfil(profil);
-                                    var (concCib, concExi) = GetCibleExistantPairForProfil(profil);
-                                    <td style="text-align:center;padding:4px 3px;font-style:italic">
-                                        <div style="font-size:11px;@concColor">@(concPct.HasValue ? $"{concPct.Value:F0}%" : "—")</div>
-                                        <div style="font-size:8px;font-weight:400"><span style="color:#90CAF9">@concCib.ToString("F2")</span>/<span style="color:#FFB74D">@concExi.ToString("F2")</span></div>
+                                    var (concPctCib, concColorCib) = GetConcordanceForProfil(profil);
+                                    var (concPctExi, concColorExi) = GetConcordanceExistantForProfil(profil);
+                                    <td style="text-align:center;padding:3px;font-style:italic">
+                                        <div style="font-size:11px;@concColorCib">@(concPctCib.HasValue ? $"{concPctCib.Value:F0}%" : "—")</div>
+                                        <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
+                                        <div style="font-size:9px;@concColorExi">@(concPctExi.HasValue ? $"{concPctExi.Value:F0}%" : "—")</div>
                                     </td>
                                 }
                                 else
                                 {
                                     foreach (var slot in SlotsForProfil(profil))
                                     {
-                                        var (concPct, concColor) = GetConcordanceForSlot(slot);
-                                        var (concCib, concExi) = GetCibleExistantPair(slot);
-                                        <td style="text-align:center;padding:4px 3px;@(!slot.IsCible ? "opacity:0.35" : "")">
-                                            <div style="font-size:11px;@concColor">@(concPct.HasValue ? $"{concPct.Value:F0}%" : "—")</div>
-                                            <div style="font-size:8px;font-weight:400"><span style="color:#90CAF9">@concCib.ToString("F2")</span>/<span style="color:#FFB74D">@concExi.ToString("F2")</span></div>
+                                        var (concPctCib, concColorCib) = GetConcordanceForSlot(slot);
+                                        var (concPctExi, concColorExi) = GetConcordanceExistantForSlot(slot);
+                                        <td style="text-align:center;padding:3px;@(!slot.IsCible ? "opacity:0.35" : "")">
+                                            <div style="font-size:11px;@concColorCib">@(concPctCib.HasValue ? $"{concPctCib.Value:F0}%" : "—")</div>
+                                            <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
+                                            <div style="font-size:9px;@concColorExi">@(concPctExi.HasValue ? $"{concPctExi.Value:F0}%" : "—")</div>
                                         </td>
                                     }
                                 }
                             }
                             <td style="background:#1F446A"></td>
-                            <td style="text-align:center;padding:6px 4px;font-size:12px;font-weight:700;background:#193252;@kpiConcColor">
-                                @(kpiConcTotal.HasValue ? $"{kpiConcTotal.Value:F0}%" : "—")
+                            <td style="text-align:center;padding:3px;background:#193252">
+                                <div style="font-size:12px;@ConcordanceColor(kpiConcCibTotal)">@(kpiConcCibTotal.HasValue ? $"{kpiConcCibTotal.Value:F0}%" : "—")</div>
+                                <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
+                                <div style="font-size:9px;@ConcordanceColor(kpiConcExiTotal)">@(kpiConcExiTotal.HasValue ? $"{kpiConcExiTotal.Value:F0}%" : "—")</div>
                             </td>
                             <td style="background:#1F446A"></td>
                             <td style="background:#1F446A"></td>
@@ -849,18 +858,6 @@
     private IEnumerable<ConseillerSlot> SlotsForProfil(string profil) =>
         _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)).Reverse();
 
-    // Couple ETP cible / ETP existant agrégé pour un slot ou un profil — utilisé pour
-    // afficher une comparaison cible/existant sous les KPI (comme dans la colonne Total ETP)
-    private (double cible, double existant) GetCibleExistantPair(ConseillerSlot slot) =>
-        (Math.Round(GetEtpCibleSaisieTotal(slot.Id) ?? 0, 2), Math.Round(GetTotalEtpExistantForSlot(slot.Id) ?? 0, 2));
-
-    private (double cible, double existant) GetCibleExistantPairForProfil(string profil)
-    {
-        var slots = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
-        return (Math.Round(slots.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2),
-                Math.Round(slots.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0), 2));
-    }
-
     // Nombre total de colonnes "slots" visibles (pour les cellules colspan/count)
     private int VisibleSlotColumnCount =>
         profils.Sum(p => _collapsedProfils.Contains(p)
@@ -885,14 +882,22 @@
         return vals.Any() ? vals.Sum(v => v!.Value) : null;
     }
 
-    // KPI agrégés par profil (remplissage exprimé en %, agrégation charge/capacité avant ratio)
+    // Code couleur du taux de remplissage (% de la capacité effectivement chargée)
+    // ~100% = vert (bien rempli) · < 100% = rouge (sous-chargé) · > 100% = orange (surchargé)
+    private static string RemplissageColor(double? pct) =>
+        !pct.HasValue          ? "color:white" :
+        Math.Abs(pct.Value - 100) < 1 ? "color:#A5D6A7;font-weight:700" :
+        pct.Value < 100         ? "color:#EF9A9A;font-weight:700" :
+                                  "color:#FFD54F;font-weight:700";
+
+    // KPI agrégés par profil : taux de remplissage CIBLE (charge cible ÷ capacité cible × 100)
     private double? GetRemplissageForProfil(string profil)
     {
         var slotsOfProfil = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
         var totalCap = slotsOfProfil.Sum(s => s.EtpCible);
         if (totalCap <= 0) return null;
         var totalCharge = slotsOfProfil.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
-        return (totalCharge - totalCap) / totalCap * 100.0;
+        return totalCharge / totalCap * 100.0;
     }
 
     private double? GetRemplissageTotal()
@@ -901,7 +906,26 @@
         var totalCap = slotsCible.Sum(s => s.EtpCible);
         if (totalCap <= 0) return null;
         var totalCharge = slotsCible.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
-        return (totalCharge - totalCap) / totalCap * 100.0;
+        return totalCharge / totalCap * 100.0;
+    }
+
+    // Taux de remplissage EXISTANT (pour comparaison) : charge existante ÷ effectif existant × 100
+    private double? GetRemplissageExistantForProfil(string profil)
+    {
+        var slotsOfProfil = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsActuel).ToList();
+        var totalCap = slotsOfProfil.Sum(s => s.EtpActuel);
+        if (totalCap <= 0) return null;
+        var totalCharge = slotsOfProfil.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
+        return totalCharge / totalCap * 100.0;
+    }
+
+    private double? GetRemplissageExistantTotal()
+    {
+        var slotsActuel = _slots.Where(s => s.IsActuel).ToList();
+        var totalCap = slotsActuel.Sum(s => s.EtpActuel);
+        if (totalCap <= 0) return null;
+        var totalCharge = slotsActuel.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
+        return totalCharge / totalCap * 100.0;
     }
 
     private double GetEvolutionForProfil(string profil) =>
@@ -1300,6 +1324,13 @@
         }
     }
 
+    // Code couleur commun des scores de concordance (%)
+    private static string ConcordanceColor(double? pct) =>
+        !pct.HasValue    ? "color:white" :
+        pct.Value >= 99.9 ? "color:#A5D6A7;font-weight:700" :
+        pct.Value >= 80   ? "color:#FFD54F;font-weight:700" :
+                            "color:#EF9A9A;font-weight:700";
+
     // ── KPI concordance par slot ──────────────────────────────────────────
     // % de l'ETP cible attribué à ce slot qui provient de segments où son
     // profil est désigné dans R&H (niveaux 1, 2 ou 3)
@@ -1310,11 +1341,8 @@
 
         var etpDesigne = rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, slot.Profil) > 0)
                              .Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0);
-        var pct   = etpDesigne / totalCible.Value * 100.0;
-        var color = pct >= 99.9 ? "color:#A5D6A7;font-weight:700" :
-                    pct >= 80   ? "color:#FFD54F;font-weight:700" :
-                                  "color:#EF9A9A;font-weight:700";
-        return (pct, color);
+        var pct = etpDesigne / totalCible.Value * 100.0;
+        return (pct, ConcordanceColor(pct));
     }
 
     private (double? pct, string color) GetConcordanceForProfil(string profil)
@@ -1326,11 +1354,33 @@
         var etpDesigne = slots.Sum(s =>
             rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, s.Profil) > 0)
                 .Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0));
-        var pct   = etpDesigne / totalCible * 100.0;
-        var color = pct >= 99.9 ? "color:#A5D6A7;font-weight:700" :
-                    pct >= 80   ? "color:#FFD54F;font-weight:700" :
-                                  "color:#EF9A9A;font-weight:700";
-        return (pct, color);
+        var pct = etpDesigne / totalCible * 100.0;
+        return (pct, ConcordanceColor(pct));
+    }
+
+    // ── Concordance calculée sur la répartition EXISTANTE (pour comparaison) ──
+    private (double? pct, string color) GetConcordanceExistantForSlot(ConseillerSlot slot)
+    {
+        var totalExist = GetTotalEtpExistantForSlot(slot.Id);
+        if (!totalExist.HasValue || totalExist.Value <= 0) return (null, "color:white");
+
+        var etpDesigne = rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, slot.Profil) > 0)
+                             .Sum(r => r.EtpParProfil.GetValueOrDefault(slot.Id) ?? 0);
+        var pct = etpDesigne / totalExist.Value * 100.0;
+        return (pct, ConcordanceColor(pct));
+    }
+
+    private (double? pct, string color) GetConcordanceExistantForProfil(string profil)
+    {
+        var slots      = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)).ToList();
+        var totalExist = slots.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
+        if (totalExist <= 0) return (null, "color:white");
+
+        var etpDesigne = slots.Sum(s =>
+            rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, s.Profil) > 0)
+                .Sum(r => r.EtpParProfil.GetValueOrDefault(s.Id) ?? 0));
+        var pct = etpDesigne / totalExist * 100.0;
+        return (pct, ConcordanceColor(pct));
     }
 
     // ── KPI taux de rotation par slot ─────────────────────────────────────
@@ -1407,14 +1457,21 @@
         return vals.Any() ? vals.Sum(v => v!.Value) : null;
     }
 
-    // Remplissage par slot, en % = (charge ETP CIBLE saisie − EtpCible du conseiller) / EtpCible × 100
-    // Résultat négatif → conseiller sous-chargé (des ETP cible restent non attribués)
-    // Résultat positif → conseiller surchargé (charge cible dépasse sa capacité cible)
+    // Taux de remplissage CIBLE par slot, en % = charge ETP cible saisie ÷ EtpCible du conseiller × 100
+    // 100% = portefeuille cible parfaitement chargé · < 100% = sous-chargé · > 100% = surchargé
     private double? GetRemplissageForSlot(ConseillerSlot slot)
     {
         if (!slot.IsCible || slot.EtpCible <= 0) return null;
         var etp = GetEtpCibleSaisieTotal(slot.Id);
-        return etp.HasValue ? (etp.Value - slot.EtpCible) / slot.EtpCible * 100.0 : null;
+        return etp.HasValue ? etp.Value / slot.EtpCible * 100.0 : null;
+    }
+
+    // Taux de remplissage EXISTANT par slot (pour comparaison) = charge ETP existante ÷ EtpActuel × 100
+    private double? GetRemplissageExistantForSlot(ConseillerSlot slot)
+    {
+        if (!slot.IsActuel || slot.EtpActuel <= 0) return null;
+        var etp = GetTotalEtpExistantForSlot(slot.Id);
+        return etp.HasValue ? etp.Value / slot.EtpActuel * 100.0 : null;
     }
 
     // Evolution par slot : +1 si nouveau planifié, -1 si retiré, 0 si stable
