@@ -1,4 +1,1 @@
-builder.Services.AddScoped<MockDataService>();
-builder.Services.AddScoped<SegmentationStateService>();
-builder.Services.AddScoped<RepartitionAutomatiqueService>();   // ← à ajouter
-builder.Services.AddMudServices();
+Le nom 'vueEtp' n'existe pas dans le contexte actuel
