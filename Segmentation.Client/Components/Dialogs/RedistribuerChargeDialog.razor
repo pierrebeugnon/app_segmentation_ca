@@ -1,43 +1,117 @@
 @using Segmentation.Client.Models
+@using Segmentation.Client.Services
+@inject RepartitionAutomatiqueService RepartitionService
 
 <MudDialog>
     <DialogContent>
         <MudText Typo="Typo.body2" Class="mb-3">
             <b>@SlotToRemove.Label</b> a encore <b>@TotalCharge.ToString("F2")</b> ETP de charge cible répartie sur
-            @ChargeRows.Count segment(s). Choisissez qui reprend cette charge avant de le retirer de la répartition cible.
+            @LignesRestantes.Count segment(s). Choisissez comment reporter cette charge avant de le retirer de la
+            répartition cible.
         </MudText>
-        <MudSimpleTable Dense="true" Elevation="0" Style="width:100%">
-            <thead>
-                <tr>
-                    <th>Segment</th>
-                    <th style="text-align:center">Charge cible</th>
-                    <th>Reporter sur</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var row in ChargeRows)
-                {
-                    var amount = row.EtpCibleSaisieParProfil.GetValueOrDefault(SlotToRemove.Id) ?? 0;
+
+        @if (_etape == Etape.Choix)
+        {
+            <div style="display:flex;flex-direction:column;gap:10px">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.AutoFixHigh"
+                           OnClick="RepartirTypeIdentique">
+                    Répartir automatiquement sur un conseiller de type identique (@SlotToRemove.Profil)
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.EditNote"
+                           OnClick="@(() => PasserEnManuel(LignesRestantes))">
+                    Répartir manuellement sur un autre type de conseiller
+                </MudButton>
+            </div>
+        }
+
+        @if (_etape == Etape.ResultatAuto)
+        {
+            @if (_soldeAuto.Count == 0)
+            {
+                <MudAlert Severity="Severity.Success" Dense="true" Class="mb-2">
+                    Toute la charge a été replacée sur des conseillers "@SlotToRemove.Profil" existants.
+                </MudAlert>
+            }
+            else
+            {
+                var soldeTotal = _soldeAuto.Values.Sum();
+                <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2">
+                    @soldeTotal.ToString("F2") ETP n'ont pas pu être replacés sur un conseiller de type identique
+                    (capacité de 1 ETP atteinte ou aucun autre conseiller "@SlotToRemove.Profil" disponible).
+                    Terminez la répartition manuellement sur un autre type de conseiller.
+                </MudAlert>
+            }
+        }
+
+        @if (_etape == Etape.Manuel)
+        {
+            <MudSimpleTable Dense="true" Elevation="0" Style="width:100%">
+                <thead>
                     <tr>
-                        <td>@row.Segment</td>
-                        <td style="text-align:center">@amount.ToString("F2")</td>
-                        <td>
-                            <MudSelect T="string" Value="@GetDestination(row)" ValueChanged="@(v => SetDestination(row, v))"
-                                       Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
-                                @foreach (var c in Candidates)
-                                {
-                                    <MudSelectItem Value="@c.Id">@c.Label</MudSelectItem>
-                                }
-                            </MudSelect>
-                        </td>
+                        <th>Segment</th>
+                        <th style="text-align:center">Charge restante</th>
+                        <th>Reporter sur</th>
                     </tr>
-                }
-            </tbody>
-        </MudSimpleTable>
+                </thead>
+                <tbody>
+                    @foreach (var row in _lignesManuel)
+                    {
+                        var amount = row.EtpCibleSaisieParProfil.GetValueOrDefault(SlotToRemove.Id) ?? 0;
+                        var dispo  = RepartitionService.GetConseillersDisponiblesPourSegment(
+                                         row.Segment, SlotToRemove, AllSlots, AllRows, Regles);
+                        <tr>
+                            <td>@row.Segment</td>
+                            <td style="text-align:center">@amount.ToString("F2")</td>
+                            <td>
+                                @if (dispo.Any())
+                                {
+                                    <MudSelect T="string" Value="@GetDestination(row, dispo)" ValueChanged="@(v => SetDestination(row, v))"
+                                               Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                                        @foreach (var c in dispo)
+                                        {
+                                            var capa = RepartitionService.GetCapaciteDisponible(c, AllRows);
+                                            <MudSelectItem Value="@c.Id">@c.Label (@c.Profil) — dispo @capa.ToString("F2")</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Error">Aucun conseiller disponible</MudText>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Cancel">Annuler</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Confirm">Répartir et retirer</MudButton>
+        @if (_etape == Etape.Choix)
+        {
+            <MudButton OnClick="Cancel">Annuler</MudButton>
+        }
+        @if (_etape == Etape.ResultatAuto)
+        {
+            <MudButton OnClick="Cancel">Annuler</MudButton>
+            @if (_soldeAuto.Count == 0)
+            {
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Valider">Confirmer et retirer</MudButton>
+            }
+            else
+            {
+                <MudButton Color="Color.Secondary" Variant="Variant.Filled"
+                           OnClick="@(() => PasserEnManuel(_soldeAuto.Keys.ToList()))">
+                    Terminer manuellement le solde
+                </MudButton>
+            }
+        }
+        @if (_etape == Etape.Manuel)
+        {
+            <MudButton OnClick="@(() => _etape = Etape.Choix)">Retour</MudButton>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="ValiderManuel">Répartir et retirer</MudButton>
+        }
     </DialogActions>
 </MudDialog>
 
@@ -46,33 +120,60 @@
 
     [Parameter] public ConseillerSlot SlotToRemove { get; set; } = default!;
     [Parameter] public List<DimMatrixRow> ChargeRows { get; set; } = new();
-    [Parameter] public List<ConseillerSlot> Candidates { get; set; } = new();
+    [Parameter] public List<DimMatrixRow> AllRows { get; set; } = new();
+    [Parameter] public List<ConseillerSlot> AllSlots { get; set; } = new();
+    [Parameter] public List<RegleAffectationSegment> Regles { get; set; } = new();
 
+    private enum Etape { Choix, ResultatAuto, Manuel }
+    private Etape _etape = Etape.Choix;
+
+    private Dictionary<DimMatrixRow, double> _soldeAuto = new();
+    private List<DimMatrixRow> _lignesManuel = new();
     private readonly Dictionary<DimMatrixRow, string> _destinations = new();
 
-    protected override void OnInitialized()
-    {
-        var defaultDest = Candidates.FirstOrDefault()?.Id ?? "";
-        foreach (var row in ChargeRows)
-            _destinations[row] = defaultDest;
-    }
+    // Lignes qui portent encore une charge cible pour ce conseiller (mise à jour après l'auto)
+    private List<DimMatrixRow> LignesRestantes =>
+        ChargeRows.Where(r => (r.EtpCibleSaisieParProfil.GetValueOrDefault(SlotToRemove.Id) ?? 0) > 0.001).ToList();
 
     private double TotalCharge =>
         ChargeRows.Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(SlotToRemove.Id) ?? 0);
 
-    private string GetDestination(DimMatrixRow row) =>
-        _destinations.TryGetValue(row, out var v) ? v : (Candidates.FirstOrDefault()?.Id ?? "");
+    private void RepartirTypeIdentique()
+    {
+        _soldeAuto = RepartitionService.RepartirAutomatiquement(
+            SlotToRemove, ChargeRows, AllRows, AllSlots, Regles, memeTypeUniquement: true);
+        _etape = Etape.ResultatAuto;
+    }
+
+    private void PasserEnManuel(List<DimMatrixRow> lignes)
+    {
+        _lignesManuel = lignes;
+        foreach (var row in _lignesManuel)
+            if (!_destinations.ContainsKey(row))
+            {
+                var dispo = RepartitionService.GetConseillersDisponiblesPourSegment(
+                    row.Segment, SlotToRemove, AllSlots, AllRows, Regles);
+                _destinations[row] = dispo.FirstOrDefault()?.Id ?? "";
+            }
+        _etape = Etape.Manuel;
+    }
+
+    private string GetDestination(DimMatrixRow row, List<ConseillerSlot> dispo) =>
+        _destinations.TryGetValue(row, out var v) && dispo.Any(d => d.Id == v) ? v : (dispo.FirstOrDefault()?.Id ?? "");
 
     private void SetDestination(DimMatrixRow row, string value) => _destinations[row] = value;
 
-    private void Confirm()
+    private void Valider() => MudDialog.Close(DialogResult.Ok(true));
+
+    private void ValiderManuel()
     {
-        foreach (var row in ChargeRows)
+        foreach (var row in _lignesManuel)
         {
             var amount = row.EtpCibleSaisieParProfil.GetValueOrDefault(SlotToRemove.Id) ?? 0;
             if (amount <= 0) continue;
 
-            var destId = GetDestination(row);
+            var destId = GetDestination(row, RepartitionService.GetConseillersDisponiblesPourSegment(
+                row.Segment, SlotToRemove, AllSlots, AllRows, Regles));
             if (string.IsNullOrEmpty(destId)) continue;
 
             var current = row.EtpCibleSaisieParProfil.GetValueOrDefault(destId) ?? 0;

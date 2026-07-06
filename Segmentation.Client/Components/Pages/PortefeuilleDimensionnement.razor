@@ -1100,16 +1100,13 @@
 
         if (chargeRows.Any())
         {
-            var candidates = _slots.Where(s => s.Id != slot.Id && s.IsCible
-                    && s.Profil.Equals(slot.Profil, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            if (!candidates.Any())
+            var autreConseillerExiste = _slots.Any(s => s.Id != slot.Id && s.IsCible);
+            if (!autreConseillerExiste)
             {
                 var totalCharge = chargeRows.Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0);
                 Snackbar.Add(
                     $"Impossible de retirer {slot.Label} de la cible : {totalCharge:F2} ETP sont encore répartis sur {chargeRows.Count} segment(s) " +
-                    $"et aucun autre conseiller \"{slot.Profil}\" n'est disponible pour reprendre cette charge.",
+                    "et aucun autre conseiller n'est disponible pour reprendre cette charge.",
                     Severity.Warning);
                 return;
             }
@@ -1118,7 +1115,9 @@
             {
                 { x => x.SlotToRemove, slot },
                 { x => x.ChargeRows, chargeRows },
-                { x => x.Candidates, candidates },
+                { x => x.AllRows, rows },
+                { x => x.AllSlots, _slots },
+                { x => x.Regles, StateService.Regles.ReglesAffectationSegments },
             };
             var dialogRef = await DialogService.ShowAsync<RedistribuerChargeDialog>(
                 $"Répartir la charge cible de {slot.Label} avant suppression",
@@ -1126,6 +1125,14 @@
                 new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true });
             var result = await dialogRef.Result;
             if (result is null || result.Canceled) return;
+
+            // Garde-fou : si un reliquat de charge subsiste malgré tout, on bloque le retrait
+            var reliquat = rows.Where(r => !r.IsTotal).Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0);
+            if (reliquat > 0.001)
+            {
+                Snackbar.Add($"{reliquat:F2} ETP n'ont pas pu être réattribués : {slot.Label} reste dans la répartition cible.", Severity.Warning);
+                return;
+            }
         }
 
         slot.IsCible = false;
