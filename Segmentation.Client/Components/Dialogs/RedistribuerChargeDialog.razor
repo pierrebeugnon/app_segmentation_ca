@@ -15,8 +15,13 @@
             <div style="display:flex;flex-direction:column;gap:10px">
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
                            StartIcon="@Icons.Material.Filled.AutoFixHigh"
-                           OnClick="RepartirTypeIdentique">
-                    Répartir automatiquement sur un conseiller de type identique (@SlotToRemove.Profil)
+                           OnClick="@(() => RepartirAutomatique(memeType: false))">
+                    Répartir automatiquement sur les conseillers prioritaires (R&amp;H)
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.PeopleAlt"
+                           OnClick="@(() => RepartirAutomatique(memeType: true))">
+                    Répartir uniquement sur un conseiller de type identique (@SlotToRemove.Profil)
                 </MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true"
                            StartIcon="@Icons.Material.Filled.EditNote"
@@ -31,16 +36,20 @@
             @if (_soldeAuto.Count == 0)
             {
                 <MudAlert Severity="Severity.Success" Dense="true" Class="mb-2">
-                    Toute la charge a été replacée sur des conseillers "@SlotToRemove.Profil" existants.
+                    Toute la charge a été replacée @(_dernierModeMemeType
+                        ? $"sur des conseillers \"{SlotToRemove.Profil}\" existants."
+                        : "sur les conseillers prioritaires disponibles (Règles & Hypothèses).")
                 </MudAlert>
             }
             else
             {
                 var soldeTotal = _soldeAuto.Values.Sum();
                 <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2">
-                    @soldeTotal.ToString("F2") ETP n'ont pas pu être replacés sur un conseiller de type identique
-                    (capacité de 1 ETP atteinte ou aucun autre conseiller "@SlotToRemove.Profil" disponible).
-                    Terminez la répartition manuellement sur un autre type de conseiller.
+                    @soldeTotal.ToString("F2") ETP n'ont pas pu être replacés @(_dernierModeMemeType
+                        ? $"sur un conseiller de type identique (\"{SlotToRemove.Profil}\")"
+                        : "sur un conseiller prioritaire")
+                    (capacité de 1 ETP atteinte ou aucun conseiller disponible).
+                    Terminez la répartition manuellement.
                 </MudAlert>
             }
         }
@@ -94,6 +103,7 @@
         }
         @if (_etape == Etape.ResultatAuto)
         {
+            <MudButton OnClick="@(() => _etape = Etape.Choix)">Retour</MudButton>
             <MudButton OnClick="Cancel">Annuler</MudButton>
             @if (_soldeAuto.Count == 0)
             {
@@ -130,6 +140,7 @@
     private Dictionary<DimMatrixRow, double> _soldeAuto = new();
     private List<DimMatrixRow> _lignesManuel = new();
     private readonly Dictionary<DimMatrixRow, string> _destinations = new();
+    private bool _dernierModeMemeType;
 
     // Lignes qui portent encore une charge cible pour ce conseiller (mise à jour après l'auto)
     private List<DimMatrixRow> LignesRestantes =>
@@ -138,10 +149,13 @@
     private double TotalCharge =>
         ChargeRows.Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(SlotToRemove.Id) ?? 0);
 
-    private void RepartirTypeIdentique()
+    // memeType=false : cascade complète selon la priorité R&H du segment (tous profils)
+    // memeType=true  : restreint aux conseillers du même profil que celui retiré
+    private void RepartirAutomatique(bool memeType)
     {
+        _dernierModeMemeType = memeType;
         _soldeAuto = RepartitionService.RepartirAutomatiquement(
-            SlotToRemove, ChargeRows, AllRows, AllSlots, Regles, memeTypeUniquement: true);
+            SlotToRemove, LignesRestantes, AllRows, AllSlots, Regles, memeTypeUniquement: memeType);
         _etape = Etape.ResultatAuto;
     }
 
