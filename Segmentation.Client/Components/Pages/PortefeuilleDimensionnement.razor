@@ -1092,11 +1092,12 @@
     }
 
     // Retire un effectif EXISTANT de la répartition cible (il reste dans l'existant, grisé).
-    // Si une charge cible lui est déjà attribuée sur un ou plusieurs segments, elle doit être
-    // réattribuée à un autre conseiller du même métier avant la suppression (modale).
+    // La modale de redistribution ne se déclenche que si le conseiller porte une charge sur
+    // la CIBLE (EtpCibleSaisieParProfil) — l'existant (EtpParProfil) n'entre jamais en compte
+    // dans cette décision, puisqu'on ne fait que le retirer de la répartition cible.
     private async Task RemoveCibleForExistingSlot(ConseillerSlot slot)
     {
-        var chargeRows = rows.Where(r => !r.IsTotal && (r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0) > 0).ToList();
+        var chargeRows = rows.Where(r => !r.IsTotal && (r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0) > 0.001).ToList();
 
         if (chargeRows.Any())
         {
