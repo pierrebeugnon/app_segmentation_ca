@@ -1,0 +1,171 @@
+@* Tableau BLOC 0 — Effectifs conseillers : lignes Cible (▼) et Existant (▲) *@
+
+<MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden;margin-bottom:12px">
+    <div class="ca-section-header" style="display:flex;align-items:center;gap:10px">
+        <span class="ca-section-badge">1</span>
+        Effectif cible de l'agence (vs existant)
+        <MudTooltip Text="Ligne ▲ Existant : conseillers présents aujourd'hui (jamais supprimés définitivement). Ligne ▼ Cible : scénario simulé. Retirez un effectif de la cible (×) — s'il a déjà une charge cible répartie, elle devra être reportée sur un autre conseiller du même métier. Ajoutez un conseiller (+ Ajouter) pour l'intégrer à la répartition cible.">
+            <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small"
+                     Style="color:rgba(255,255,255,0.65)" />
+        </MudTooltip>
+        <!-- ── Bouton Ajouter un conseiller ── -->
+        <div style="margin-left:auto">
+            <MudMenu Label="+ Ajouter un conseiller"
+                     StartIcon="@Icons.Material.Filled.PersonAdd"
+                     Variant="Variant.Filled" Size="Size.Small" Color="Color.Success"
+                     IconColor="Color.Inherit">
+                @foreach (var profil in Profils)
+                {
+                    var p = profil;
+                    <MudMenuItem OnClick="@(() => OnAddSlot.InvokeAsync(p))" Icon="@Icons.Material.Outlined.PersonAdd">
+                        @p
+                    </MudMenuItem>
+                }
+            </MudMenu>
+        </div>
+    </div>
+
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <table style="border-collapse:collapse;min-width:max-content;width:100%">
+            <colgroup>
+                <col style="min-width:140px;width:140px" />
+                @foreach (var _ in Slots)
+                {
+                    <col style="min-width:88px;width:88px" />
+                }
+                <col style="min-width:72px;width:72px" />
+            </colgroup>
+            <thead>
+                <tr>
+                    <th style="text-align:left;padding:6px 12px;font-size:11px;color:#6C7A89;background:#F8FAFD;border-bottom:2px solid #E2E8F0;position:sticky;left:0;z-index:3;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
+                        Conseiller
+                    </th>
+                    @foreach (var slot in Slots)
+                    {
+                        var isGrey = !slot.IsCible;
+                        var isNew  = !slot.IsActuel && slot.IsCible;
+                        <th style="text-align:center;padding:5px 3px;font-size:11px;border-bottom:2px solid #E2E8F0;
+                                   @(isGrey ? "background:#F0F2F5;color:#9AA5B1" : isNew ? "background:#F1FBF4;color:#2E7D32" : "background:#F8FAFD;color:#1A4E6B")">
+                            <div style="font-weight:700">@slot.Label</div>
+                            <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:1px">
+                                @ProfilShort.GetValueOrDefault(slot.Profil, slot.Profil)
+                            </div>
+                        </th>
+                    }
+                    <th style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;background:#EEF3FA;color:#1A4E6B;border-bottom:2px solid #E2E8F0">
+                        Total
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- ── Ligne Cible (en haut) — ETP uniquement ── -->
+                <tr>
+                    <td style="padding:7px 12px;font-size:12px;font-weight:700;color:#1A4E6B;background:#EBF3FF;border-bottom:1px solid #D0DFF0;position:sticky;left:0;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
+                        ▼ Cible
+                    </td>
+                    @foreach (var slot in Slots)
+                    {
+                        var s         = slot;
+                        var isRemoved = slot.IsActuel && !slot.IsCible;
+                        var isNew     = !slot.IsActuel && slot.IsCible;
+                        var isActive  = slot.IsActuel && slot.IsCible;
+                        <td style="text-align:center;padding:6px 2px;font-size:12px;border-bottom:1px solid #D0DFF0;
+                                   @(isRemoved ? "background:#F0F2F5" : isNew ? "background:#F1FBF4" : "background:#EBF3FF")">
+                            @if (isActive || isNew)
+                            {
+                                <div style="display:flex;justify-content:center;align-items:center;width:100%">
+                                    <MudNumericField T="double"
+                                                     Value="@s.EtpCible"
+                                                     ValueChanged="@(async v => { s.EtpCible = v; await OnEtpCibleChanged.InvokeAsync(); })"
+                                                     Format="F2" Step="0.25" Min="0" Max="2.0"
+                                                     HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
+                                                     Class="ca-eff-etp-input"
+                                                     Style="width:100%"
+                                                     InputStyle="@($"text-align:center;font-size:12px;font-weight:700;padding:1px 2px;{(isNew ? "color:#2E7D32" : "color:#1A4E6B")}")" />
+                                </div>
+                            }
+                            else if (isRemoved)
+                            {
+                                <span style="color:#9AA5B1;font-size:12px">✗</span>
+                            }
+                        </td>
+                    }
+                    <td style="text-align:center;padding:5px;font-weight:700;font-size:13px;background:#D6E8F7;color:#1A4E6B;border-bottom:1px solid #D0DFF0">
+                        @Slots.Where(s => s.IsCible).Sum(s => s.EtpCible).ToString("F2")
+                    </td>
+                </tr>
+                <!-- ── Ligne Existant (en bas) — lecture seule + bouton action ── -->
+                <tr>
+                    <td style="padding:7px 12px;font-size:12px;font-weight:700;color:#E65100;background:#FFF8F2;position:sticky;left:0;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
+                        ▲ Existant
+                    </td>
+                    @foreach (var slot in Slots)
+                    {
+                        var s         = slot;
+                        var isRemoved = slot.IsActuel && !slot.IsCible;
+                        var isNew     = !slot.IsActuel && slot.IsCible;
+                        var isActive  = slot.IsActuel && slot.IsCible;
+                        <td style="text-align:center;padding:4px 2px;
+                                   @(isRemoved ? "background:#F0F2F5" : isNew ? "background:#F1FBF4" : "background:#FFF8F2")">
+                            <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+                                @if (slot.IsActuel)
+                                {
+                                    <span style="font-size:12px;font-weight:700;@(isRemoved ? "color:#9AA5B1" : "color:#E65100")">
+                                        @slot.EtpActuel.ToString("F2")
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span style="color:#BDBDBD;font-size:10px">—</span>
+                                }
+                                @if (isActive)
+                                {
+                                    <MudTooltip Text="Retirer cet effectif de la répartition cible (reste dans l'existant)">
+                                        <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
+                                                       Size="Size.Small"
+                                                       Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
+                                                       OnClick="@(() => OnRemoveCibleSlot.InvokeAsync(s))" />
+                                    </MudTooltip>
+                                }
+                                else if (isRemoved)
+                                {
+                                    <MudTooltip Text="Réintégrer ce conseiller dans la répartition cible">
+                                        <MudIconButton Icon="@Icons.Material.Outlined.AddCircleOutline"
+                                                       Size="Size.Small"
+                                                       Style="padding:0;width:18px;height:18px;color:#2E7D32;opacity:0.7"
+                                                       OnClick="@(() => OnRestoreCible.InvokeAsync(s))" />
+                                    </MudTooltip>
+                                }
+                                else if (isNew)
+                                {
+                                    <MudTooltip Text="Retirer ce conseiller ajouté manuellement">
+                                        <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
+                                                       Size="Size.Small"
+                                                       Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
+                                                       OnClick="@(() => OnRemoveNewSlot.InvokeAsync(s))" />
+                                    </MudTooltip>
+                                }
+                            </div>
+                        </td>
+                    }
+                    <td style="text-align:center;padding:5px;font-weight:700;font-size:13px;background:#FAEEE0;color:#E65100">
+                        @Slots.Where(s => s.IsActuel).Sum(s => s.EtpActuel).ToString("F2")
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</MudPaper>
+
+@code {
+    [Parameter] public List<ConseillerSlot>              Slots      { get; set; } = new();
+    [Parameter] public List<string>                      Profils    { get; set; } = new();
+    [Parameter] public IReadOnlyDictionary<string,string> ProfilShort { get; set; } = new Dictionary<string, string>();
+
+    [Parameter] public EventCallback<string>        OnAddSlot         { get; set; }
+    [Parameter] public EventCallback<ConseillerSlot> OnRemoveCibleSlot { get; set; }
+    [Parameter] public EventCallback<ConseillerSlot> OnRestoreCible    { get; set; }
+    [Parameter] public EventCallback<ConseillerSlot> OnRemoveNewSlot   { get; set; }
+    /// <summary>Déclenché après toute mutation d'EtpCible pour forcer le re-render parent.</summary>
+    [Parameter] public EventCallback OnEtpCibleChanged { get; set; }
+}

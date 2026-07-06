@@ -1,0 +1,54 @@
+@* Barre de filtres organisationnels (Région / Secteur / Agence) *@
+
+<MudPaper Elevation="1" Style="border-radius:8px;padding:12px 16px;margin-bottom:8px">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <MudIcon Icon="@Icons.Material.Outlined.FilterAlt" Style="color:#1A4E6B;font-size:20px" />
+        <MudSelect T="string" Label="Région" Dense="true" Margin="Margin.Dense"
+                   Variant="Variant.Outlined" Style="min-width:160px"
+                   Value="@FiltreRegion" ValueChanged="@(v => OnFiltreRegionChanged.InvokeAsync(v))"
+                   Clearable="true">
+            @foreach (var r in AllRegions)
+            {
+                <MudSelectItem Value="@r">@r</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSelect T="string" Label="Secteur" Dense="true" Margin="Margin.Dense"
+                   Variant="Variant.Outlined" Style="min-width:180px"
+                   Value="@FiltreSecteur" ValueChanged="@(v => OnFiltreSecteurChanged.InvokeAsync(v))"
+                   Clearable="true">
+            @foreach (var s in AllSecteurs)
+            {
+                <MudSelectItem Value="@s">@s</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSelect T="string" Label="Agence" Dense="true" Margin="Margin.Dense"
+                   Variant="Variant.Outlined" Style="min-width:200px"
+                   Value="@FiltreAgence" ValueChanged="@(v => OnFiltreAgenceChanged.InvokeAsync(v))"
+                   Clearable="true">
+            @foreach (var a in AllAgences)
+            {
+                <MudSelectItem Value="@a">@a</MudSelectItem>
+            }
+        </MudSelect>
+        @if (!string.IsNullOrEmpty(FiltreRegion) || !string.IsNullOrEmpty(FiltreSecteur) || !string.IsNullOrEmpty(FiltreAgence))
+        {
+            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary"
+                       StartIcon="@Icons.Material.Outlined.Clear"
+                       OnClick="@(() => OnClearFiltres.InvokeAsync())">Effacer filtres</MudButton>
+        }
+        <div style="flex:1"></div>
+    </div>
+</MudPaper>
+
+@code {
+    [Parameter] public List<string> AllRegions  { get; set; } = new();
+    [Parameter] public List<string> AllSecteurs { get; set; } = new();
+    [Parameter] public List<string> AllAgences  { get; set; } = new();
+    [Parameter] public string? FiltreRegion  { get; set; }
+    [Parameter] public string? FiltreSecteur { get; set; }
+    [Parameter] public string? FiltreAgence  { get; set; }
+    [Parameter] public EventCallback<string?> OnFiltreRegionChanged  { get; set; }
+    [Parameter] public EventCallback<string?> OnFiltreSecteurChanged { get; set; }
+    [Parameter] public EventCallback<string?> OnFiltreAgenceChanged  { get; set; }
+    [Parameter] public EventCallback OnClearFiltres { get; set; }
+}
