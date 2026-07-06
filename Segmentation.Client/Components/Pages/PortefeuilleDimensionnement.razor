@@ -1291,21 +1291,8 @@
     }
 
     // ── Distribution automatique R&H ─────────────────────────────────────
-    private async Task AutoDistribuerCible()
+    private void AutoDistribuerCible()
     {
-        // Vérifier si des valeurs cibles existent déjà pour proposer une confirmation
-        var hasCible = rows.Where(r => !r.IsTotal)
-                           .Any(r => _slots.Any(s => s.IsCible && (r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0) > 0));
-
-        if (hasCible)
-        {
-            bool? ok = await DialogService.ShowMessageBox(
-                "Répartition automatique R&H",
-                "Cette action remplace toutes les valeurs cibles actuelles par une distribution automatique basée sur les priorités des Règles & Hypothèses. Continuer ?",
-                yesText: "Oui, répartir", cancelText: "Annuler");
-            if (ok != true) return;
-        }
-
         var segmentsIncomplets = RepartitionService.DistribuerAutomatiquement(
             rows, _slots, StateService.Regles.ReglesAffectationSegments);
 
