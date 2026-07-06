@@ -7,7 +7,7 @@ using Segmentation.Client.Services;
 namespace Segmentation.Client.Components.Pages;
 
 /// <summary>Logique et état de la page Dimensionnement des Portefeuilles.</summary>
-public partial class PortefeuilleDimensionnement : IDisposable
+public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 {
     [Inject] private SegmentationStateService StateService { get; set; } = default!;
     [Inject] private IDialogService DialogService { get; set; } = default!;
