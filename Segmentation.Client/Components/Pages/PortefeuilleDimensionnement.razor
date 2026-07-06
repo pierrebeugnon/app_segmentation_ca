@@ -2,8 +2,10 @@
 @inject SegmentationStateService StateService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject RepartitionAutomatiqueService RepartitionService
 @implements IDisposable
 @using Segmentation.Client.Components.Dialogs
+@using Segmentation.Client.Services
 
 <PageTitle>Dimensionnement Portefeuilles — CA Segmentation</PageTitle>
 
@@ -298,10 +300,20 @@
                 @if (vueEtp)
                 {
                     <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
-                             Style="height:20px;font-size:10px;color:rgba(255,255,255,0.85);border-color:rgba(255,255,255,0.4);margin-left:auto">
+                             Style="height:20px;font-size:10px;color:rgba(255,255,255,0.85);border-color:rgba(255,255,255,0.4)">
                         Cellules ▼ cible modifiables
                     </MudChip>
                 }
+                <div style="margin-left:auto">
+                    <MudTooltip Text="Distribue automatiquement la charge ETP existante par segment vers les conseillers prioritaires (R&H). Remplace toutes les valeurs cibles existantes.">
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.AutoFixHigh"
+                                   Style="color:rgba(255,255,255,0.92);border-color:rgba(255,255,255,0.5);font-size:11px;height:28px;text-transform:none"
+                                   OnClick="AutoDistribuerCible">
+                            Répartir auto (R&amp;H)
+                        </MudButton>
+                    </MudTooltip>
+                </div>
             </div>
 
             <div class="ca-dim-scroll-wrapper">
@@ -1276,6 +1288,33 @@
             3 => "background:#C3E6CB;color:#1A4E6B",
             _ => ""
         };
+    }
+
+    // ── Distribution automatique R&H ─────────────────────────────────────
+    private async Task AutoDistribuerCible()
+    {
+        // Vérifier si des valeurs cibles existent déjà pour proposer une confirmation
+        var hasCible = rows.Where(r => !r.IsTotal)
+                           .Any(r => _slots.Any(s => s.IsCible && (r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0) > 0));
+
+        if (hasCible)
+        {
+            bool? ok = await DialogService.ShowMessageBox(
+                "Répartition automatique R&H",
+                "Cette action remplace toutes les valeurs cibles actuelles par une distribution automatique basée sur les priorités des Règles & Hypothèses. Continuer ?",
+                yesText: "Oui, répartir", cancelText: "Annuler");
+            if (ok != true) return;
+        }
+
+        var segmentsIncomplets = RepartitionService.DistribuerAutomatiquement(
+            rows, _slots, StateService.Regles.ReglesAffectationSegments);
+
+        RecalcTotal();
+
+        if (segmentsIncomplets == 0)
+            Snackbar.Add("Distribution R&H appliquée — toute la charge a été placée sur les conseillers prioritaires.", Severity.Success);
+        else
+            Snackbar.Add($"Distribution R&H appliquée — {segmentsIncomplets} segment(s) n'ont pas pu être entièrement couverts (capacité insuffisante).", Severity.Warning);
     }
 
     // ── Mutations ─────────────────────────────────────────────────────────

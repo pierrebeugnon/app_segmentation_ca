@@ -122,6 +122,60 @@ public class RepartitionAutomatiqueService
     }
 
     /// <summary>
+    /// Distribue automatiquement le total ETP existant par segment sur les conseillers cibles,
+    /// dans l'ordre de priorité R&amp;H. Réinitialise toutes les valeurs cible existantes avant de
+    /// calculer. Chaque conseiller est capé à son EtpCible (fallback = MaxEtpParConseiller).
+    /// </summary>
+    /// <returns>Nombre de segments dont la charge n'a pas pu être entièrement placée.</returns>
+    public int DistribuerAutomatiquement(
+        List<DimMatrixRow> toutesLesLignes,
+        List<ConseillerSlot> tousLesSlots,
+        List<RegleAffectationSegment> regles)
+    {
+        var candidats = tousLesSlots.Where(s => s.IsCible).ToList();
+        if (!candidats.Any()) return 0;
+
+        // Capacité max par conseiller : EtpCible s'il est > 0, sinon 1 ETP
+        var capacites = candidats.ToDictionary(s => s.Id,
+            s => s.EtpCible > 0 ? s.EtpCible : MaxEtpParConseiller);
+        // Suivi cumulatif de l'allocation au fil des segments
+        var alloues = candidats.ToDictionary(s => s.Id, _ => 0.0);
+
+        // Réinitialiser toutes les valeurs cible des conseillers actifs
+        foreach (var row in toutesLesLignes)
+            foreach (var slot in candidats)
+                row.EtpCibleSaisieParProfil[slot.Id] = null;
+
+        int segmentsIncomplets = 0;
+
+        foreach (var row in toutesLesLignes.Where(r => !r.IsTotal))
+        {
+            // Demande = total ETP existant pour ce segment (tous conseillers confondus)
+            var demande = Math.Round(tousLesSlots.Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0), 4);
+            if (demande <= 0.001) continue;
+
+            var ordre   = GetOrdrePrioritePourSegment(row.Segment, candidats, regles);
+            var restant = demande;
+
+            foreach (var candidat in ordre)
+            {
+                if (restant <= 0.001) break;
+                var capa = Math.Round(capacites[candidat.Id] - alloues[candidat.Id], 4);
+                if (capa <= 0.001) continue;
+                var aPrendre = Math.Round(Math.Min(restant, capa), 4);
+                row.EtpCibleSaisieParProfil[candidat.Id] =
+                    Math.Round((row.EtpCibleSaisieParProfil.GetValueOrDefault(candidat.Id) ?? 0) + aPrendre, 4);
+                alloues[candidat.Id] = Math.Round(alloues[candidat.Id] + aPrendre, 4);
+                restant = Math.Round(restant - aPrendre, 4);
+            }
+
+            if (restant > 0.001) segmentsIncomplets++;
+        }
+
+        return segmentsIncomplets;
+    }
+
+    /// <summary>
     /// Liste des conseillers disponibles (capacité &lt; 1 ETP) pour la répartition manuelle,
     /// triés du profil le plus prioritaire (pour le segment) au moins prioritaire.
     /// </summary>
