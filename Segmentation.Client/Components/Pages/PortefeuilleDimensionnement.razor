@@ -1,6 +1,9 @@
 @page "/portefeuille"
 @inject SegmentationStateService StateService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 @implements IDisposable
+@using Segmentation.Client.Components.Dialogs
 
 <PageTitle>Dimensionnement Portefeuilles — CA Segmentation</PageTitle>
 
@@ -82,7 +85,11 @@
         </span>
         <span class="ca-dim-legend-item">
             <MudIcon Icon="@Icons.Material.Outlined.RemoveCircleOutline" Style="font-size:15px;color:#B71C1C" />
-            Retirer un conseiller — disponible uniquement pour ceux ajoutés manuellement (l'effectif existant ne peut pas être supprimé)
+            Retirer de la cible — l'effectif ajouté manuellement est supprimé définitivement ; l'effectif existant reste visible (grisé) mais sort de la répartition cible
+        </span>
+        <span class="ca-dim-legend-item">
+            <MudIcon Icon="@Icons.Material.Outlined.AddCircleOutline" Style="font-size:15px;color:#2E7D32" />
+            Réintégrer un effectif existant précédemment retiré de la cible
         </span>
     </div>
 
@@ -104,7 +111,7 @@
             <div class="ca-section-header" style="display:flex;align-items:center;gap:10px">
                 <span class="ca-section-badge">1</span>
                 Effectif cible de l'agence (vs existant) 
-                <MudTooltip Text="Ligne ▲ Existant : conseillers présents aujourd'hui (non supprimable). Ligne ▼ Cible : scénario simulé. Ajoutez un conseiller (+ Ajouter) pour l'intégrer à la répartition cible ; seuls les conseillers ajoutés manuellement peuvent être retirés.">
+                <MudTooltip Text="Ligne ▲ Existant : conseillers présents aujourd'hui (jamais supprimés définitivement). Ligne ▼ Cible : scénario simulé. Retirez un effectif de la cible (×) — s'il a déjà une charge cible répartie, elle devra être reportée sur un autre conseiller du même métier. Ajoutez un conseiller (+ Ajouter) pour l'intégrer à la répartition cible.">
                     <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small"
                              Style="color:rgba(255,255,255,0.65)" />
                 </MudTooltip>
@@ -166,19 +173,28 @@
                             @foreach (var slot in _slots)
                             {
                                 var s         = slot;
+                                var isRemoved = slot.IsActuel && !slot.IsCible;
                                 var isNew     = !slot.IsActuel && slot.IsCible;
+                                var isActive  = slot.IsActuel && slot.IsCible;
                                 <td style="text-align:center;padding:6px 2px;font-size:12px;border-bottom:1px solid #D0DFF0;
-                                           @(isNew ? "background:#F1FBF4" : "background:#EBF3FF")">
-                                    <div style="display:flex;justify-content:center;align-items:center;width:100%">
-                                        <MudNumericField T="double"
-                                                         Value="@s.EtpCible"
-                                                         ValueChanged="@(v => { s.EtpCible = v; StateHasChanged(); })"
-                                                         Format="F2" Step="0.25" Min="0" Max="2.0"
-                                                         HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
-                                                         Class="ca-eff-etp-input"
-                                                         Style="width:100%"
-                                                         InputStyle="@($"text-align:center;font-size:12px;font-weight:700;padding:1px 2px;{(isNew ? "color:#2E7D32" : "color:#1A4E6B")}")" />
-                                    </div>
+                                           @(isRemoved ? "background:#F0F2F5" : isNew ? "background:#F1FBF4" : "background:#EBF3FF")">
+                                    @if (isActive || isNew)
+                                    {
+                                        <div style="display:flex;justify-content:center;align-items:center;width:100%">
+                                            <MudNumericField T="double"
+                                                             Value="@s.EtpCible"
+                                                             ValueChanged="@(v => { s.EtpCible = v; StateHasChanged(); })"
+                                                             Format="F2" Step="0.25" Min="0" Max="2.0"
+                                                             HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
+                                                             Class="ca-eff-etp-input"
+                                                             Style="width:100%"
+                                                             InputStyle="@($"text-align:center;font-size:12px;font-weight:700;padding:1px 2px;{(isNew ? "color:#2E7D32" : "color:#1A4E6B")}")" />
+                                        </div>
+                                    }
+                                    else if (isRemoved)
+                                    {
+                                        <span style="color:#9AA5B1;font-size:12px">✗</span>
+                                    }
                                 </td>
                             }
                             <td style="text-align:center;padding:5px;font-weight:700;font-size:13px;background:#D6E8F7;color:#1A4E6B;border-bottom:1px solid #D0DFF0">
@@ -193,13 +209,15 @@
                             @foreach (var slot in _slots)
                             {
                                 var s         = slot;
+                                var isRemoved = slot.IsActuel && !slot.IsCible;
                                 var isNew     = !slot.IsActuel && slot.IsCible;
+                                var isActive  = slot.IsActuel && slot.IsCible;
                                 <td style="text-align:center;padding:4px 2px;
-                                           @(isNew ? "background:#F1FBF4" : "background:#FFF8F2")">
+                                           @(isRemoved ? "background:#F0F2F5" : isNew ? "background:#F1FBF4" : "background:#FFF8F2")">
                                     <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
                                         @if (slot.IsActuel)
                                         {
-                                            <span style="font-size:12px;font-weight:700;color:#E65100">
+                                            <span style="font-size:12px;font-weight:700;@(isRemoved ? "color:#9AA5B1" : "color:#E65100")">
                                                 @slot.EtpActuel.ToString("F2")
                                             </span>
                                         }
@@ -207,7 +225,25 @@
                                         {
                                             <span style="color:#BDBDBD;font-size:10px">—</span>
                                         }
-                                        @if (isNew)
+                                        @if (isActive)
+                                        {
+                                            <MudTooltip Text="Retirer cet effectif de la répartition cible (reste dans l'existant)">
+                                                <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
+                                                               Size="Size.Small"
+                                                               Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
+                                                               OnClick="@(() => RemoveCibleForExistingSlot(s))" />
+                                            </MudTooltip>
+                                        }
+                                        else if (isRemoved)
+                                        {
+                                            <MudTooltip Text="Réintégrer ce conseiller dans la répartition cible">
+                                                <MudIconButton Icon="@Icons.Material.Outlined.AddCircleOutline"
+                                                               Size="Size.Small"
+                                                               Style="padding:0;width:18px;height:18px;color:#2E7D32;opacity:0.7"
+                                                               OnClick="@(() => RestoreCible(s))" />
+                                            </MudTooltip>
+                                        }
+                                        else if (isNew)
                                         {
                                             <MudTooltip Text="Retirer ce conseiller ajouté manuellement">
                                                 <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
@@ -1052,6 +1088,54 @@
             row.EtpParProfil.Remove(slot.Id);
             row.EtpCibleSaisieParProfil.Remove(slot.Id);
         }
+        RecalcTotal();
+    }
+
+    // Retire un effectif EXISTANT de la répartition cible (il reste dans l'existant, grisé).
+    // Si une charge cible lui est déjà attribuée sur un ou plusieurs segments, elle doit être
+    // réattribuée à un autre conseiller du même métier avant la suppression (modale).
+    private async Task RemoveCibleForExistingSlot(ConseillerSlot slot)
+    {
+        var chargeRows = rows.Where(r => !r.IsTotal && (r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0) > 0).ToList();
+
+        if (chargeRows.Any())
+        {
+            var candidates = _slots.Where(s => s.Id != slot.Id && s.IsCible
+                    && s.Profil.Equals(slot.Profil, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (!candidates.Any())
+            {
+                var totalCharge = chargeRows.Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0);
+                Snackbar.Add(
+                    $"Impossible de retirer {slot.Label} de la cible : {totalCharge:F2} ETP sont encore répartis sur {chargeRows.Count} segment(s) " +
+                    $"et aucun autre conseiller \"{slot.Profil}\" n'est disponible pour reprendre cette charge.",
+                    Severity.Warning);
+                return;
+            }
+
+            var parameters = new DialogParameters<RedistribuerChargeDialog>
+            {
+                { x => x.SlotToRemove, slot },
+                { x => x.ChargeRows, chargeRows },
+                { x => x.Candidates, candidates },
+            };
+            var dialogRef = await DialogService.ShowAsync<RedistribuerChargeDialog>(
+                $"Répartir la charge cible de {slot.Label} avant suppression",
+                parameters,
+                new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true });
+            var result = await dialogRef.Result;
+            if (result is null || result.Canceled) return;
+        }
+
+        slot.IsCible = false;
+        RecalcTotal();
+    }
+
+    // Réintègre un effectif existant précédemment retiré de la cible
+    private void RestoreCible(ConseillerSlot slot)
+    {
+        slot.IsCible = true;
         RecalcTotal();
     }
 

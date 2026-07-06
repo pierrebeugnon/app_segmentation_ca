@@ -1,0 +1,86 @@
+@using Segmentation.Client.Models
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-3">
+            <b>@SlotToRemove.Label</b> a encore <b>@TotalCharge.ToString("F2")</b> ETP de charge cible répartie sur
+            @ChargeRows.Count segment(s). Choisissez qui reprend cette charge avant de le retirer de la répartition cible.
+        </MudText>
+        <MudSimpleTable Dense="true" Elevation="0" Style="width:100%">
+            <thead>
+                <tr>
+                    <th>Segment</th>
+                    <th style="text-align:center">Charge cible</th>
+                    <th>Reporter sur</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in ChargeRows)
+                {
+                    var amount = row.EtpCibleSaisieParProfil.GetValueOrDefault(SlotToRemove.Id) ?? 0;
+                    <tr>
+                        <td>@row.Segment</td>
+                        <td style="text-align:center">@amount.ToString("F2")</td>
+                        <td>
+                            <MudSelect T="string" Value="@GetDestination(row)" ValueChanged="@(v => SetDestination(row, v))"
+                                       Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                                @foreach (var c in Candidates)
+                                {
+                                    <MudSelectItem Value="@c.Id">@c.Label</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Annuler</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Confirm">Répartir et retirer</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public ConseillerSlot SlotToRemove { get; set; } = default!;
+    [Parameter] public List<DimMatrixRow> ChargeRows { get; set; } = new();
+    [Parameter] public List<ConseillerSlot> Candidates { get; set; } = new();
+
+    private readonly Dictionary<DimMatrixRow, string> _destinations = new();
+
+    protected override void OnInitialized()
+    {
+        var defaultDest = Candidates.FirstOrDefault()?.Id ?? "";
+        foreach (var row in ChargeRows)
+            _destinations[row] = defaultDest;
+    }
+
+    private double TotalCharge =>
+        ChargeRows.Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(SlotToRemove.Id) ?? 0);
+
+    private string GetDestination(DimMatrixRow row) =>
+        _destinations.TryGetValue(row, out var v) ? v : (Candidates.FirstOrDefault()?.Id ?? "");
+
+    private void SetDestination(DimMatrixRow row, string value) => _destinations[row] = value;
+
+    private void Confirm()
+    {
+        foreach (var row in ChargeRows)
+        {
+            var amount = row.EtpCibleSaisieParProfil.GetValueOrDefault(SlotToRemove.Id) ?? 0;
+            if (amount <= 0) continue;
+
+            var destId = GetDestination(row);
+            if (string.IsNullOrEmpty(destId)) continue;
+
+            var current = row.EtpCibleSaisieParProfil.GetValueOrDefault(destId) ?? 0;
+            row.EtpCibleSaisieParProfil[destId] = Math.Round(current + amount, 2);
+            row.EtpCibleSaisieParProfil[SlotToRemove.Id] = null;
+        }
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}
