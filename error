@@ -1,1 +1,1 @@
-Add-Migration AddTableSegmentationDistributives -Project Segmentation.Infrastructure -StartupProject Segmentation.Server
+Update-Database -Project Segmentation.Infrastructure -StartupProject Segmentation.Server
