@@ -1,0 +1,16 @@
+using Segmentation.Core.Entities;
+using Segmentation.Core.Repositories;
+using Segmentation.Infrastructure.Data;
+
+namespace Segmentation.Infrastructure.Repositories
+{
+    public class SegmentationDistributivesRepository
+        : BaseRepository<SegmentationDistributives>,
+          ISegmentationDistributivesRepository
+    {
+        public SegmentationDistributivesRepository(SegmentationContext context)
+            : base(context)
+        {
+        }
+    }
+}
