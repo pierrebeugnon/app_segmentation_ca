@@ -1,30 +1,66 @@
-namespace Segmentation.Core.Entities
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Segmentation.Core.Entities;
+using System.Reflection;
+
+namespace Segmentation.Infrastructure.Data
 {
     /// <summary>
-    /// Classe de base des entités
+    /// DbContext
     /// </summary>
-    public abstract class EntityBase
+    public partial class SegmentationContext : DbContext
     {
-        #region properties
-        /// <summary>
-        /// Date de création
-        /// </summary>
-        public DateTime CreatedDate { get; set; }
+        #region DbSet
+        public DbSet<Regions> Regions { get; set; }
+		#endregion
+		public DbSet<SegmentationDistributives> SegmentationDistributives { get; set; }
 
-        /// <summary>a
-        /// Date de mise à jour
-        /// </summary>
-        public DateTime? UpdatedDate { get; set; }
+		#region constructors
+		/// <summary>
+		/// Constructeur paramétré
+		/// </summary>
+		/// <param name="options">Options du DbContext</param>
+		public SegmentationContext(DbContextOptions<SegmentationContext> options) : base(options)
+        {
 
-        /// <summary>
-        /// Date de suppression
-        /// </summary>
-        public DateTime? DeletedDate { get; set; }
+        }
+        #endregion
 
+        #region publics methods
         /// <summary>
-        /// Supprimé ou non
+        /// Sauvegarde des données de manière asynchrone
         /// </summary>
-        public bool IsDeleted { get; set; }
+        /// <param name="cancellationToken">Token d'annulation</param>
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            foreach (var entry in ChangeTracker.Entries<EntityBase>())
+            {
+                switch (entry.State)
+                {
+                    case EntityState.Added:
+                        entry.Entity.CreatedDate = DateTime.Now;
+                        break;
+                    case EntityState.Modified:
+                        entry.Entity.UpdatedDate = DateTime.Now;
+                        break;
+                    case EntityState.Deleted:
+                        entry.Entity.DeletedDate = DateTime.Now;
+                        entry.Entity.IsDeleted = true;
+                        break;
+                }
+            }
+            return base.SaveChangesAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.HasDefaultSchema("dbo");
+            OnModelCreatingPartial(modelBuilder);
+            modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+        }
+
+        partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
         #endregion
     }
 }
