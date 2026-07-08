@@ -1,30 +1,27 @@
 using MapsterMapper;
-using MediatR;
-using Microsoft.AspNetCore.Mvc;
+using Segmentation.Application.Contracts;
 using Segmentation.Application.Queries.Region;
-using Segmentation.Shared.Models;
-namespace Segmentation.Server.Controllers
-{
-	public class RegionController : SegmentationBaseController
-	{
-		public RegionController(IMediator mediator, IMapper mapper) : base(mediator, mapper)
-		{
-		}
+using Segmentation.Application.Responses;
+using Segmentation.Core.Entities;
+using Segmentation.Core.Repositories;
+using System;
+using System.Collections.Generic;
+using System.Text;
 
-		[HttpGet(template : "id/{regionId}", Name = "GetRegionById")]
-		public async Task<RegionData> GetRegionById(int regionId)
+namespace Segmentation.Application.Handlers.Region
+{
+	internal class GetRegionByIdQueryHandler : IQueryHandler<GetRegionByIdQuery, RegionResponse>
+	{
+		private readonly IMapper _mapper;
+		private readonly IRegionsRepository _repository;
+		public GetRegionByIdQueryHandler(IMapper mapper, IRegionsRepository repository) {
+			_mapper = mapper;
+			_repository = repository;
+		}
+		public async Task<RegionResponse> Handle(GetRegionByIdQuery request, CancellationToken cancellationToken)
 		{
-			GetRegionByIdQuery query = new GetRegionByIdQuery()
-			{
-				RegionId = regionId
-			};
-			RegionData region = _mapper.Map<RegionData>(await _mediator.Send(query));
-			return region;
+			Regions ? regions = await _repository.GetByIdAsync(request.RegionId);
+			return _mapper.Map<RegionResponse>(regions!);
 		}
 	}
 }
-
-
-
-
-
