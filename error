@@ -3,12 +3,10 @@ using MediatR;
 namespace Segmentation.Application.Contracts
 {
     /// <summary>
-    /// Interface du gestionnaire d'une requête MediatR
+    /// Interface d'une requête MediatR
     /// </summary>
-    /// <typeparam name="TQuery">Type de la requête</typeparam>
     /// <typeparam name="TResponse">Type de la réponse</typeparam>
-    public interface IQueryHandler<in TQuery, TResponse> : IRequestHandler<TQuery, TResponse>
-        where TQuery : IQuery<TResponse>
+    public interface IQuery<out TResponse> : IRequest<TResponse>
     {
     }
 }
