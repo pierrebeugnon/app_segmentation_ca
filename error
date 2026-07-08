@@ -1,5 +1,1 @@
-[HttpGet("test")]
-public IActionResult Test()
-{
-    return Ok("Controller trouvé");
-}
+/api/SegmentationDistributive/test
