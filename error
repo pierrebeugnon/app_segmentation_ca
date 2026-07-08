@@ -1,3 +1,30 @@
-services.AddScoped<
-    ISegmentationDistributivesRepository,
-    SegmentationDistributivesRepository>();
+using MapsterMapper;
+using MediatR;
+using Microsoft.AspNetCore.Mvc;
+using Segmentation.Application.Queries.Region;
+using Segmentation.Shared.Models;
+namespace Segmentation.Server.Controllers
+{
+	public class RegionController : SegmentationBaseController
+	{
+		public RegionController(IMediator mediator, IMapper mapper) : base(mediator, mapper)
+		{
+		}
+
+		[HttpGet(template : "id/{regionId}", Name = "GetRegionById")]
+		public async Task<RegionData> GetRegionById(int regionId)
+		{
+			GetRegionByIdQuery query = new GetRegionByIdQuery()
+			{
+				RegionId = regionId
+			};
+			RegionData region = _mapper.Map<RegionData>(await _mediator.Send(query));
+			return region;
+		}
+	}
+}
+
+
+
+
+
