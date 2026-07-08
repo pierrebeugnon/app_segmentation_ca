@@ -1,26 +1,59 @@
-using CANDF.Kosmos.Dependencies.Services;
-using MapsterMapper;
-using MediatR;
-using Microsoft.AspNetCore.Mvc;
+<!DOCTYPE html>
+<html lang="fr">
 
-namespace Segmentation.Server.Controllers
-{
-    [ApiController]
-    [Route("api/[controller]")]
-    public class SegmentationBaseController : ControllerBase
-    {
-        protected IMediator? _mediator;
-        protected IMapper? _mapper;
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+	<title>Segmentation et Dimensionnement</title>
+	<base href="/" />
+	<link rel="icon" type="image/x-icon" href="favicon.ico" />
+	<link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
 
-        public SegmentationBaseController()
-        {
-        
-        }
+	<script src="_content/Telerik.UI.for.Blazor/js/telerik-blazor.js" defer></script>
 
-        public SegmentationBaseController(IMediator mediator, IMapper mapper)
-        {
-            _mediator = mediator;
-            _mapper = mapper;
-        }
-    }
-}
+	<link href="css/bootstrap/bootstrap.min.css" rel="stylesheet" />
+	<link href="css/fontawesome/all.min.css" rel="stylesheet" />
+	<link href="css/peri/ca-theme-2023-3.css" rel="stylesheet" />
+	<link href="css/peri/colors.css" rel="stylesheet" />
+	<link href="css/peri/kendo.css" rel="stylesheet" />
+	<link href="css/peri/notification.css" rel="stylesheet" />
+	<link href="css/peri/opensans.css" rel="stylesheet" />
+	<link href="css/peri/progressbar.css" rel="stylesheet" />
+
+	<link href="Segmentation.Client.styles.css" rel="stylesheet" />
+	<link href="css/material-io-colors.css" rel="stylesheet" />
+	<link href="css/notifications.css" rel="stylesheet" />
+	<link href="css/app.css" rel="stylesheet" />
+	<link href="css/MudBlazor.min.css" rel="stylesheet" />
+	<script src="js/app.js"></script>
+</head>
+
+<body>
+	<div id="app"></div>
+	<script>
+		window.blazorCulture = {
+            get: () => window.localStorage['BlazorCulture'],
+            set: (value) => window.localStorage['BlazorCulture'] = value
+        };
+	</script>
+	<script src="_framework/blazor.webassembly.js" autostart="false"></script>
+	<script>
+		document.addEventListener("DOMContentLoaded", function () {
+            Blazor.start();
+        });
+	</script>
+	<script src="js/MudBlazor.min.js"></script>
+	<script>
+		window.downloadCsvFile = function (fileName, content) {
+            const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+	</script>
+</body>
+
+</html>
