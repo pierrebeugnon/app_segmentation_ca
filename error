@@ -1,28 +1,38 @@
 using MapsterMapper;
-using Segmentation.Application.Contracts;
-using Segmentation.Application.Queries.Region;
-using Segmentation.Application.Responses;
-using Segmentation.Core.Entities;
-using Segmentation.Core.Repositories;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using MediatR;
+using Microsoft.AspNetCore.Mvc;
+using Segmentation.Application.Commands.SegmentationDistributive;
 
-namespace Segmentation.Application.Handlers.Region
+namespace Segmentation.Server.Controllers
 {
-	internal class GetRegionByIdQueryHandler : IQueryHandler<GetRegionByIdQuery, RegionResponse>
-	{
-		private readonly IMapper _mapper;
-		private readonly IRegionsRepository _repository;
-		public GetRegionByIdQueryHandler(IMapper mapper, IRegionsRepository repository)
-		{
-			_mapper = mapper;
-			_repository = repository;
-		}
-		public async Task<RegionResponse> Handle(GetRegionByIdQuery request, CancellationToken cancellationToken)
-		{
-			Regions? regions = await _repository.GetByIdAsync(request.RegionId);
-			return _mapper.Map<RegionResponse>(regions!);
-		}
-	}
+    public class SegmentationDistributiveController : SegmentationBaseController
+    {
+        public SegmentationDistributiveController(
+            IMediator mediator,
+            IMapper mapper)
+            : base(mediator, mapper)
+        {
+        }
+
+        [HttpPost(template: "import", Name = "ImportSegmentationDistributive")]
+        [RequestSizeLimit(50_000_000)]
+        public async Task<IActionResult> Import(
+            IFormFile file,
+            [FromQuery] bool replaceExisting = false)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("Fichier vide.");
+
+            using Stream stream = file.OpenReadStream();
+
+            int count = await _mediator.Send(
+                new ImportSegmentationDistributiveCommand
+                {
+                    CsvStream = stream,
+                    ReplaceExisting = replaceExisting
+                });
+
+            return Ok(new { imported = count });
+        }
+    }
 }
