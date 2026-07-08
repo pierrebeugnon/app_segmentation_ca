@@ -1,1 +1,29 @@
-https://localhost:xxxx/api/SegmentationDistributive/import?replaceExisting=true
+POST https://localhost:xxxx/api/SegmentationDistributive/import?replaceExisting=true
+Error: tunneling socket could not be established, cause=connect ECONNREFUSED 10.154.180.112:8080
+Proxy
+id: "476979d7-0097-4fbe-ac70-7424cb48f6e9"
+host: "mup10-lb-pwebproxy01.zres.ztech"
+match: {…}
+port: 8080
+tunnel: false
+authenticate: false
+Request Headers
+User-Agent: PostmanRuntime/7.29.0
+Accept: */*
+Postman-Token: 71218fec-8ec8-4dad-a2cd-2992f3f7dfd8
+Host: localhost:xxxx
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+Request Body
+POST https://localhost:xxxx/api/SegmentationDistributive/import?replaceExisting=true
+Error: tunneling socket could not be established, cause=connect ECONNREFUSED 10.154.180.112:8080
+Proxy
+id: "0dc81eb1-643a-4b97-afe0-54464fdd9b5d"
+host: "mup10-lb-pwebproxy01.zres.ztech"
+match: {…}
+port: 8080
+tunnel: false
+authenticate: false
+Request Headers
+User-Agent: PostmanRuntime/7.29.0
+Accept: */*
