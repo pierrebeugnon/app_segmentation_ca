@@ -1,1 +1,5 @@
-GET /api/Region/id/1
+[HttpGet("test")]
+public IActionResult Test()
+{
+    return Ok("Controller trouvé");
+}
