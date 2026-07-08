@@ -1,6 +1,1 @@
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'ISegmentationDistributivesRepository' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Application	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Handlers\SegmentationDistributive\ImportSegmentationDistributiveCommandHandler.cs	14	
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'ISegmentationDistributivesRepository' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Application	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Handlers\SegmentationDistributive\ImportSegmentationDistributiveCommandHandler.cs	17	
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'SegmentationDistributives' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Application	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Handlers\SegmentationDistributive\ImportSegmentationDistributiveCommandHandler.cs	46	
+public DbSet<SegmentationDistributives> SegmentationDistributives { get; set; }
