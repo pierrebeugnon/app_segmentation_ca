@@ -1,1 +1,3 @@
-public DbSet<SegmentationDistributives> SegmentationDistributives { get; set; }
+services.AddScoped<
+    ISegmentationDistributivesRepository,
+    SegmentationDistributivesRepository>();
