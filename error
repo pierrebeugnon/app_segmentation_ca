@@ -1,30 +1,201 @@
-Update-Database -Project Segmentation.Infrastructure -StartupProject Segmentation.Server
-PM> Add-Migration AddTableSegmentationDistributives -Project Segmentation.Infrastructure -StartupProject Segmentation.Server
-Build started...
-Build succeeded.
-To undo this action, use Remove-Migration.
-PM> Update-Database -Project Segmentation.Infrastructure -StartupProject Segmentation.Server
-Build started...
-Build succeeded.
-System.InvalidOperationException: La propriété ConnectionString n'a pas été initialisée.
-   at Microsoft.Data.SqlClient.SqlConnection.PermissionDemand()
-   at Microsoft.Data.SqlClient.SqlConnectionFactory.PermissionDemand(DbConnection outerConnection)
-   at Microsoft.Data.ProviderBase.DbConnectionInternal.TryOpenConnectionInternal(DbConnection outerConnection, DbConnectionFactory connectionFactory, TaskCompletionSource`1 retry, DbConnectionOptions userOptions)
-   at Microsoft.Data.ProviderBase.DbConnectionClosed.TryOpenConnection(DbConnection outerConnection, DbConnectionFactory connectionFactory, TaskCompletionSource`1 retry, DbConnectionOptions userOptions)
-   at Microsoft.Data.SqlClient.SqlConnection.TryOpen(TaskCompletionSource`1 retry, SqlConnectionOverrides overrides)
-   at Microsoft.Data.SqlClient.SqlConnection.Open(SqlConnectionOverrides overrides)
-   at Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal.SqlServerConnection.OpenDbConnection(Boolean errorsExpected)
-   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
-   at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
-   at Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal.SqlServerDatabaseCreator.<>c__DisplayClass18_0.<Exists>b__0(DateTime giveUp)
-   at Microsoft.EntityFrameworkCore.ExecutionStrategyExtensions.<>c__DisplayClass12_0`2.<Execute>b__0(DbContext _, TState s)
-   at Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal.SqlServerExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
-   at Microsoft.EntityFrameworkCore.ExecutionStrategyExtensions.Execute[TState,TResult](IExecutionStrategy strategy, TState state, Func`2 operation, Func`2 verifySucceeded)
-   at Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal.SqlServerDatabaseCreator.Exists(Boolean retryOnNotExists)
-   at Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal.SqlServerDatabaseCreator.Exists()
-   at Microsoft.EntityFrameworkCore.Migrations.Internal.Migrator.Migrate(String targetMigration)
-   at Microsoft.EntityFrameworkCore.Design.Internal.MigrationsOperations.UpdateDatabase(String targetMigration, String connectionString, String contextType)
-   at Microsoft.EntityFrameworkCore.Design.OperationExecutor.UpdateDatabaseImpl(String targetMigration, String connectionString, String contextType)
-   at Microsoft.EntityFrameworkCore.Design.OperationExecutor.UpdateDatabase.<>c__DisplayClass0_0.<.ctor>b__0()
-   at Microsoft.EntityFrameworkCore.Design.OperationExecutor.OperationBase.Execute(Action action)
-La propriété ConnectionString n'a pas été initialisée.
+Appsettings.json
+{
+  "Application": {
+    "DisplayName": "Segmentation et Dimensionnement",
+    "Code": "segmentation",
+    "Icon": "fas fa-sigma",
+    "Version": "1.0.0"
+  },
+  "AvatarBaseUrl": "https://crse-wfe.collab.ca-technologies.credit-agricole.fr/User%20Photos",
+  "AvatarPicUrl": "https://crse-wfe.collab.ca-technologies.credit-agricole.fr/User%20Photos/Images%20du%20profil/ZCAM_",
+  "AvatarPicUrlAlt": "https://crse-wfe.collab.ca-technologies.credit-agricole.fr/User%20Photos/Images%20du%20profil/",
+  "ServiceName": "Développement et innovation informatique"
+}
+
+Appsettings.Dev
+{
+    "Logging": {
+        "LogLevel": {
+            "Default": "Information",
+            "Microsoft.AspNetCore": "Warning"
+        }
+    },
+    "Serilog": {
+        "MinimumLevel": {
+            "Default": "Debug",
+            "Override": {
+                "Microsoft": "Information",
+                "Microsoft.AspNetCore": "Information",
+                "Microsoft.EntityFrameworkCore": "Information",
+                "Microsoft.EntityFrameworkCore.Database.Command": "Information"
+            }
+        },
+        "Enrich": [
+            "FromLogContext",
+            "WithMachineName",
+            "WithEnvironmentUserName",
+            "WithEnvironmentName",
+            "WithThreadId",
+            "WithClientIp",
+            {
+                "Name": "WithCorrelationId",
+                "Args": {
+                    "headerName": "correlation-id",
+                    "addValueIfHeaderAbsence": true
+                }
+            },
+            {
+                "Name": "WithRequestHeader",
+                "Args": { "headerName": "User-Agent" }
+            }
+        ],
+        "Filter": [
+            {
+                "Name": "ByExcluding",
+                "Args": {
+                    "expression": "@mt = 'An unhandled exception has occurred while executing the request.'"
+                }
+            }
+        ],
+        "WriteTo": [
+            {
+                "Name": "Console"
+            }
+        ]
+    },
+
+    "DB_DEFAULT_CONNECTION_STRINGS": "",
+    "REDIS_PASSWORD": "",
+    "REDIS_USER": ""
+}
+
+Program.cs
+using CANDF.Kosmos.Dependencies.Extensions;
+using CANDF.Kosmos.Dependencies.Filters;
+using CANDF.Kosmos.Dependencies.Services;
+using CANDF.Kosmos.Dependencies.Validators;
+using CANDF.Kosmos.Foundations.Extensions;
+using CANDF.Kosmos.Tools.Services;
+using CatsLogger.Configuration;
+using HealthChecks.UI.Client;
+using Mapster;
+using MapsterMapper;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using System.Reflection;
+using System.Text.Json.Serialization;
+using Segmentation.Application.Extensions;
+using Segmentation.Infrastructure.Extensions;
+using Segmentation.Server.Extensions;
+using Segmentation.Server.Middleware;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add configuration
+builder.Configuration.
+    SetBasePath(builder.Environment.ContentRootPath).
+    AddJsonFile("appsettings.json").
+#if DEBUG
+	AddJsonFile($"appsettings.{Environments.Development}.json", optional: true, reloadOnChange: true).
+#endif
+    AddEnvironmentVariables();
+
+//Ajout du service d'authentification X-Connect
+builder.Services.AddAuthentificationService(builder.Configuration);
+
+//Ajout du service Redis
+builder.Services.AddRedisService(builder.Configuration);
+
+//Ajout du service S3
+builder.Services.AddBucketS3Service(builder.Configuration);
+
+//Ajout des logs
+builder.Services.AddLogService();
+
+//Ajout FileServer
+builder.Services.AddFileServer(builder.Configuration);
+
+//Ajout de HealthCheck
+builder.Services.AddHealthCheckService();
+
+builder.Services.AddApplicationServices();
+builder.Services.AddInfraServices(builder.Configuration);
+builder.Services.AddTransient<ExceptionHandlingMiddleware>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IS3Service, S3Service>();
+builder.Services.AddScoped<IRedisService, RedisService>();
+builder.Services.AddScoped<IUsurpationService, UsurpationService>();
+
+builder.Services.AddSingleton<ApiKeyAuthorizationFilter>();
+builder.Services.AddSingleton<IApiKeyValidator, ApiKeyValidator>();
+builder.Services.AddSingleton<IEmailService, EmailService>();
+
+builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+
+var typeAdapterConfig = TypeAdapterConfig.GlobalSettings;
+typeAdapterConfig.Scan(Assembly.GetExecutingAssembly());
+var mapperConfig = new Mapper(typeAdapterConfig);
+builder.Services.AddSingleton<IMapper>(mapperConfig);
+
+// Add services to the container.
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.SuppressConsumesConstraintForFormFileParameters = true;
+        options.SuppressInferBindingSourcesForParameters = true;
+        options.SuppressModelStateInvalidFilter = true;
+        options.SuppressMapClientErrors = true;
+    })
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.MaxDepth = 10;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+        options.JsonSerializerOptions.PropertyNamingPolicy = null;
+    });
+
+builder.Host.SetCatsLoggerHost();
+
+builder.Services.AddAuthorizationService();
+builder.Services.AddKosmosFoundationService();
+
+var app = builder.Build();
+
+// à décommenter pour activer la migration automatique EF core
+app.MigrateDatabase();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseWebAssemblyDebugging();
+}
+else
+{
+    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    app.UseHsts();
+}
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseHttpsRedirection();
+
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+app.MapFallbackToFile("index.html");
+
+app.MapHealthChecks("/health/liveness", new HealthCheckOptions
+{
+    Predicate = reg => reg.Tags.Contains("liveness"),
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+app.MapHealthChecks("/health/readiness", new HealthCheckOptions
+{
+    Predicate = reg => reg.Tags.Contains("readiness"),
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+
+app.Run();
