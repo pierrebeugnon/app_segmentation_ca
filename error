@@ -1,14 +1,30 @@
-using System;
-using System.Collections.Generic;
-using System.Text;
-
 namespace Segmentation.Core.Entities
 {
-	public class Regions : EntityBase
-	{
-		public int RegionID { get; set; }
-		public required string Code	{ get; set; }
-		public required string Libelle { get; set; }
-	}
-}
+    /// <summary>
+    /// Classe de base des entités
+    /// </summary>
+    public abstract class EntityBase
+    {
+        #region properties
+        /// <summary>
+        /// Date de création
+        /// </summary>
+        public DateTime CreatedDate { get; set; }
 
+        /// <summary>a
+        /// Date de mise à jour
+        /// </summary>
+        public DateTime? UpdatedDate { get; set; }
+
+        /// <summary>
+        /// Date de suppression
+        /// </summary>
+        public DateTime? DeletedDate { get; set; }
+
+        /// <summary>
+        /// Supprimé ou non
+        /// </summary>
+        public bool IsDeleted { get; set; }
+        #endregion
+    }
+}
