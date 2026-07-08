@@ -1,15 +1,42 @@
-PM> dotnet add package CsvHelper
-dotnet : Projet introuvable dans 'C:\Users\J097179\source\repos\a02t7-segmentation\'.
-Au caractère Ligne:1 : 1
-+ dotnet add package CsvHelper
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (Projet introuva...segmentation\'.:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
-PM> dotnet add package CsvHelper
-dotnet : Projet introuvable dans 'C:\Users\J097179\source\repos\a02t7-segmentation\'.
-Au caractère Ligne:1 : 1
-+ dotnet add package CsvHelper
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (Projet introuva...segmentation\'.:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
+PM> Install-Package CsvHelper -ProjectName Segmentation.Application
+Restauration des packages pour C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Segmentation.Application.csproj...
+  GET https://scm.saas.cagip.group.gca/api/v4/groups/145040/-/packages/nuget/metadata/csvhelper/index.json
+  GET https://scm.saas.cagip.group.gca/api/v4/groups/190721/-/packages/nuget/metadata/csvhelper/index.json
+  GET https://scm.saas.cagip.group.gca/api/v4/groups/193670/-/packages/nuget/metadata/csvhelper/index.json
+  GET https://api.nuget.org/v3-flatcontainer/csvhelper/index.json
+  OK https://api.nuget.org/v3-flatcontainer/csvhelper/index.json 11 ms
+  GET https://api.nuget.org/v3-flatcontainer/csvhelper/33.1.0/csvhelper.33.1.0.nupkg
+  OK https://api.nuget.org/v3-flatcontainer/csvhelper/33.1.0/csvhelper.33.1.0.nupkg 20 ms
+  NotFound https://scm.saas.cagip.group.gca/api/v4/groups/193670/-/packages/nuget/metadata/csvhelper/index.json 247 ms
+  NotFound https://scm.saas.cagip.group.gca/api/v4/groups/190721/-/packages/nuget/metadata/csvhelper/index.json 263 ms
+  NotFound https://scm.saas.cagip.group.gca/api/v4/groups/145040/-/packages/nuget/metadata/csvhelper/index.json 458 ms
+CsvHelper 33.1.0 installés à partir de https://api.nuget.org/v3/index.json vers C:\Users\J097179\.nuget\packages\csvhelper\33.1.0 avec le code de hachage de contenu kqfTOZGrn7NarNeXgjh86JcpTHUoeQDMB8t9NVa/ZtlSYiV1rxfRnQ49WaJsob4AiGrbK0XDzpyKkBwai4F8eg==.
+  GET https://api.nuget.org/v3/vulnerabilities/index.json
+  OK https://api.nuget.org/v3/vulnerabilities/index.json 10 ms
+  GET https://api.nuget.org/v3-vulnerabilities/2026.07.08.00.14.58/vulnerability.base.json
+  GET https://api.nuget.org/v3-vulnerabilities/2026.07.08.00.14.58/2026.07.08.00.14.58/vulnerability.update.json
+  OK https://api.nuget.org/v3-vulnerabilities/2026.07.08.00.14.58/vulnerability.base.json 62 ms
+  OK https://api.nuget.org/v3-vulnerabilities/2026.07.08.00.14.58/2026.07.08.00.14.58/vulnerability.update.json 109 ms
+Installation du package NuGet CsvHelper 33.1.0.
+Écriture du fichier des composants sur le disque. Chemin : C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\obj\project.assets.json
+Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Segmentation.Application.csproj (en 746 ms).
+Installation réussie de « CsvHelper 33.1.0 » sur Segmentation.Application
+Le fichier d'actifs n'a pas changé. Écriture du fichier d'actifs ignorée. Chemin : C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\obj\project.assets.json
+Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\Segmentation.Server.csproj (en 11 ms).
+Le fichier d'actifs n'a pas changé. Écriture du fichier d'actifs ignorée. Chemin : C:\Users\J097179\source\repos\a02t7-segmentation\tests\obj\project.assets.json
+Restauration effectuée de C:\Users\J097179\source\repos\a02t7-segmentation\tests\SegmentationTests.csproj (en 12 ms).
+
+Fichiers de configuration NuGet utilisés :
+    C:\Users\J097179\AppData\Roaming\NuGet\NuGet.Config
+    C:\Program Files (x86)\NuGet\Config\Microsoft.VisualStudio.FallbackLocation.config
+    C:\Program Files (x86)\NuGet\Config\Microsoft.VisualStudio.Offline.config
+
+Flux utilisés :
+    https://api.nuget.org/v3/index.json
+    https://scm.saas.cagip.group.gca/api/v4/groups/145040/-/packages/nuget/index.json
+    https://scm.saas.cagip.group.gca/api/v4/groups/190721/-/packages/nuget/index.json
+    https://scm.saas.cagip.group.gca/api/v4/groups/193670/-/packages/nuget/index.json
+    C:\Program Files (x86)\Microsoft SDKs\NuGetPackages\
+    C:\Program Files\dotnet\library-packs
+L'exécution des actions de nuget a pris 215 ms
+Temps écoulé : 00:00:02.0238661
