@@ -1,1 +1,15 @@
-Impossible de convertir expression lambda en type 'bool', car il ne s'agit pas d'un type délégué
+PM> dotnet add package CsvHelper
+dotnet : Projet introuvable dans 'C:\Users\J097179\source\repos\a02t7-segmentation\'.
+Au caractère Ligne:1 : 1
++ dotnet add package CsvHelper
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Projet introuva...segmentation\'.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+PM> dotnet add package CsvHelper
+dotnet : Projet introuvable dans 'C:\Users\J097179\source\repos\a02t7-segmentation\'.
+Au caractère Ligne:1 : 1
++ dotnet add package CsvHelper
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Projet introuva...segmentation\'.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
