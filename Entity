@@ -1,0 +1,30 @@
+namespace Segmentation.Core.Entities
+{
+    public class SegmentationDistributives : EntityBase
+    {
+        public int SegmentationDistributiveID { get; set; }
+
+        public required string LibRegion { get; set; }
+        public required string CodeRegion { get; set; }
+        public required string LibSecteur { get; set; }
+        public required string LibAgence { get; set; }
+        public required string CodeAgence { get; set; }
+        public required string MatriculeConseiller { get; set; }
+        public required string TypeConseiller { get; set; }
+
+        public int HDGPremiumPotentiel { get; set; }
+        public int HDGPremiumStandard { get; set; }
+        public int HDGPotentiel { get; set; }
+        public int HDGSeniorEpargnant { get; set; }
+        public int HDGStandard { get; set; }
+
+        public int CIPotentiel { get; set; }
+        public int CIStandard { get; set; }
+
+        public int GPPotentiel { get; set; }
+        public int GPStandard { get; set; }
+
+        public int NonSegmente { get; set; }
+        public int NonClasse { get; set; }
+    }
+}
