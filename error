@@ -1,10 +1,35 @@
-using Segmentation.Application.Contracts;
-using Segmentation.Application.Responses;
+using MapsterMapper;
+using MediatR;
+using Microsoft.AspNetCore.Mvc;
+using Segmentation.Application.Commands.SegmentationDistributive;
 
-namespace Segmentation.Application.Queries.SegmentationDistributive
+namespace Segmentation.Server.Controllers
 {
-    public class GetSegmentationDistributiveByIdQuery : IQuery<SegmentationDistributiveResponse>
+    public class SegmentationDistributiveController : SegmentationBaseController
     {
-        public int Id { get; set; }
+        public SegmentationDistributiveController(IMediator mediator, IMapper mapper)
+            : base(mediator, mapper)
+        {
+        }
+
+        [HttpPost(template: "import", Name = "ImportSegmentationDistributive")]
+        [RequestSizeLimit(50_000_000)] // 50 Mo
+        public async Task<IActionResult> Import(
+            IFormFile file,
+            [FromQuery] bool replaceExisting = false)
+        {
+            if (file is null || file.Length == 0)
+                return BadRequest("Fichier vide.");
+
+            using Stream stream = file.OpenReadStream();
+
+            int count = await _mediator.Send(new ImportSegmentationDistributiveCommand
+            {
+                CsvStream = stream,
+                ReplaceExisting = replaceExisting
+            });
+
+            return Ok(new { imported = count });
+        }
     }
 }
