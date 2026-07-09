@@ -1,2 +1,3 @@
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'SegmentationDistributiveData' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)		C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\PortefeuilleDimensionnement.razor	9	
+@using Segmentation.Shared.Models
+@using System.Net.Http.Json
+@inject HttpClient Http
