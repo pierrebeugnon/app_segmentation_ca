@@ -1,13 +1,14 @@
-// ── ETP réel calculé à partir de la table SegmentationDistributives ─────
+// ── ETP réel par slot, alimenté par la table SegmentationDistributives ──
 private double? GetRealEtpForSlot(string segment, ConseillerSlot slot)
 {
-    if (_segmentationDistributiveFiltree == null || !_segmentationDistributiveFiltree.Any())
+    if (_segmentationDistributiveFiltree is null || _segmentationDistributiveFiltree.Count == 0)
         return null;
 
     var matricule = ExtractMatriculeFromSlotLabel(slot.Label);
 
     var lignes = _segmentationDistributiveFiltree
-        .Where(x => x.TypeConseiller.Equals(slot.Profil, StringComparison.OrdinalIgnoreCase))
+        .Where(x => x.TypeConseiller
+            .Equals(slot.Profil, StringComparison.OrdinalIgnoreCase))
         .Where(x => x.MatriculeConseiller == matricule)
         .ToList();
 
@@ -22,7 +23,16 @@ private double? GetRealEtpForSlot(string segment, ConseillerSlot slot)
     return ConvertClientsToEtp(segment, slot.Profil, nbClients);
 }
 
-// ── Récupération du nombre de clients par segment ──────────────────────
+// ── Extrait le matricule depuis un label du type "CGP-12345" ──────────
+private static string ExtractMatriculeFromSlotLabel(string label)
+{
+    var idx = label.LastIndexOf('-');
+    return idx >= 0 && idx < label.Length - 1
+        ? label[(idx + 1)..]
+        : label;
+}
+
+// ── Récupère le nombre de clients d'une ligne pour un segment donné ───
 private static int GetClientCountForSegment(
     SegmentationDistributiveData row,
     string segment)
@@ -30,38 +40,53 @@ private static int GetClientCountForSegment(
     return segment switch
     {
         "HDG Premium Potentiel" => row.HDGPremiumPotentiel,
-        "HDG Premium Standard" => row.HDGPremiumStandard,
-        "HDG Potentiel"        => row.HDGPotentiel,
-        "HDG Senior Epargnant" => row.HDGSeniorEpargnant,
-        "HDG Standard"         => row.HDGStandard,
+        "HDG Premium Standard"  => row.HDGPremiumStandard,
+        "HDG Potentiel"         => row.HDGPotentiel,
+        "HDG Senior Epargnant"  => row.HDGSeniorEpargnant,
+        "HDG Standard"          => row.HDGStandard,
 
-        "CI Potentiel"         => row.CIPotentiel,
-        "CI Standard"          => row.CIStandard,
+        "CI Potentiel"          => row.CIPotentiel,
+        "CI Standard"           => row.CIStandard,
 
-        "GP Potentiel"         => row.GPPotentiel,
-        "GP Standard"          => row.GPStandard,
+        "GP Potentiel"          => row.GPPotentiel,
+        "GP Standard"           => row.GPStandard,
 
-        "Non segmenté"         => row.NonSegmente,
-        "Non classé"           => row.NonClasse,
+        "Non segmenté"          => row.NonSegmente,
+        "Non classé"            => row.NonClasse,
 
         _ => 0
     };
 }
 
-// ── Conversion nombre de clients → ETP via les Règles & Hypothèses ─────
+// ── Conversion nombre de clients → ETP via les Règles & Hypothèses ────
 private double? ConvertClientsToEtp(string segment, string profil, int nbClients)
 {
     var si = StateService.Regles.SegmentsIntensite
-        .FirstOrDefault(s =>
-            s.Segment?.Trim().Equals(segment.Oui, tout à fait — c'est la bonne approche. Voici les **deux morceaux mis à jour**, à copier-coller **tels quels** en remplacement des blocs existants dans ton `Portefeuille.razor`.
+        .FirstOrDefault(s => s.Segment?
+            .Trim()
+            .Equals(segment.Trim(), StringComparison.OrdinalIgnoreCase) == true);
 
-Rien d'autre ne change dans le fichier à ce stade.
+    if (si == null || si.IntensiteRelationnelle <= 0)
+        return null;
 
----
+    var cp = StateService.Regles.ConseillersProfils
+        .FirstOrDefault(p => p.Profil?
+            .Trim()
+            .Equals(profil.Trim(), StringComparison.OrdinalIgnoreCase) == true);
 
-# 1. Remplace `BuildRows()`
+    if (cp == null)
+        return null;
 
-Cherche dans ton code :
+    var heuresAn = StateService.Regles.HeuresTravailParAn;
+    var volumeHoraire = heuresAn * cp.PartTempsCommercialPct / 100.0;
 
-```csharp
-private List<DimMatrixRow> BuildRows()
+    if (volumeHoraire <= 0)
+        return null;
+
+    var tailleTheorique = volumeHoraire / si.IntensiteRelationnelle;
+
+    if (tailleTheorique <= 0)
+        return null;
+
+    return Math.Round(nbClients / tailleTheorique, 2);
+}
