@@ -1,33 +1,17 @@
-private List<ConseillerSlot> BuildSlots()
+private List<string> GetProfils()
 {
-    if (_segmentationDistributiveFiltree == null || !_segmentationDistributiveFiltree.Any())
-        return new List<ConseillerSlot>();
+    if (_segmentationDistributiveFiltree != null && _segmentationDistributiveFiltree.Any())
+    {
+        return _segmentationDistributiveFiltree
+            .Select(x => x.TypeConseiller)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct()
+            .OrderBy(x => x)
+            .ToList();
+    }
 
-    return _segmentationDistributiveFiltree
-        .Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
-        .Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
-        .GroupBy(x => new
-        {
-            x.MatriculeConseiller,
-            x.TypeConseiller
-        })
-        .Select(g =>
-        {
-            var profil = g.Key.TypeConseiller;
-            var prefix = _profilShort.GetValueOrDefault(
-                profil,
-                profil[..Math.Min(3, profil.Length)].ToUpper()
-            );
-
-            return new ConseillerSlot
-            {
-                Profil = profil,
-                Label = $"{prefix}-{g.Key.MatriculeConseiller}",
-                IsActuel = true,
-                IsCible = true
-            };
-        })
-        .OrderBy(x => x.Profil)
-        .ThenBy(x => x.Label)
-        .ToList();
+    return StateService.Regles.ConseillersProfils
+        .Select(p => p.Profil)
+        .Where(p => !string.IsNullOrWhiteSpace(p))
+        .Distinct().Reverse().ToList();
 }
