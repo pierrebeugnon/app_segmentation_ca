@@ -1,18 +1,79 @@
-
-private List<string> GetProfils()
-{
-    if (_segmentationDistributiveFiltree != null && _segmentationDistributiveFiltree.Any())
-    {
-        return _segmentationDistributiveFiltree
-            .Select(x => x.TypeConseiller)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct()
-            .OrderBy(x => x)
-            .ToList();
-    }
-
-    return StateService.Regles.ConseillersProfils
-        .Select(p => p.Profil)
-        .Where(p => !string.IsNullOrWhiteSpace(p))
-        .Distinct().Reverse().ToList();
-}
+Failed to load resource: net::ERR_CONNECTION_REFUSEDUnderstand this error
+blazor.webassembly.js:1 Debugging hotkey: Shift+Alt+D (when application has focus)
+:51921/e3f56f2da3ba4471a90c91dfd4395f7a/browserLinkSignalR/negotiate?clientProtocol=2.1&requestUrl=https%3A%2F%2Flocalhost%3A24462%2F&browserName=&userAgent=Mozilla%2F5.0%20(Windows%20NT%2010.0%3B%20Win64%3B%20x64)%20AppleWebKit%2F537.36%20(KHTML%2C%20like%20Gecko)%20Chrome%2F146.0.0.0%20Safari%2F537.36&browserIdKey=window.browserLink.initializationData.browserId&browserId=bdb4-05ef&_=1783608097893:1  Failed to load resource: net::ERR_CONNECTION_REFUSEDUnderstand this error
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/Auth
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/Auth
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/User/getUser
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/User/getUser
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/Environment/name
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/Environment/name
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/Environment/appversion
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/Environment/appversion
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/Environment/appinformations
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/Environment/appinformations
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 279.3999ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 283.3999ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 496.0999ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 497.2ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 514.9ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 516.1ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/Environment/name
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/Environment/name
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 14.7999ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 15.7ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 1180.8ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 1182.5ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 1470.5999ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 1478.8ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/User/getUnits
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/User/getUnits
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/SegmentationDistributive
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/SegmentationDistributive
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 1039.6ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 1041.3ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 789.7ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 791.2ms - 200
+blazor.webassembly.js:1 Erreur chargement SegmentationDistributive : ExpectedStartOfValueNotFound, < Path: $ | LineNumber: 0 | BytePositionInLine: 0.
+blazor.webassembly.js:1 >>> SegmentationDistributive chargée : 0 lignes
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/User/getHabilitations
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/User/getHabilitations
+s0430-front-p1-c800.ca-ts.gca/User%20Photos/Images%20du%20profil/J097179_LThumb.jpg:1  Failed to load resource: the server responded with a status of 404 (NOT FOUND)Understand this error
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 72.2ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 73.5ms - 200
+s0430-front-p1-c800.ca-ts.gca/User%20Photos/Images%20du%20profil/ZCAM_J097179LThumb.jpeg:1  Failed to load resource: the server responded with a status of 404 (NOT FOUND)
