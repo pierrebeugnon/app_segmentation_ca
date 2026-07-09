@@ -1,24 +1,33 @@
-protected override async Task OnInitializedAsync()
+private List<ConseillerSlot> BuildSlots()
 {
-    StateService.OnChange += OnReglesChanged;
+    if (_segmentationDistributiveFiltree == null || !_segmentationDistributiveFiltree.Any())
+        return new List<ConseillerSlot>();
 
-    try
-    {
-        _segmentationDistributive =
-            await Http.GetFromJsonAsync<List<SegmentationDistributiveData>>
-            (
-                "api/SegmentationDistributive"
-            ) ?? new();
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Erreur chargement SegmentationDistributive : {ex.Message}");
-        _segmentationDistributive = new();
-    }
+    return _segmentationDistributiveFiltree
+        .Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
+        .Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
+        .GroupBy(x => new
+        {
+            x.MatriculeConseiller,
+            x.TypeConseiller
+        })
+        .Select(g =>
+        {
+            var profil = g.Key.TypeConseiller;
+            var prefix = _profilShort.GetValueOrDefault(
+                profil,
+                profil[..Math.Min(3, profil.Length)].ToUpper()
+            );
 
-    Console.WriteLine($">>> SegmentationDistributive chargée : {_segmentationDistributive.Count} lignes");
-
-    _segmentationDistributiveFiltree = _segmentationDistributive.ToList();
-
-    InitData();
+            return new ConseillerSlot
+            {
+                Profil = profil,
+                Label = $"{prefix}-{g.Key.MatriculeConseiller}",
+                IsActuel = true,
+                IsCible = true
+            };
+        })
+        .OrderBy(x => x.Profil)
+        .ThenBy(x => x.Label)
+        .ToList();
 }
