@@ -4,27 +4,58 @@ namespace Segmentation.Application.Commands.SegmentationDistributive
 {
     public class SegmentationDistributiveCsvRow
     {
-        [Name("LibRegion")]              public string LibRegion { get; set; } = "";
-        [Name("CodeRegion")]             public string CodeRegion { get; set; } = "";
-        [Name("LibSecteur")]             public string LibSecteur { get; set; } = "";
-        [Name("LibAgence")]              public string LibAgence { get; set; } = "";
-        [Name("CodeAgence")]             public string CodeAgence { get; set; } = "";
-        [Name("MatriculeConseiller")]    public string MatriculeConseiller { get; set; } = "";
-        [Name("TypeConseiller")]         public string TypeConseiller { get; set; } = "";
+        [Name("code_region")]
+        public string CodeRegion { get; set; } = "";
 
-        [Name("HDGPremiumPotentiel")]    public int HDGPremiumPotentiel { get; set; }
-        [Name("HDGPremiumStandard")]     public int HDGPremiumStandard { get; set; }
-        [Name("HDGPotentiel")]           public int HDGPotentiel { get; set; }
-        [Name("HDGSeniorEpargnant")]     public int HDGSeniorEpargnant { get; set; }
-        [Name("HDGStandard")]            public int HDGStandard { get; set; }
+        [Name("lib_region")]
+        public string LibRegion { get; set; } = "";
 
-        [Name("CIPotentiel")]            public int CIPotentiel { get; set; }
-        [Name("CIStandard")]             public int CIStandard { get; set; }
+        [Name("lib_secteur")]
+        public string LibSecteur { get; set; } = "";
 
-        [Name("GPPotentiel")]            public int GPPotentiel { get; set; }
-        [Name("GPStandard")]             public int GPStandard { get; set; }
+        [Name("code_agence")]
+        public string CodeAgence { get; set; } = "";
 
-        [Name("NonSegmente")]            public int NonSegmente { get; set; }
-        [Name("NonClasse")]              public int NonClasse { get; set; }
+        [Name("lib_agence")]
+        public string LibAgence { get; set; } = "";
+
+        [Name("matricule_conseiller")]
+        public string MatriculeConseiller { get; set; } = "";
+
+        [Name("type_conseiller")]
+        public string TypeConseiller { get; set; } = "";
+
+        [Name("hdg_premium_potentiel")]
+        public int HDGPremiumPotentiel { get; set; }
+
+        [Name("hdg_premium_standard")]
+        public int HDGPremiumStandard { get; set; }
+
+        [Name("hdg_potentiel")]
+        public int HDGPotentiel { get; set; }
+
+        [Name("hdg_senior_epargnant")]
+        public int HDGSeniorEpargnant { get; set; }
+
+        [Name("hdg_standard")]
+        public int HDGStandard { get; set; }
+
+        [Name("ci_potentiel")]
+        public int CIPotentiel { get; set; }
+
+        [Name("ci_standard")]
+        public int CIStandard { get; set; }
+
+        [Name("gp_potentiel")]
+        public int GPPotentiel { get; set; }
+
+        [Name("gp_standard")]
+        public int GPStandard { get; set; }
+
+        [Name("non_segmentes")]
+        public int NonSegmente { get; set; }
+
+        [Name("non_classe_a_investiguer")]
+        public int NonClasse { get; set; }
     }
 }
