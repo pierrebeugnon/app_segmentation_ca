@@ -1,0 +1,11 @@
+
+[HttpGet(Name = "GetAllSegmentationDistributive")]
+public async Task<List<SegmentationDistributiveData>> GetAll()
+{
+    var query = new GetAllSegmentationDistributiveQuery();
+
+    return _mapper.Map<List<SegmentationDistributiveData>>
+    (
+        await _mediator.Send(query)
+    );
+}
