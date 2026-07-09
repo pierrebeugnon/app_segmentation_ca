@@ -1,2 +1,67 @@
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0103	Le nom 'GetRealEtpForSlot' n'existe pas dans le contexte actuel		C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\PortefeuilleDimensionnement.razor	1245	
+// ── ETP réel calculé à partir de la table SegmentationDistributives ─────
+private double? GetRealEtpForSlot(string segment, ConseillerSlot slot)
+{
+    if (_segmentationDistributiveFiltree == null || !_segmentationDistributiveFiltree.Any())
+        return null;
+
+    var matricule = ExtractMatriculeFromSlotLabel(slot.Label);
+
+    var lignes = _segmentationDistributiveFiltree
+        .Where(x => x.TypeConseiller.Equals(slot.Profil, StringComparison.OrdinalIgnoreCase))
+        .Where(x => x.MatriculeConseiller == matricule)
+        .ToList();
+
+    if (!lignes.Any())
+        return null;
+
+    var nbClients = lignes.Sum(x => GetClientCountForSegment(x, segment));
+
+    if (nbClients <= 0)
+        return null;
+
+    return ConvertClientsToEtp(segment, slot.Profil, nbClients);
+}
+
+// ── Récupération du nombre de clients par segment ──────────────────────
+private static int GetClientCountForSegment(
+    SegmentationDistributiveData row,
+    string segment)
+{
+    return segment switch
+    {
+        "HDG Premium Potentiel" => row.HDGPremiumPotentiel,
+        "HDG Premium Standard" => row.HDGPremiumStandard,
+        "HDG Potentiel"        => row.HDGPotentiel,
+        "HDG Senior Epargnant" => row.HDGSeniorEpargnant,
+        "HDG Standard"         => row.HDGStandard,
+
+        "CI Potentiel"         => row.CIPotentiel,
+        "CI Standard"          => row.CIStandard,
+
+        "GP Potentiel"         => row.GPPotentiel,
+        "GP Standard"          => row.GPStandard,
+
+        "Non segmenté"         => row.NonSegmente,
+        "Non classé"           => row.NonClasse,
+
+        _ => 0
+    };
+}
+
+// ── Conversion nombre de clients → ETP via les Règles & Hypothèses ─────
+private double? ConvertClientsToEtp(string segment, string profil, int nbClients)
+{
+    var si = StateService.Regles.SegmentsIntensite
+        .FirstOrDefault(s =>
+            s.Segment?.Trim().Equals(segment.Oui, tout à fait — c'est la bonne approche. Voici les **deux morceaux mis à jour**, à copier-coller **tels quels** en remplacement des blocs existants dans ton `Portefeuille.razor`.
+
+Rien d'autre ne change dans le fichier à ce stade.
+
+---
+
+# 1. Remplace `BuildRows()`
+
+Cherche dans ton code :
+
+```csharp
+private List<DimMatrixRow> BuildRows()
