@@ -1,33 +1,30 @@
-CsvHelper.ReaderException
-  HResult=0x80131500
-  Message=No members are mapped for type 'Segmentation.Application.Commands.SegmentationDistributive.SegmentationDistributiveCsvRow'.
-IReader state:
-   ColumnCount: 18
-   CurrentIndex: -1
-   HeaderRecord:
-["code_region","lib_region","lib_secteur","code_agence","lib_agence","matricule_conseiller","type_conseiller","hdg_premium_potentiel","hdg_premium_standard","hdg_potentiel","hdg_senior_epargnant","hdg_standard","ci_potentiel","ci_standard","gp_potentiel","gp_standard","non_segmentes","non_classe_a_investiguer"]
-IParser state:
-   ByteCount: 0
-   CharCount: 331
-   Row: 2
-   RawRow: 2
-   Count: 18
-   RawRecord:
-;;;;;;;142;241;344;457;547;1709;5816;1800;26140;21651;0
+using CsvHelper.Configuration.Attributes;
 
+namespace Segmentation.Application.Commands.SegmentationDistributive
+{
+    public class SegmentationDistributiveCsvRow
+    {
+        [Name("LibRegion")]              public string LibRegion { get; set; } = "";
+        [Name("CodeRegion")]             public string CodeRegion { get; set; } = "";
+        [Name("LibSecteur")]             public string LibSecteur { get; set; } = "";
+        [Name("LibAgence")]              public string LibAgence { get; set; } = "";
+        [Name("CodeAgence")]             public string CodeAgence { get; set; } = "";
+        [Name("MatriculeConseiller")]    public string MatriculeConseiller { get; set; } = "";
+        [Name("TypeConseiller")]         public string TypeConseiller { get; set; } = "";
 
-  Source=CsvHelper
-  Arborescence des appels de procédure :
-   à CsvHelper.Expressions.ObjectRecordCreator.CreateCreateRecordDelegate(Type recordType)
-   à CsvHelper.Expressions.RecordCreator.GetCreateRecordDelegate[T](Type recordType)
-   à CsvHelper.Expressions.RecordManager.GetReadDelegate[T](Type recordType)
-   à CsvHelper.CsvReader.<GetRecords>d__87`1.MoveNext()
-   à System.Collections.Generic.List`1..ctor(IEnumerable`1 collection)
-   à System.Linq.Enumerable.ToList[TSource](IEnumerable`1 source)
-   à Segmentation.Application.Handlers.SegmentationDistributive.ImportSegmentationDistributiveCommandHandler.<Handle>d__2.MoveNext() dans C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Handlers\SegmentationDistributive\ImportSegmentationDistributiveCommandHandler.cs :ligne 38
-   à Segmentation.Application.Behaviors.UnhandledExceptionBehavior`2.<Handle>d__2.MoveNext() dans C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Behaviors\UnhandledExceptionBehavior.cs :ligne 19
-   à Segmentation.Server.Controllers.SegmentationDistributiveController.<Import>d__2.MoveNext() dans C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\Controllers\SegmentationDistributiveController.cs :ligne 34
-   à Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.TaskOfIActionResultExecutor.<Execute>d__0.MoveNext()
-   à System.Runtime.CompilerServices.ValueTaskAwaiter`1.GetResult()
-   à Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<<InvokeActionMethodAsync>g__Awaited|12_0>d.MoveNext()
-   à Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<<InvokeNextActionFilterAsync>g__Awaited|10_0>d.MoveNext()
+        [Name("HDGPremiumPotentiel")]    public int HDGPremiumPotentiel { get; set; }
+        [Name("HDGPremiumStandard")]     public int HDGPremiumStandard { get; set; }
+        [Name("HDGPotentiel")]           public int HDGPotentiel { get; set; }
+        [Name("HDGSeniorEpargnant")]     public int HDGSeniorEpargnant { get; set; }
+        [Name("HDGStandard")]            public int HDGStandard { get; set; }
+
+        [Name("CIPotentiel")]            public int CIPotentiel { get; set; }
+        [Name("CIStandard")]             public int CIStandard { get; set; }
+
+        [Name("GPPotentiel")]            public int GPPotentiel { get; set; }
+        [Name("GPStandard")]             public int GPStandard { get; set; }
+
+        [Name("NonSegmente")]            public int NonSegmente { get; set; }
+        [Name("NonClasse")]              public int NonClasse { get; set; }
+    }
+}
