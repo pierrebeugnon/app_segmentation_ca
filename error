@@ -1,29 +1,33 @@
-POST https://localhost:xxxx/api/SegmentationDistributive/import?replaceExisting=true
-Error: tunneling socket could not be established, cause=connect ECONNREFUSED 10.154.180.112:8080
-Proxy
-id: "476979d7-0097-4fbe-ac70-7424cb48f6e9"
-host: "mup10-lb-pwebproxy01.zres.ztech"
-match: {…}
-port: 8080
-tunnel: false
-authenticate: false
-Request Headers
-User-Agent: PostmanRuntime/7.29.0
-Accept: */*
-Postman-Token: 71218fec-8ec8-4dad-a2cd-2992f3f7dfd8
-Host: localhost:xxxx
-Accept-Encoding: gzip, deflate, br
-Connection: keep-alive
-Request Body
-POST https://localhost:xxxx/api/SegmentationDistributive/import?replaceExisting=true
-Error: tunneling socket could not be established, cause=connect ECONNREFUSED 10.154.180.112:8080
-Proxy
-id: "0dc81eb1-643a-4b97-afe0-54464fdd9b5d"
-host: "mup10-lb-pwebproxy01.zres.ztech"
-match: {…}
-port: 8080
-tunnel: false
-authenticate: false
-Request Headers
-User-Agent: PostmanRuntime/7.29.0
-Accept: */*
+CsvHelper.ReaderException
+  HResult=0x80131500
+  Message=No members are mapped for type 'Segmentation.Application.Commands.SegmentationDistributive.SegmentationDistributiveCsvRow'.
+IReader state:
+   ColumnCount: 18
+   CurrentIndex: -1
+   HeaderRecord:
+["code_region","lib_region","lib_secteur","code_agence","lib_agence","matricule_conseiller","type_conseiller","hdg_premium_potentiel","hdg_premium_standard","hdg_potentiel","hdg_senior_epargnant","hdg_standard","ci_potentiel","ci_standard","gp_potentiel","gp_standard","non_segmentes","non_classe_a_investiguer"]
+IParser state:
+   ByteCount: 0
+   CharCount: 331
+   Row: 2
+   RawRow: 2
+   Count: 18
+   RawRecord:
+;;;;;;;142;241;344;457;547;1709;5816;1800;26140;21651;0
+
+
+  Source=CsvHelper
+  Arborescence des appels de procédure :
+   à CsvHelper.Expressions.ObjectRecordCreator.CreateCreateRecordDelegate(Type recordType)
+   à CsvHelper.Expressions.RecordCreator.GetCreateRecordDelegate[T](Type recordType)
+   à CsvHelper.Expressions.RecordManager.GetReadDelegate[T](Type recordType)
+   à CsvHelper.CsvReader.<GetRecords>d__87`1.MoveNext()
+   à System.Collections.Generic.List`1..ctor(IEnumerable`1 collection)
+   à System.Linq.Enumerable.ToList[TSource](IEnumerable`1 source)
+   à Segmentation.Application.Handlers.SegmentationDistributive.ImportSegmentationDistributiveCommandHandler.<Handle>d__2.MoveNext() dans C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Handlers\SegmentationDistributive\ImportSegmentationDistributiveCommandHandler.cs :ligne 38
+   à Segmentation.Application.Behaviors.UnhandledExceptionBehavior`2.<Handle>d__2.MoveNext() dans C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Behaviors\UnhandledExceptionBehavior.cs :ligne 19
+   à Segmentation.Server.Controllers.SegmentationDistributiveController.<Import>d__2.MoveNext() dans C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\Controllers\SegmentationDistributiveController.cs :ligne 34
+   à Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.TaskOfIActionResultExecutor.<Execute>d__0.MoveNext()
+   à System.Runtime.CompilerServices.ValueTaskAwaiter`1.GetResult()
+   à Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<<InvokeActionMethodAsync>g__Awaited|12_0>d.MoveNext()
+   à Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<<InvokeNextActionFilterAsync>g__Awaited|10_0>d.MoveNext()
