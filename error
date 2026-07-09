@@ -1,30 +1,33 @@
-namespace Segmentation.Application.Responses
+using MapsterMapper;
+using Segmentation.Application.Contracts;
+using Segmentation.Application.Queries.SegmentationDistributive;
+using Segmentation.Application.Responses;
+using Segmentation.Core.Repositories;
+
+namespace Segmentation.Application.Handlers.SegmentationDistributive
 {
-    public class SegmentationDistributiveResponse
+    internal class GetAllSegmentationDistributiveQueryHandler
+        : IQueryHandler<GetAllSegmentationDistributiveQuery,
+                        List<SegmentationDistributiveResponse>>
     {
-        public int SegmentationDistributiveID { get; set; }
+        private readonly IMapper _mapper;
+        private readonly ISegmentationDistributivesRepository _repository;
 
-        public string LibRegion { get; set; } = "";
-        public string CodeRegion { get; set; } = "";
-        public string LibSecteur { get; set; } = "";
-        public string LibAgence { get; set; } = "";
-        public string CodeAgence { get; set; } = "";
-        public string MatriculeConseiller { get; set; } = "";
-        public string TypeConseiller { get; set; } = "";
+        public GetAllSegmentationDistributiveQueryHandler(
+            IMapper mapper,
+            ISegmentationDistributivesRepository repository)
+        {
+            _mapper = mapper;
+            _repository = repository;
+        }
 
-        public int HDGPremiumPotentiel { get; set; }
-        public int HDGPremiumStandard { get; set; }
-        public int HDGPotentiel { get; set; }
-        public int HDGSeniorEpargnant { get; set; }
-        public int HDGStandard { get; set; }
+        public async Task<List<SegmentationDistributiveResponse>> Handle(
+            GetAllSegmentationDistributiveQuery request,
+            CancellationToken cancellationToken)
+        {
+            var entities = await _repository.GetAllAsync();
 
-        public int CIPotentiel { get; set; }
-        public int CIStandard { get; set; }
-
-        public int GPPotentiel { get; set; }
-        public int GPStandard { get; set; }
-
-        public int NonSegmente { get; set; }
-        public int NonClasse { get; set; }
+            return _mapper.Map<List<SegmentationDistributiveResponse>>(entities.ToList());
+        }
     }
 }
