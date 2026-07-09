@@ -1,52 +1,30 @@
-using MapsterMapper;
-using MediatR;
-using Microsoft.AspNetCore.Mvc;
-using Segmentation.Application.Commands.SegmentationDistributive;
-using Segmentation.Application.Queries.SegmentationDistributive;
-using Segmentation.Shared.Models;
-
-namespace Segmentation.Server.Controllers
+namespace Segmentation.Application.Responses
 {
-    public class SegmentationDistributiveController : SegmentationBaseController
+    public class SegmentationDistributiveResponse
     {
-        public SegmentationDistributiveController(
-            IMediator mediator,
-            IMapper mapper)
-            : base(mediator, mapper)
-        {
-        }
+        public int SegmentationDistributiveID { get; set; }
 
-        // ── GET /api/SegmentationDistributive ──
-        [HttpGet(Name = "GetAllSegmentationDistributive")]
-        public async Task<List<SegmentationDistributiveData>> GetAll()
-        {
-            var query = new GetAllSegmentationDistributiveQuery();
+        public string LibRegion { get; set; } = "";
+        public string CodeRegion { get; set; } = "";
+        public string LibSecteur { get; set; } = "";
+        public string LibAgence { get; set; } = "";
+        public string CodeAgence { get; set; } = "";
+        public string MatriculeConseiller { get; set; } = "";
+        public string TypeConseiller { get; set; } = "";
 
-            List<SegmentationDistributiveData> result =
-                _mapper.Map<List<SegmentationDistributiveData>>(await _mediator.Send(query));
+        public int HDGPremiumPotentiel { get; set; }
+        public int HDGPremiumStandard { get; set; }
+        public int HDGPotentiel { get; set; }
+        public int HDGSeniorEpargnant { get; set; }
+        public int HDGStandard { get; set; }
 
-            return result;
-        }
+        public int CIPotentiel { get; set; }
+        public int CIStandard { get; set; }
 
-        // ── POST /api/SegmentationDistributive/import ──
-        [HttpPost(template: "import", Name = "ImportSegmentationDistributive")]
-        [RequestSizeLimit(50_000_000)]
-        public async Task<IActionResult> Import(
-            IFormFile file,
-            [FromQuery] bool replaceExisting = false)
-        {
-            if (file == null || file.Length == 0)
-                return BadRequest("Fichier vide.");
+        public int GPPotentiel { get; set; }
+        public int GPStandard { get; set; }
 
-            using Stream stream = file.OpenReadStream();
-
-            int count = await _mediator.Send(new ImportSegmentationDistributiveCommand
-            {
-                CsvStream = stream,
-                ReplaceExisting = replaceExisting
-            });
-
-            return Ok(new { imported = count });
-        }
+        public int NonSegmente { get; set; }
+        public int NonClasse { get; set; }
     }
 }
