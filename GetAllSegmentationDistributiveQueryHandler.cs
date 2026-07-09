@@ -1,0 +1,34 @@
+using MapsterMapper;
+using Segmentation.Application.Contracts;
+using Segmentation.Application.Queries.SegmentationDistributive;
+using Segmentation.Application.Responses;
+using Segmentation.Core.Repositories;
+
+namespace Segmentation.Application.Handlers.SegmentationDistributive
+{
+    internal class GetAllSegmentationDistributiveQueryHandler
+        : IQueryHandler<GetAllSegmentationDistributiveQuery,
+                        List<SegmentationDistributiveResponse>>
+    {
+        private readonly IMapper _mapper;
+        private readonly ISegmentationDistributivesRepository _repository;
+
+        public GetAllSegmentationDistributiveQueryHandler(
+            IMapper mapper,
+            ISegmentationDistributivesRepository repository)
+        {
+            _mapper = mapper;
+            _repository = repository;
+        }
+
+        public async Task<List<SegmentationDistributiveResponse>> Handle(
+            GetAllSegmentationDistributiveQuery request,
+            CancellationToken cancellationToken)
+        {
+            var entities = await _repository.GetAllAsync();
+
+            return _mapper.Map<List<SegmentationDistributiveResponse>>(
+                entities.ToList());
+        }
+    }
+}
