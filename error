@@ -1,2 +1,2 @@
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0103	Le nom '_segmentationDistributiveFiltree' n'existe pas dans le contexte actuel		C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\PortefeuilleDimensionnement.razor	1274	
+private List<SegmentationDistributiveData> _segmentationDistributive = new();
+    private List<SegmentationDistributiveData> _segmentationDistributiveFiltree = new();
