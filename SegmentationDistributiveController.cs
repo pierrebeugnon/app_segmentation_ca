@@ -14,6 +14,17 @@ namespace Segmentation.Server.Controllers
         {
         }
 
+        [HttpGet(Name = "GetAllSegmentationDistributive")]
+        public async Task<List<SegmentationDistributiveData>> GetAll()
+        {
+        var query = new GetAllSegmentationDistributiveQuery();
+
+        return _mapper.Map<List<SegmentationDistributiveData>>
+            (
+        await _mediator.Send(query)
+            );
+        }
+
         [HttpGet(template: "id/{id}", Name = "GetSegmentationDistributiveById")]
         public async Task<SegmentationDistributiveData> GetById(int id)
         {
