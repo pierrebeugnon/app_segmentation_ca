@@ -1,3 +1,4 @@
+
 private List<string> GetProfils()
 {
     if (_segmentationDistributiveFiltree != null && _segmentationDistributiveFiltree.Any())
