@@ -1,0 +1,31 @@
+private List<DimMatrixRow> BuildRows()
+{
+    var dataRows = segments.Select(s => new DimMatrixRow
+    {
+        Segment = s,
+        EtpParProfil = _slots.ToDictionary(
+            sl => sl.Id,
+            sl => GetRealEtpForSlot(s, sl)
+        ),
+        EtpCibleSaisieParProfil = _slots.ToDictionary(
+            sl => sl.Id,
+            _ => (double?)null
+        )
+    }).ToList();
+
+    dataRows.Add(new DimMatrixRow
+    {
+        Segment = "Charge totale ETP par portefeuille",
+        IsTotal = true,
+        EtpParProfil = _slots.ToDictionary(
+            sl => sl.Id,
+            _ => (double?)null
+        ),
+        EtpCibleSaisieParProfil = _slots.ToDictionary(
+            sl => sl.Id,
+            _ => (double?)null
+        )
+    });
+
+    return dataRows;
+}
