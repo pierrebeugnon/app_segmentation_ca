@@ -3,8 +3,13 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject RepartitionAutomatiqueService RepartitionService
+@inject EtpConversionService EtpService
 @implements IDisposable
 @using Segmentation.Client.Components.Dialogs
+@using Segmentation.Client.Services
+@using Segmentation.Shared.Models
+@using System.Net.Http.Json
+@inject HttpClient Http
 
 <PageTitle>Dimensionnement Portefeuilles — CA Segmentation</PageTitle>
 
@@ -37,13 +42,46 @@
         </div>
     </div>
 
-    <!-- ── Filtres organisationnels ── -->
-    <DimFiltresBar AllRegions="@allRegions" AllSecteurs="@allSecteurs" AllAgences="@allAgences"
-                   FiltreRegion="@filtreRegion" FiltreSecteur="@filtreSecteur" FiltreAgence="@filtreAgence"
-                   OnFiltreRegionChanged="@(v => { filtreRegion  = v; ApplyFilters(); })"
-                   OnFiltreSecteurChanged="@(v => { filtreSecteur = v; ApplyFilters(); })"
-                   OnFiltreAgenceChanged="@(v => { filtreAgence  = v; ApplyFilters(); })"
-                   OnClearFiltres="@ClearFilters" />
+    <!-- ── Filtres organisationnels ────────────────────────────────────── -->
+    <MudPaper Elevation="1" Style="border-radius:8px;padding:12px 16px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+            <MudIcon Icon="@Icons.Material.Outlined.FilterAlt" Style="color:#1A4E6B;font-size:20px" />
+            <MudSelect T="string" Label="Région" Dense="true" Margin="Margin.Dense"
+                       Variant="Variant.Outlined" Style="min-width:160px"
+                       Value="@filtreRegion" ValueChanged="@(v => { filtreRegion = v; ApplyFilters(); })"
+                       Clearable="true">
+                @foreach (var r in allRegions)
+                {
+                    <MudSelectItem Value="@r">@r</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="string" Label="Secteur" Dense="true" Margin="Margin.Dense"
+                       Variant="Variant.Outlined" Style="min-width:180px"
+                       Value="@filtreSecteur" ValueChanged="@(v => { filtreSecteur = v; ApplyFilters(); })"
+                       Clearable="true">
+                @foreach (var s in allSecteurs)
+                {
+                    <MudSelectItem Value="@s">@s</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="string" Label="Agence" Dense="true" Margin="Margin.Dense"
+                       Variant="Variant.Outlined" Style="min-width:200px"
+                       Value="@filtreAgence" ValueChanged="@(v => { filtreAgence = v; ApplyFilters(); })"
+                       Clearable="true">
+                @foreach (var a in allAgences)
+                {
+                    <MudSelectItem Value="@a">@a</MudSelectItem>
+                }
+            </MudSelect>
+            @if (!string.IsNullOrEmpty(filtreRegion) || !string.IsNullOrEmpty(filtreSecteur) || !string.IsNullOrEmpty(filtreAgence))
+            {
+                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Outlined.Clear"
+                           OnClick="@ClearFilters">Effacer filtres</MudButton>
+            }
+            <div style="flex:1"></div>
+        </div>
+    </MudPaper>
 
     <!-- ── Légende Tab effectif ───────────────────────────────────────────────────── -->
     <div class="ca-dim-legend-bar">
@@ -61,22 +99,185 @@
         </span>
     </div>
 
+    <MudAlert Severity="Severity.Info" Class="mt-2">
+        <div><strong>DEBUG :</strong></div>
+        <div>SegmentationDistributive : @_segmentationDistributive.Count</div>
+        <div>SegmentationDistributiveFiltree : @_segmentationDistributiveFiltree.Count</div>
+        <div>Slots : @_slots.Count</div>
+        <div>Segments : @segments.Count</div>
+        <div>Profils : @profils.Count</div>
+        <div>Filtre agence : @(filtreAgence ?? "aucun")</div>
+    </MudAlert>
+
     @if (!_slots.Any() || !segments.Any())
     {
         <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mt-2">
-            Aucune donnée disponible. Configurez d'abord les <strong>Règles &amp; Hypothèses</strong>
-            (Sections 1, 2 et 3).
+            Aucune donnée disponible.
         </MudAlert>
     }
     else
     {
-        <!-- ══ BLOC 0 — Tableau effectifs ══ -->
-        <DimTableauEffectifs Slots="@_slots" Profils="@profils" ProfilShort="@_profilShort"
-                             OnAddSlot="@AddSlot"
-                             OnRemoveCibleSlot="@RemoveCibleForExistingSlot"
-                             OnRestoreCible="@RestoreCible"
-                             OnRemoveNewSlot="@RemoveNewSlot"
-                             OnEtpCibleChanged="@StateHasChanged" />
+        <!-- ══════════════════════════════════════════════════════════
+             BLOC 0 — EFFECTIFS CONSEILLERS
+             Existant (orange) : conseillers en poste
+             Cible  (bleu)   : scénario cible — ajout / suppression
+        ══════════════════════════════════════════════════════════ -->
+        <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden;margin-bottom:12px">
+            <div class="ca-section-header" style="display:flex;align-items:center;gap:10px">
+                <span class="ca-section-badge">1</span>
+                Effectif cible de l'agence (vs existant) 
+                <MudTooltip Text="Ligne ▲ Existant : conseillers présents aujourd'hui (jamais supprimés définitivement). Ligne ▼ Cible : scénario simulé. Retirez un effectif de la cible (×) — s'il a déjà une charge cible répartie, elle devra être reportée sur un autre conseiller du même métier. Ajoutez un conseiller (+ Ajouter) pour l'intégrer à la répartition cible.">
+                    <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small"
+                             Style="color:rgba(255,255,255,0.65)" />
+                </MudTooltip>
+                <!-- ── Bouton Ajouter un conseiller ── -->
+                <div style="margin-left:auto">
+                    <MudMenu Label="+ Ajouter un conseiller"
+                             StartIcon="@Icons.Material.Filled.PersonAdd"
+                             Variant="Variant.Filled" Size="Size.Small" Color="Color.Success"
+                             IconColor="Color.Inherit">
+                        @foreach (var profil in profils)
+                        {
+                            var p = profil;
+                            <MudMenuItem OnClick="@(() => AddSlot(p))" Icon="@Icons.Material.Outlined.PersonAdd">
+                                @p
+                            </MudMenuItem>
+                        }
+                    </MudMenu>
+                </div>
+            </div>
+
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+                <table style="border-collapse:collapse;min-width:max-content;width:100%">
+                    <colgroup>
+                        <col style="min-width:140px;width:140px" />
+                        @foreach (var slot in _slots)
+                        {
+                            <col style="min-width:88px;width:88px" />
+                        }
+                        <col style="min-width:72px;width:72px" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;padding:6px 12px;font-size:11px;color:#6C7A89;background:#F8FAFD;border-bottom:2px solid #E2E8F0;position:sticky;left:0;z-index:3;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
+                                Conseiller
+                            </th>
+                            @foreach (var slot in _slots)
+                            {
+                                var isGrey = !slot.IsCible;
+                                var isNew  = !slot.IsActuel && slot.IsCible;
+                                <th style="text-align:center;padding:5px 3px;font-size:11px;border-bottom:2px solid #E2E8F0;
+                                           @(isGrey ? "background:#F0F2F5;color:#9AA5B1" : isNew ? "background:#F1FBF4;color:#2E7D32" : "background:#F8FAFD;color:#1A4E6B")">
+                                    <div style="font-weight:700">@slot.Label</div>
+                                    <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:1px">
+                                        @_profilShort.GetValueOrDefault(slot.Profil, slot.Profil)
+                                    </div>
+                                </th>
+                            }
+                            <th style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;background:#EEF3FA;color:#1A4E6B;border-bottom:2px solid #E2E8F0">
+                                Total
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- ── Ligne Cible (en haut) — ETP uniquement, sans bouton ── -->
+                        <tr>
+                            <td style="padding:7px 12px;font-size:12px;font-weight:700;color:#1A4E6B;background:#EBF3FF;border-bottom:1px solid #D0DFF0;position:sticky;left:0;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
+                                ▼ Cible
+                            </td>
+                            @foreach (var slot in _slots)
+                            {
+                                var s         = slot;
+                                var isRemoved = slot.IsActuel && !slot.IsCible;
+                                var isNew     = !slot.IsActuel && slot.IsCible;
+                                var isActive  = slot.IsActuel && slot.IsCible;
+                                <td style="text-align:center;padding:6px 2px;font-size:12px;border-bottom:1px solid #D0DFF0;
+                                           @(isRemoved ? "background:#F0F2F5" : isNew ? "background:#F1FBF4" : "background:#EBF3FF")">
+                                    @if (isActive || isNew)
+                                    {
+                                        <div style="display:flex;justify-content:center;align-items:center;width:100%">
+                                            <MudNumericField T="double"
+                                                             Value="@s.EtpCible"
+                                                             ValueChanged="@(v => { s.EtpCible = v; StateHasChanged(); })"
+                                                             Format="F2" Step="0.25" Min="0" Max="2.0"
+                                                             HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
+                                                             Class="ca-eff-etp-input"
+                                                             Style="width:100%"
+                                                             InputStyle="@($"text-align:center;font-size:12px;font-weight:700;padding:1px 2px;{(isNew ? "color:#2E7D32" : "color:#1A4E6B")}")" />
+                                        </div>
+                                    }
+                                    else if (isRemoved)
+                                    {
+                                        <span style="color:#9AA5B1;font-size:12px">✗</span>
+                                    }
+                                </td>
+                            }
+                            <td style="text-align:center;padding:5px;font-weight:700;font-size:13px;background:#D6E8F7;color:#1A4E6B;border-bottom:1px solid #D0DFF0">
+                                @_slots.Where(s => s.IsCible).Sum(s => s.EtpCible).ToString("F2")
+                            </td>
+                        </tr>
+                        <!-- ── Ligne Existant (en bas) — lecture seule + bouton action ── -->
+                        <tr>
+                            <td style="padding:7px 12px;font-size:12px;font-weight:700;color:#E65100;background:#FFF8F2;position:sticky;left:0;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
+                                ▲ Existant
+                            </td>
+                            @foreach (var slot in _slots)
+                            {
+                                var s         = slot;
+                                var isRemoved = slot.IsActuel && !slot.IsCible;
+                                var isNew     = !slot.IsActuel && slot.IsCible;
+                                var isActive  = slot.IsActuel && slot.IsCible;
+                                <td style="text-align:center;padding:4px 2px;
+                                           @(isRemoved ? "background:#F0F2F5" : isNew ? "background:#F1FBF4" : "background:#FFF8F2")">
+                                    <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+                                        @if (slot.IsActuel)
+                                        {
+                                            <span style="font-size:12px;font-weight:700;@(isRemoved ? "color:#9AA5B1" : "color:#E65100")">
+                                                @slot.EtpActuel.ToString("F2")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span style="color:#BDBDBD;font-size:10px">—</span>
+                                        }
+                                        @if (isActive)
+                                        {
+                                            <MudTooltip Text="Retirer cet effectif de la répartition cible (reste dans l'existant)">
+                                                <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
+                                                               Size="Size.Small"
+                                                               Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
+                                                               OnClick="@(() => RemoveCibleForExistingSlot(s))" />
+                                            </MudTooltip>
+                                        }
+                                        else if (isRemoved)
+                                        {
+                                            <MudTooltip Text="Réintégrer ce conseiller dans la répartition cible">
+                                                <MudIconButton Icon="@Icons.Material.Outlined.AddCircleOutline"
+                                                               Size="Size.Small"
+                                                               Style="padding:0;width:18px;height:18px;color:#2E7D32;opacity:0.7"
+                                                               OnClick="@(() => RestoreCible(s))" />
+                                            </MudTooltip>
+                                        }
+                                        else if (isNew)
+                                        {
+                                            <MudTooltip Text="Retirer ce conseiller ajouté manuellement">
+                                                <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
+                                                               Size="Size.Small"
+                                                               Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
+                                                               OnClick="@(() => RemoveNewSlot(s))" />
+                                            </MudTooltip>
+                                        }
+                                    </div>
+                                </td>
+                            }
+                            <td style="text-align:center;padding:5px;font-weight:700;font-size:13px;background:#FAEEE0;color:#E65100">
+                                @_slots.Where(s => s.IsActuel).Sum(s => s.EtpActuel).ToString("F2")
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </MudPaper>
 
         <!-- ── Légende ───────────────────────────────────────────────────── -->
         <div class="ca-dim-legend-bar">
@@ -697,13 +898,14 @@
     <div class="ca-footer">© 2026 Crédit Agricole Nord de France — Plateforme de simulation de dimensionnement des portefeuilles</div>
 </div>
 
-
 @code {
     private bool vueEtp = true;
     private List<string> profils  = new();   // types distincts (lookup assignment)
     private List<string> segments = new();
     private List<DimMatrixRow> rows = new();
     private List<ConseillerSlot> _slots = new();
+    private List<SegmentationDistributiveData> _segmentationDistributive = new();
+    private List<SegmentationDistributiveData> _segmentationDistributiveFiltree = new();
 
     // ── Vue détail / consolidée par métier ────────────────────────────────
     // Métiers présents dans ce set → colonne agrégée (repliée)
@@ -830,10 +1032,58 @@
         };
 
     // ── Lifecycle ─────────────────────────────────────────────────────────
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         StateService.OnChange += OnReglesChanged;
+
+        try
+        {
+            _segmentationDistributive =
+                await Http.GetFromJsonAsync<List<SegmentationDistributiveData>>
+                (
+                    "api/SegmentationDistributive"
+                ) ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur chargement SegmentationDistributive : {ex.Message}");
+            _segmentationDistributive = new();
+        }
+
+        Console.WriteLine($">>> SegmentationDistributive chargée : {_segmentationDistributive.Count} lignes");
+
+        filtreRegion = _segmentationDistributive
+            .Select(x => x.LibRegion)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .OrderBy(x => x)
+            .FirstOrDefault();
+
+        filtreSecteur = _segmentationDistributive
+            .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
+            .Select(x => x.LibSecteur)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .OrderBy(x => x)
+            .FirstOrDefault();
+
+        filtreAgence = _segmentationDistributive
+            .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
+            .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
+            .Select(x => x.LibAgence)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .OrderBy(x => x)
+            .FirstOrDefault();
+
+        _segmentationDistributiveFiltree = _segmentationDistributive
+            .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
+            .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
+            .Where(x => string.IsNullOrEmpty(filtreAgence) || x.LibAgence == filtreAgence)
+            .ToList();
+
+        Console.WriteLine($">>> Agence par défaut : {filtreAgence}");
+        Console.WriteLine($">>> Lignes filtrées : {_segmentationDistributiveFiltree.Count}");
+
         InitData();
+        StateHasChanged();
     }
 
     public void Dispose() => StateService.OnChange -= OnReglesChanged;
@@ -857,38 +1107,57 @@
 
     private void InitData()
     {
-        profils  = GetProfils();
+        profils = GetProfils();
         segments = GetSegments();
-        _slots   = BuildSlots();
-        rows     = BuildRows();
+        _slots = BuildSlots();
+
+        Console.WriteLine($">>> Profils : {profils.Count}");
+        Console.WriteLine($">>> Segments : {segments.Count}");
+        Console.WriteLine($">>> Slots : {_slots.Count}");
+        Console.WriteLine($">>> SegmentationDistributiveFiltree : {_segmentationDistributiveFiltree.Count}");
+
+        rows = BuildRows();
+
         RecalcTotal();
         InitEffectifs();
+
         BuildFilterOptions();
         ApplyFilters();
     }
-
     // ── Construction des slots individuels ───────────────────────────────
     private List<ConseillerSlot> BuildSlots()
     {
-        var result = new List<ConseillerSlot>();
-        foreach (var profil in GetProfils())
-        {
-            var count  = (int)(_mockEffectifActuel.TryGetValue(profil, out var cnt) ? cnt : 1);
-            var prefix = _profilShort.GetValueOrDefault(profil, profil[..Math.Min(3, profil.Length)].ToUpper());
-            for (int i = 1; i <= count; i++)
-            {
-                result.Add(new ConseillerSlot
-                {
-                    Profil   = profil,
-                    Label    = count > 1 ? $"{prefix}-{i}" : prefix,
-                    IsActuel = true,
-                    IsCible  = true
-                });
-            }
-        }
-        return result;
-    }
+        if (_segmentationDistributiveFiltree == null || !_segmentationDistributiveFiltree.Any())
+            return new List<ConseillerSlot>();
 
+        return _segmentationDistributiveFiltree
+            .Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
+            .Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
+            .GroupBy(x => new
+            {
+                x.MatriculeConseiller,
+                x.TypeConseiller
+            })
+            .Select(g =>
+            {
+                var profil = g.Key.TypeConseiller;
+                var prefix = _profilShort.GetValueOrDefault(
+                    profil,
+                    profil[..Math.Min(3, profil.Length)].ToUpper()
+                );
+
+                return new ConseillerSlot
+                {
+                    Profil = profil,
+                    Label = $"{prefix}-{g.Key.MatriculeConseiller}",
+                    IsActuel = true,
+                    IsCible = true
+                };
+            })
+            .OrderBy(x => x.Profil)
+            .ThenBy(x => x.Label)
+            .ToList();
+    }
     // ── Gestion des slots ─────────────────────────────────────────────────
     private void AddSlot(string profilType)
     {
@@ -1005,17 +1274,38 @@
     // ── Sources de données ────────────────────────────────────────────────
     // Ordre d'affichage inversé : du conseiller commercial (COM) au directeur (DIR),
     // utilisé pour les deux tableaux (Effectifs et Répartition des charges)
-    private List<string> GetProfils() =>
-        StateService.Regles.ConseillersProfils
+
+    private List<string> GetProfils()
+    {
+        if (_segmentationDistributiveFiltree != null && _segmentationDistributiveFiltree.Any())
+        {
+            return _segmentationDistributiveFiltree
+                .Select(x => x.TypeConseiller)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+        }
+
+        return StateService.Regles.ConseillersProfils
             .Select(p => p.Profil)
             .Where(p => !string.IsNullOrWhiteSpace(p))
             .Distinct().Reverse().ToList();
-
-    private List<string> GetSegments() =>
-        StateService.Regles.SegmentsIntensite
-            .Select(s => s.Segment)
-            .Where(s => !string.IsNullOrWhiteSpace(s))
-            .Distinct().ToList();
+    }
+    private List<string> GetSegments() => new()
+    {
+        "HDG Premium Potentiel",
+        "HDG Premium Standard",
+        "HDG Potentiel",
+        "HDG Senior Epargnant",
+        "HDG Standard",
+        "CI Potentiel",
+        "CI Standard",
+        "GP Potentiel",
+        "GP Standard",
+        "Non segmenté",
+        "Non classé"
+    };
 
     // ── Construction de la table (keyed by slot.Id) ───────────────────────
 
@@ -1053,27 +1343,54 @@
         var dataRows = segments.Select(s => new DimMatrixRow
         {
             Segment = s,
-            EtpParProfil            = _slots.ToDictionary(sl => sl.Id, sl => GetMockEtpForSlot(s, sl)),
-            EtpCibleSaisieParProfil = _slots.ToDictionary(sl => sl.Id, _ => (double?)null)
+            EtpParProfil = _slots.ToDictionary(
+                sl => sl.Id,
+                sl => GetRealEtpForSlot(s, sl)
+            ),
+            EtpCibleSaisieParProfil = _slots.ToDictionary(
+                sl => sl.Id,
+                _ => (double?)null
+            )
         }).ToList();
 
         dataRows.Add(new DimMatrixRow
         {
             Segment = "Charge totale ETP par portefeuille",
             IsTotal = true,
-            EtpParProfil            = _slots.ToDictionary(sl => sl.Id, _ => (double?)null),
-            EtpCibleSaisieParProfil = _slots.ToDictionary(sl => sl.Id, _ => (double?)null)
+            EtpParProfil = _slots.ToDictionary(
+                sl => sl.Id,
+                _ => (double?)null
+            ),
+            EtpCibleSaisieParProfil = _slots.ToDictionary(
+                sl => sl.Id,
+                _ => (double?)null
+            )
         });
+
         return dataRows;
     }
 
     // ETP existant par slot = total profil / nombre de slots du même profil
-    private double? GetMockEtpForSlot(string segment, ConseillerSlot slot)
+    // ── ETP réel par slot, alimenté par la table SegmentationDistributives ──
+    private double? GetRealEtpForSlot(string segment, ConseillerSlot slot)
     {
-        if (!_mockEtpExistant.TryGetValue(segment, out var segDict)) return null;
-        if (!segDict.TryGetValue(slot.Profil, out var totalEtp)) return null;
-        var count = _slots.Count(s => s.Profil.Equals(slot.Profil, StringComparison.OrdinalIgnoreCase));
-        return count > 0 ? Math.Round(totalEtp / count, 3) : null;
+        var matricule = ExtractMatriculeFromSlotLabel(slot.Label);
+
+        return EtpService.GetEtpForConseiller(
+            _segmentationDistributiveFiltree,
+            segment,
+            matricule
+        );
+    }
+
+    // ── Extrait le matricule depuis un label du type "CGP-12345" ──────────
+    // ── Extrait le matricule depuis un label du type "CGP-12345" ──────────
+    private static string ExtractMatriculeFromSlotLabel(string label)
+    {
+        var idx = label.LastIndexOf('-');
+        return idx >= 0 && idx < label.Length - 1
+            ? label[(idx + 1)..]
+            : label;
     }
 
     // ── Affectation depuis ReglesHypotheses ───────────────────────────────
@@ -1128,16 +1445,32 @@
     {
         var totalRow = rows.LastOrDefault(r => r.IsTotal);
         if (totalRow == null) return;
+
         foreach (var slot in _slots)
         {
-            var valsExist = rows.Where(r => !r.IsTotal).Select(r => r.EtpParProfil.GetValueOrDefault(slot.Id)).ToList();
-            var valsCible = rows.Where(r => !r.IsTotal).Select(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id)).ToList();
-            totalRow.EtpParProfil[slot.Id]            = valsExist.Any(v => v.HasValue) ? valsExist.Sum(v => v ?? 0) : null;
-            totalRow.EtpCibleSaisieParProfil[slot.Id] = valsCible.Any(v => v.HasValue) ? valsCible.Sum(v => v ?? 0) : null;
-        }
-        ApplyFilters();
-    }
+            var valsExist = rows
+                .Where(r => !r.IsTotal)
+                .Select(r => r.EtpParProfil.GetValueOrDefault(slot.Id))
+                .ToList();
 
+            var valsCible = rows
+                .Where(r => !r.IsTotal)
+                .Select(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id))
+                .ToList();
+
+            totalRow.EtpParProfil[slot.Id] =
+                valsExist.Any(v => v.HasValue)
+                    ? valsExist.Sum(v => v ?? 0)
+                    : null;
+
+            totalRow.EtpCibleSaisieParProfil[slot.Id] =
+                valsCible.Any(v => v.HasValue)
+                    ? valsCible.Sum(v => v ?? 0)
+                    : null;
+        }
+
+        filteredRows = rows.ToList();
+    }
     // ── Code couleur existant — toujours orange ───────────────────────────
     private static string GetExistantColor(double? existant, double? _ = null) =>
         (!existant.HasValue || existant.Value <= 0) ? "color:#9AA5B1" : "color:#E65100;font-weight:600";
