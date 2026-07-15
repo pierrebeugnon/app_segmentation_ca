@@ -1,30 +1,34 @@
-private void RecalcTotal()
-{
-    var totalRow = rows.LastOrDefault(r => r.IsTotal);
-    if (totalRow == null) return;
+Console.WriteLine($">>> SegmentationDistributive chargée : {_segmentationDistributive.Count} lignes");
 
-    foreach (var slot in _slots)
-    {
-        var valsExist = rows
-            .Where(r => !r.IsTotal)
-            .Select(r => r.EtpParProfil.GetValueOrDefault(slot.Id))
-            .ToList();
+filtreRegion = _segmentationDistributive
+    .Select(x => x.LibRegion)
+    .Where(x => !string.IsNullOrWhiteSpace(x))
+    .OrderBy(x => x)
+    .FirstOrDefault();
 
-        var valsCible = rows
-            .Where(r => !r.IsTotal)
-            .Select(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id))
-            .ToList();
+filtreSecteur = _segmentationDistributive
+    .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
+    .Select(x => x.LibSecteur)
+    .Where(x => !string.IsNullOrWhiteSpace(x))
+    .OrderBy(x => x)
+    .FirstOrDefault();
 
-        totalRow.EtpParProfil[slot.Id] =
-            valsExist.Any(v => v.HasValue)
-                ? valsExist.Sum(v => v ?? 0)
-                : null;
+filtreAgence = _segmentationDistributive
+    .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
+    .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
+    .Select(x => x.LibAgence)
+    .Where(x => !string.IsNullOrWhiteSpace(x))
+    .OrderBy(x => x)
+    .FirstOrDefault();
 
-        totalRow.EtpCibleSaisieParProfil[slot.Id] =
-            valsCible.Any(v => v.HasValue)
-                ? valsCible.Sum(v => v ?? 0)
-                : null;
-    }
+_segmentationDistributiveFiltree = _segmentationDistributive
+    .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
+    .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
+    .Where(x => string.IsNullOrEmpty(filtreAgence) || x.LibAgence == filtreAgence)
+    .ToList();
 
-    filteredRows = rows.ToList();
-}
+Console.WriteLine($">>> Agence par défaut : {filtreAgence}");
+Console.WriteLine($">>> Lignes filtrées : {_segmentationDistributiveFiltree.Count}");
+
+InitData();
+StateHasChanged();
