@@ -1,16 +1,3 @@
-<MudAlert Severity="Severity.Info" Class="mt-2">
-    <div><strong>DEBUG :</strong></div>
-    <div>SegmentationDistributive : @_segmentationDistributive.Count</div>
-    <div>SegmentationDistributiveFiltree : @_segmentationDistributiveFiltree.Count</div>
-    <div>Slots : @_slots.Count</div>
-    <div>Segments : @segments.Count</div>
-    <div>Profils : @profils.Count</div>
-    <div>Filtre agence : @(filtreAgence ?? "aucun")</div>
-</MudAlert>
-
-@if (!_slots.Any() || !segments.Any())
-{
-    <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mt-2">
-        Aucune donnée disponible.
-    </MudAlert>
-}
+Console.WriteLine($">>> Profils : {profils.Count}");
+Console.WriteLine($">>> Segments : {segments.Count}");
+Console.WriteLine($">>> Slots : {_slots.Count}");
