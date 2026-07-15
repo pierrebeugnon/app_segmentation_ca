@@ -1,7 +1,14 @@
-var first = _segmentationDistributive.FirstOrDefault();
-
-if (first != null)
+private List<string> GetSegments() => new()
 {
-    Console.WriteLine($">>> Matricule : {first.MatriculeConseiller}");
-    Console.WriteLine($">>> Type : {first.TypeConseiller}");
-}
+    "HDG Premium Potentiel",
+    "HDG Premium Standard",
+    "HDG Potentiel",
+    "HDG Senior Epargnant",
+    "HDG Standard",
+    "CI Potentiel",
+    "CI Standard",
+    "GP Potentiel",
+    "GP Standard",
+    "Non segmenté",
+    "Non classé"
+};
