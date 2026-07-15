@@ -1,14 +1,30 @@
-private List<string> GetSegments() => new()
+private void RecalcTotal()
 {
-    "HDG Premium Potentiel",
-    "HDG Premium Standard",
-    "HDG Potentiel",
-    "HDG Senior Epargnant",
-    "HDG Standard",
-    "CI Potentiel",
-    "CI Standard",
-    "GP Potentiel",
-    "GP Standard",
-    "Non segmenté",
-    "Non classé"
-};
+    var totalRow = rows.LastOrDefault(r => r.IsTotal);
+    if (totalRow == null) return;
+
+    foreach (var slot in _slots)
+    {
+        var valsExist = rows
+            .Where(r => !r.IsTotal)
+            .Select(r => r.EtpParProfil.GetValueOrDefault(slot.Id))
+            .ToList();
+
+        var valsCible = rows
+            .Where(r => !r.IsTotal)
+            .Select(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id))
+            .ToList();
+
+        totalRow.EtpParProfil[slot.Id] =
+            valsExist.Any(v => v.HasValue)
+                ? valsExist.Sum(v => v ?? 0)
+                : null;
+
+        totalRow.EtpCibleSaisieParProfil[slot.Id] =
+            valsCible.Any(v => v.HasValue)
+                ? valsCible.Sum(v => v ?? 0)
+                : null;
+    }
+
+    filteredRows = rows.ToList();
+}
