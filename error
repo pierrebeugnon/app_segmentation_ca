@@ -1,34 +1,10 @@
-Console.WriteLine($">>> SegmentationDistributive chargée : {_segmentationDistributive.Count} lignes");
+private double? GetRealEtpForSlot(string segment, ConseillerSlot slot)
+{
+    var matricule = ExtractMatriculeFromSlotLabel(slot.Label);
 
-filtreRegion = _segmentationDistributive
-    .Select(x => x.LibRegion)
-    .Where(x => !string.IsNullOrWhiteSpace(x))
-    .OrderBy(x => x)
-    .FirstOrDefault();
-
-filtreSecteur = _segmentationDistributive
-    .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-    .Select(x => x.LibSecteur)
-    .Where(x => !string.IsNullOrWhiteSpace(x))
-    .OrderBy(x => x)
-    .FirstOrDefault();
-
-filtreAgence = _segmentationDistributive
-    .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-    .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
-    .Select(x => x.LibAgence)
-    .Where(x => !string.IsNullOrWhiteSpace(x))
-    .OrderBy(x => x)
-    .FirstOrDefault();
-
-_segmentationDistributiveFiltree = _segmentationDistributive
-    .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-    .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
-    .Where(x => string.IsNullOrEmpty(filtreAgence) || x.LibAgence == filtreAgence)
-    .ToList();
-
-Console.WriteLine($">>> Agence par défaut : {filtreAgence}");
-Console.WriteLine($">>> Lignes filtrées : {_segmentationDistributiveFiltree.Count}");
-
-InitData();
-StateHasChanged();
+    return EtpService.GetEtpForConseiller(
+        _segmentationDistributiveFiltree,
+        segment,
+        matricule
+    );
+}
