@@ -1,10 +1,11 @@
-private double? GetRealEtpForSlot(string segment, ConseillerSlot slot)
-{
-    var matricule = ExtractMatriculeFromSlotLabel(slot.Label);
+blazor.webassembly.js:1 ManagedError: AggregateException_ctor_DefaultMessage (Some services are not able to be constructed (Error while validating the service descriptor 'ServiceType: Segmentation.Client.Services.SegmentationStateService Lifetime: Scoped ImplementationType: Segmentation.Client.Services.SegmentationStateService': CannotResolveService, Segmentation.Client.Services.MockDataService, Segmentation.Client.Services.SegmentationStateService))
+callEntryPoint	@	blazor.webassembly.js:1
+await in callEntryPoint		
+Zt	@	blazor.webassembly.js:1
+await in Zt		
+qt	@	blazor.webassembly.js:1
+cn	@	blazor.webassembly.js:1
+(anonymous)	@	(index):42
 
-    return EtpService.GetEtpForConseiller(
-        _segmentationDistributiveFiltree,
-        segment,
-        matricule
-    );
-}
+﻿
+
