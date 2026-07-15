@@ -1,19 +1,7 @@
-private void InitData()
+var first = _segmentationDistributive.FirstOrDefault();
+
+if (first != null)
 {
-    profils  = GetProfils();
-    segments = GetSegments();
-    _slots   = BuildSlots();
-
-    Console.WriteLine($">>> Profils : {profils.Count}");
-    Console.WriteLine($">>> Segments : {segments.Count}");
-    Console.WriteLine($">>> Slots : {_slots.Count}");
-    Console.WriteLine($">>> SegmentationDistributiveFiltree : {_segmentationDistributiveFiltree.Count}");
-
-    rows = BuildRows();
-
-    RecalcTotal();
-    InitEffectifs();
-
-    BuildFilterOptions();
-    ApplyFilters();
+    Console.WriteLine($">>> Matricule : {first.MatriculeConseiller}");
+    Console.WriteLine($">>> Type : {first.TypeConseiller}");
 }
