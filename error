@@ -1,3 +1,1 @@
-services.AddScoped<
-    ISegmentsIntensitesRepository,
-    SegmentsIntensitesRepository>();
+Add-Migration AddTableSegmentsIntensite -Project Segmentation.Infrastructure -StartupProject Segmentation.Server
