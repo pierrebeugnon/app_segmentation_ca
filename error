@@ -1,1 +1,8 @@
-Add-Migration AddTableParametresGeneraux -Project Segmentation.Infrastructure -StartupProject Segmentation.Server
+Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
+Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'ParametresGeneraux' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Core	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Core\Repositories\IParametresGenerauxRepository.cs	6	
+Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
+Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'ParametresGeneraux' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Application	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Handlers\ParametresGeneraux\GetParametresGenerauxQueryHandler.cs	27	
+Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
+Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'ParametresGeneraux' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Application	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Handlers\ParametresGeneraux\GetParametresGenerauxQueryHandler.cs	27	
+Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
+Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'ParametresGeneraux' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Application	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Handlers\ParametresGeneraux\GetParametresGenerauxQueryHandler.cs	27	
