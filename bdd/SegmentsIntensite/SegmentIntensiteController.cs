@@ -21,5 +21,20 @@ namespace Segmentation.Server.Controllers
             return _mapper.Map<List<SegmentIntensiteData>>(
                 await _mediator.Send(query));
         }
+
+        [HttpPost(Name = "SaveSegmentsIntensite")]
+public async Task<IActionResult> Save(
+    [FromBody] List<SegmentIntensiteData> items)
+{
+    if (items is null)
+        return BadRequest("Liste vide.");
+
+    var count = await _mediator.Send(new SaveSegmentsIntensiteCommand
+    {
+        Items = items
+    });
+
+    return Ok(new { saved = count });
+}
     }
 }
