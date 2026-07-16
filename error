@@ -1,6 +1,10 @@
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS9035	Le membre obligatoire 'SaveSegmentsIntensiteCommand.Items' doit être défini dans l’initialiseur d’objet ou le constructeur d’attribut.	Segmentation.Server	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\Controllers\SegmentIntensiteController.cs	35	
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0229	Ambiguïté entre 'SaveSegmentsIntensiteCommand.Items' et 'SaveSegmentsIntensiteCommand.Items'	Segmentation.Server	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\Controllers\SegmentIntensiteController.cs	37	
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0234	Le nom de type ou d'espace de noms 'Shared' n'existe pas dans l'espace de noms 'Segmentation' (vous manque-t-il une référence d'assembly ?)	Segmentation.Application	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Commands\SegmentIntensite\SaveSegmentsIntensiteCommand.cs	2	
+
+[
+  {
+    "ligneMetier": "banque privée",
+    "segment": "HDG Premium Potentiel",
+    "nombreRdvParAn": 2.5,
+    "dureeRdvHeures": 2,
+    "intensiteRelationnelle": 5
+  }
+]
