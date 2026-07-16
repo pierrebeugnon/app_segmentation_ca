@@ -1,1 +1,1 @@
-System.InvalidOperationException : 'Cannot create a DbSet for 'ParametresGeneraux' because this type is not included in the model for the context.'
+Remove-Migration -Project Segmentation.Infrastructure -StartupProject Segmentation.Server
