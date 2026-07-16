@@ -1,2 +1,1 @@
-
-services.AddScoped<IConseillersProfilsRepository, ConseillersProfilsRepository>();
+Add-Migration AddTablesReglesHypotheses -Project Segmentation.Infrastructure -StartupProject Segmentation.Server
