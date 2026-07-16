@@ -1,9 +1,17 @@
-SELECT TABLE_NAME
-FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_NAME IN (
-    'SegmentsIntensite',
-    'ConseillersProfils',
-    'ReglesAffectationSegments',
-    'ParametresGeneraux'
-)
-ORDER BY TABLE_NAME;
+[
+  {
+    "ligneMetier": "banque privée",
+    "profil": "BANQUIER PRIVÉ",
+    "partTempsCommercialPct": 60
+  },
+  {
+    "ligneMetier": "banque privée",
+    "profil": "CGP",
+    "partTempsCommercialPct": 60
+  },
+  {
+    "ligneMetier": "retail",
+    "profil": "CONSEILLER CLIENTELE",
+    "partTempsCommercialPct": 40
+  }
+]
