@@ -1,23 +1,5 @@
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS1056	Caractère inattendu '`'	Segmentation.Core	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Core\Repositories\ISegmentsIntensitesRepository.cs	10	
-
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS1056	Caractère inattendu '`'	Segmentation.Core	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Core\Repositories\ISegmentsIntensitesRepository.cs	10	
-
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'MockDataService' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Client	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\ReglesHypotheses.razor	3	
-
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'MockDataService' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Client	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\VisionGlobale.razor	2	
-
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'SegmentsIntensite' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Infrastructure	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Infrastructure\Data\Configurations\SegmentsIntensitesConfiguration.cs	8	
-
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'SegmentsIntensite' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Infrastructure	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Infrastructure\Data\Configurations\SegmentsIntensitesConfiguration.cs	10	
-
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'SegmentsIntensite' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Infrastructure	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Infrastructure\Repositories\SegmentsIntensitesRepository.cs	8	
-
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'ISegmentsIntensitesRepository' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Infrastructure	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Infrastructure\Repositories\SegmentsIntensitesRepository.cs	9	
+-- Vérifier si la table existe
+SELECT TABLE_SCHEMA, TABLE_NAME
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE '%Segment%'
+ORDER BY TABLE_NAME;
