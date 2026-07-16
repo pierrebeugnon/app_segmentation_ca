@@ -1,10 +1,42 @@
 using MediatR;
-using Segmentation.Shared.Models;
+using Segmentation.Application.Commands.SegmentIntensite;
+using Segmentation.Core.Entities;
+using Segmentation.Core.Repositories;
 
-namespace Segmentation.Application.Commands.SegmentIntensite
+namespace Segmentation.Application.Handlers.SegmentIntensite
 {
-    public class SaveSegmentsIntensiteCommand : IRequest<int>
+    internal class SaveSegmentsIntensiteCommandHandler
+        : IRequestHandler<SaveSegmentsIntensiteCommand, int>
     {
-        public required List<SegmentIntensiteData> Items { get; set; }
+        private readonly ISegmentsIntensitesRepository _repository;
+
+        public SaveSegmentsIntensiteCommandHandler(
+            ISegmentsIntensitesRepository repository)
+        {
+            _repository = repository;
+        }
+
+        public async Task<int> Handle(
+            SaveSegmentsIntensiteCommand request,
+            CancellationToken cancellationToken)
+        {
+            var existing = await _repository.GetAllAsync();
+            await _repository.DeleteRangeAsync(existing, deletePhysically: true);
+
+            var newEntities = request.Items
+                .Where(x => !string.IsNullOrWhiteSpace(x.Segment))
+                .Select(x => new SegmentsIntensite
+                {
+                    LigneMetier = x.LigneMetier ?? "",
+                    Segment = x.Segment ?? "",
+                    NombreRdvParAn = x.NombreRdvParAn,
+                    DureeRdvHeures = x.DureeRdvHeures
+                })
+                .ToList();
+
+            await _repository.AddRangeAsync(newEntities);
+
+            return newEntities.Count;
+        }
     }
 }
