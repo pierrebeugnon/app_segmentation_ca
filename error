@@ -1,1 +1,1 @@
-Add-Migration AddTableParametresGeneraux -Project Segmentation.Infrastructure -StartupProject Segmentation.Server
+InvalidOperationException : Unable to resolve service for type 'Segmentation.Core.Repositories.IParametresGenerauxRepository' while attempting to activate 'Segmentation.Application.Handlers.ParametresGeneraux.GetParametresGenerauxQueryHandler'.
