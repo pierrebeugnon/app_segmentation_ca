@@ -1,14 +1,1 @@
-[
-  {
-    "segment": "HDG Premium Potentiel",
-    "conseillerPrioritaire": "BANQUIER PRIVÉ",
-    "conseillerSecondaire": "DIR. BP",
-    "conseillerTertiaire": ""
-  },
-  {
-    "segment": "CI Standard",
-    "conseillerPrioritaire": "CONSEILLER CLIENTELE",
-    "conseillerSecondaire": "CONSEILLER COMMERCIAL",
-    "conseillerTertiaire": ""
-  }
-]
+Add-Migration AddTableParametresGeneraux -Project Segmentation.Infrastructure -StartupProject Segmentation.Server
