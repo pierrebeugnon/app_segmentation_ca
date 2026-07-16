@@ -1,6 +1,7 @@
 using MapsterMapper;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Segmentation.Application.Commands.SegmentIntensite;
 using Segmentation.Application.Queries.SegmentIntensite;
 using Segmentation.Shared.Models;
 
@@ -13,6 +14,7 @@ namespace Segmentation.Server.Controllers
         {
         }
 
+        // ── GET /api/SegmentIntensite ──────────────────────────────
         [HttpGet(Name = "GetAllSegmentIntensite")]
         public async Task<List<SegmentIntensiteData>> GetAll()
         {
@@ -22,19 +24,28 @@ namespace Segmentation.Server.Controllers
                 await _mediator.Send(query));
         }
 
+        // ── POST /api/SegmentIntensite ─────────────────────────────
         [HttpPost(Name = "SaveSegmentsIntensite")]
-public async Task<IActionResult> Save(
-    [FromBody] List<SegmentIntensiteData> items)
-{
-    if (items is null)
-        return BadRequest("Liste vide.");
+        public async Task<IActionResult> Save(
+            [FromBody] List<SegmentIntensiteData> items)
+        {
+            if (items is null)
+                return BadRequest("Liste vide.");
 
-    var count = await _mediator.Send(new SaveSegmentsIntensiteCommand
-    {
-        Items = items
-    });
+            var command = new SaveSegmentsIntensiteCommand
+            {
+                Items = items.Select(x => new SaveSegmentIntensiteItem
+                {
+                    LigneMetier = x.LigneMetier,
+                    Segment = x.Segment,
+                    NombreRdvParAn = x.NombreRdvParAn,
+                    DureeRdvHeures = x.DureeRdvHeures
+                }).ToList()
+            };
 
-    return Ok(new { saved = count });
-}
+            var count = await _mediator.Send(command);
+
+            return Ok(new { saved = count });
+        }
     }
 }
