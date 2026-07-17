@@ -1,1 +1,7 @@
-RedisConnectionException : It was not possible to connect to the redis server(s). Error connecting right now. To allow this multiplexer to continue retrying until it's able to connect, use abortConnect=false in your connection string or AbortOnConnectFail=false; in your code.
+var volumeActuel = CalculService.GetVolumeHoraireByTypeAgence(
+    model,
+    context.LigneMetier);
+
+var tailleActuelle = CalculService.GetTailleTheoriqueParSegment(
+    model,
+    context.SegmentCouvert);
