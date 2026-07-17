@@ -1,3 +1,7 @@
+Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
+Erreur (active)	RZ1024	End of file or an unexpected character was reached before the "MudTable" tag could be parsed.  Elements inside markup blocks must be complete. They must either be self-closing ("<br />") or have matching end tags ("<p>Hello</p>").  If you intended to display a "<" character, use the "&lt;" HTML entity.		C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\ReglesHypotheses.razor	502	
+
+
 @page "/regles-hypotheses"
 @using System.Linq
 @using Segmentation.Client.Models
