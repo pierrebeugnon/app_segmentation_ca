@@ -1,70 +1,20 @@
-protected override async Task OnInitializedAsync()
-{
-    // Chargement depuis les 4 APIs
-    var bundle = await ReglesService.LoadAllAsync();
-
-    // Conversion Bundle → ReglesHypothesesModel
-    model = BuildModelFromBundle(bundle);
-
-    // Alimente le StateService pour que les autres pages y accèdent
-    StateService.UpdateRegles(model);
-
-    // Init classique
-    BuildOptionsProfilsParSegment();
-    snapshotInitial = CreateSnapshot();
-    InitTempsCommerciauxParType();
-}
-
-// ── Conversion Bundle API → Model UI ──────────────────────────────
-private ReglesHypothesesModel BuildModelFromBundle(ReglesHypothesesBundle bundle)
-{
-    var m = new ReglesHypothesesModel
-    {
-        HeuresParSemaine = bundle.Parametres?.HeuresParSemaine ?? 37.3,
-        NbSemainesParAn  = bundle.Parametres?.NbSemainesParAn  ?? 42.5,
-
-        SegmentsIntensite = bundle.Segments.Select(x => new SegmentIntensite
+// Section 4 : calculée dynamiquement à partir des Sections 1, 2, 3
+private List<TailleTheoriqueRow> TaillesCalculees =>
+    model?.ReglesAffectationSegments
+        .Select(r =>
         {
-            LigneMetier = x.LigneMetier,
-            Segment = x.Segment,
-            NombreRdvParAn = x.NombreRdvParAn,
-            DureeRdvHeures = x.DureeRdvHeures
-        }).ToList(),
+            var profil = r.ConseillerPrioritaire ?? "";
+            var ligneMetier = model.ConseillersProfils
+                .FirstOrDefault(p => string.Equals(
+                    p.Profil, profil, StringComparison.OrdinalIgnoreCase))?.LigneMetier
+                ?? "N/A";
 
-        ConseillersProfils = bundle.Profils.Select(x => new ConseillerTempsProfil
-        {
-            LigneMetier = x.LigneMetier,
-            Profil = x.Profil,
-            PartTempsCommercialPct = x.PartTempsCommercialPct
-        }).ToList(),
-
-        ReglesAffectationSegments = bundle.Regles.Select(x => new RegleAffectationSegment
-        {
-            Segment = x.Segment,
-            ConseillerPrioritaire = x.ConseillerPrioritaire,
-            ConseillerSecondaire = x.ConseillerSecondaire,
-            ConseillerTertiaire = x.ConseillerTertiaire
-        }).ToList(),
-
-        // Section 4 : Taille théorique (config statique, calcul dynamique)
-        TaillesTheoretiques = BuildDefaultTaillesTheoretiques()
-    };
-
-    return m;
-}
-
-// Section 4 hard-codée (config profil→segment inchangée entre déploiements)
-private static List<TailleTheoriqueRow> BuildDefaultTaillesTheoretiques() => new()
-{
-    new() { LigneMetier = "banque privée",                   Profil = "DIR. BP",              SegmentCouvert = ""                       },
-    new() { LigneMetier = "banque privée",                   Profil = "BANQUIER PRIVÉ",       SegmentCouvert = "HDG Premium Potentiel"  },
-    new() { LigneMetier = "banque privée",                   Profil = "CGP",                  SegmentCouvert = "HDG Premium Standard"   },
-    new() { LigneMetier = "retail",                          Profil = "RESP. AGENCE",         SegmentCouvert = "HDG Potentiel"          },
-    new() { LigneMetier = "retail",                          Profil = "RESP. AGENCE",         SegmentCouvert = "HDG Senior Epargnant"   },
-    new() { LigneMetier = "retail",                          Profil = "RCP",                  SegmentCouvert = "HDG Standard"           },
-    new() { LigneMetier = "retail",                          Profil = "CONSEILLER CLIENTELE", SegmentCouvert = "CI Potentiel"           },
-    new() { LigneMetier = "retail",                          Profil = "CONSEILLER CLIENTELE", SegmentCouvert = "CI Standard"            },
-    new() { LigneMetier = "retail",                          Profil = "CONSEILLER COMMERCIAL",SegmentCouvert = "GP Potentiel"           },
-    new() { LigneMetier = "retail - portefeuille mutualisé", Profil = "CONSEILLER COMMERCIAL",SegmentCouvert = "GP Standard"            },
-    new() { LigneMetier = "N/A",                             Profil = "",                     SegmentCouvert = "Non segmenté"           },
-};
+            return new TailleTheoriqueRow
+            {
+                LigneMetier = ligneMetier,
+                Profil = profil,
+                SegmentCouvert = r.Segment ?? ""
+            };
+        })
+        .ToList()
+    ?? new List<TailleTheoriqueRow>();
