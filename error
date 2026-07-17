@@ -1,2 +1,288 @@
-private List<TailleTheoriqueRow> TaillesCalculees =>
+@code {
+    private ReglesHypothesesModel? model;
+    private bool modeSimulation = false;
+    private SimulationSnapshot? snapshotInitial;
+    // Source de vérité stable pour les % commerciaux par type (évite les re-calculs LINQ en boucle)
+    private Dictionary<string, double> _tempsCommerciauxParType = new();
+
+    // Section 4 : calculée dynamiquement à partir des Sections 1, 2, 3
+    private List<TailleTheoriqueRow> TaillesCalculees =>
     CalculService.BuildTaillesCalculees(model);
+
+    private readonly Dictionary<string, List<string>> _optionsProfilsParSegment =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly List<string> ProfilsBanquePrivee = new()
+    {
+        "DIR. BP",
+        "BANQUIER PRIVÉ",
+        "CGP"
+    };
+
+    private static readonly List<string> ProfilsRetail = new()
+    {
+        "RESP. AGENCE",
+        "RCP",
+        "CONSEILLER CLIENTELE",
+        "CONSEILLER COMMERCIAL"
+    };
+
+    private static readonly List<string> ProfilsRetailAvecAccueil = new()
+    {
+        "RESP. AGENCE",
+        "RCP",
+        "CONSEILLER CLIENTELE",
+        "CONSEILLER COMMERCIAL",
+        "CONSEILLER D'ACCUEIL"
+    };
+
+    private static readonly HashSet<string> SegmentsBanquePrivee =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "HDG Premium Potentiel",
+            "HDG Premium Standard"
+        };
+
+    protected override void OnInitialized()
+    {
+        model = StateService.Regles;
+        BuildOptionsProfilsParSegment();
+        snapshotInitial = CreateSnapshot();
+        InitTempsCommerciauxParType();
+    }
+
+    private void InitTempsCommerciauxParType()
+    {
+        _tempsCommerciauxParType.Clear();
+        if (model?.ConseillersProfils == null) return;
+        foreach (var t in model.ConseillersProfils
+            .Where(p => !string.IsNullOrWhiteSpace(p.LigneMetier))
+            .Select(p => p.LigneMetier!).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            _tempsCommerciauxParType[t] = GetTempsCommercialByType(t);
+        }
+    }
+
+    private void ToggleModeSimulation()
+    {
+        modeSimulation = !modeSimulation;
+
+        if (snapshotInitial == null)
+            snapshotInitial = CreateSnapshot();
+    }
+
+    private void ReinitialiserSimulation()
+    {
+        if (snapshotInitial == null || model == null)
+            return;
+
+        RestoreSnapshot(snapshotInitial);
+
+        Snackbar.Add(
+            "Simulation réinitialisée avec les valeurs de référence.",
+            Severity.Info,
+            cfg =>
+            {
+                cfg.Icon = Icons.Material.Filled.Restore;
+                cfg.VisibleStateDuration = 3000;
+            }
+        );
+    }
+
+    private SimulationSnapshot CreateSnapshot()
+    {
+        var snapshot = new SimulationSnapshot();
+
+        if (model == null)
+            return snapshot;
+
+        snapshot.HeuresParSemaine = model.HeuresParSemaine;
+        snapshot.NbSemainesParAn = model.NbSemainesParAn;
+
+        foreach (var segment in model.SegmentsIntensite)
+        {
+            var key = NormalizeKey(segment.Segment);
+
+            if (!snapshot.Segments.ContainsKey(key))
+            {
+                snapshot.Segments[key] = new SegmentSnapshot
+                {
+                    Segment = segment.Segment ?? string.Empty,
+                    NombreRdvParAn = segment.NombreRdvParAn,
+                    DureeRdvHeures = segment.DureeRdvHeures
+                };
+            }
+        }
+
+        foreach (var profil in model.ConseillersProfils)
+        {
+            var key = NormalizeKey(profil.Profil);
+
+            if (!snapshot.PartsCommerciales.ContainsKey(key))
+                snapshot.PartsCommerciales[key] = profil.PartTempsCommercialPct;
+        }
+
+        foreach (var regle in model.ReglesAffectationSegments)
+        {
+            var key = NormalizeKey(regle.Segment);
+
+            if (!snapshot.Affectations.ContainsKey(key))
+            {
+                snapshot.Affectations[key] = new AffectationSnapshot
+                {
+                    Segment = regle.Segment ?? string.Empty,
+                    ConseillerPrioritaire = regle.ConseillerPrioritaire ?? string.Empty,
+                    ConseillerSecondaire = regle.ConseillerSecondaire ?? string.Empty,
+                    ConseillerTertiaire = regle.ConseillerTertiaire ?? string.Empty
+                };
+            }
+        }
+
+        return snapshot;
+    }
+
+    private void RestoreSnapshot(SimulationSnapshot snapshot)
+    {
+        if (model == null)
+            return;
+
+        model.HeuresParSemaine = snapshot.HeuresParSemaine;
+        model.NbSemainesParAn = snapshot.NbSemainesParAn;
+
+        foreach (var segment in model.SegmentsIntensite)
+        {
+            var key = NormalizeKey(segment.Segment);
+
+            if (snapshot.Segments.TryGetValue(key, out var saved))
+            {
+                segment.NombreRdvParAn = saved.NombreRdvParAn;
+                segment.DureeRdvHeures = saved.DureeRdvHeures;
+            }
+        }
+
+        foreach (var profil in model.ConseillersProfils)
+        {
+            var key = NormalizeKey(profil.Profil);
+
+            if (snapshot.PartsCommerciales.TryGetValue(key, out var savedPart))
+                profil.PartTempsCommercialPct = savedPart;
+        }
+
+        foreach (var regle in model.ReglesAffectationSegments)
+        {
+            var key = NormalizeKey(regle.Segment);
+
+            if (snapshot.Affectations.TryGetValue(key, out var saved))
+            {
+                regle.ConseillerPrioritaire = saved.ConseillerPrioritaire;
+                regle.ConseillerSecondaire = saved.ConseillerSecondaire;
+                regle.ConseillerTertiaire = saved.ConseillerTertiaire;
+            }
+        }
+
+        BuildOptionsProfilsParSegment();
+    }
+
+    private void BuildOptionsProfilsParSegment()
+    {
+        _optionsProfilsParSegment.Clear();
+
+        if (model?.ReglesAffectationSegments == null)
+            return;
+
+        foreach (var regle in model.ReglesAffectationSegments)
+        {
+            var segment = regle.Segment?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(segment))
+                continue;
+
+            if (!_optionsProfilsParSegment.ContainsKey(segment))
+                _optionsProfilsParSegment[segment] = BuildOptionsProfilsForSegment(segment);
+
+            AddIfMissing(_optionsProfilsParSegment[segment], regle.ConseillerPrioritaire);
+            AddIfMissing(_optionsProfilsParSegment[segment], regle.ConseillerSecondaire);
+            AddIfMissing(_optionsProfilsParSegment[segment], regle.ConseillerTertiaire);
+        }
+    }
+
+    private List<string> BuildOptionsProfilsForSegment(string segment)
+    {
+        if (IsSegmentNonAffectable(segment))
+            return new List<string>();
+
+        if (SegmentsBanquePrivee.Contains(segment))
+            return ProfilsBanquePrivee.ToList();
+
+        if (IsGpStandard(segment))
+            return ProfilsRetailAvecAccueil.ToList();
+
+        return ProfilsRetail.ToList();
+    }
+
+    private IReadOnlyList<string> GetOptionsProfilsPourSegment(string segment)
+    {
+        segment = segment?.Trim() ?? string.Empty;
+
+        if (_optionsProfilsParSegment.TryGetValue(segment, out var options))
+            return options;
+
+        var newOptions = BuildOptionsProfilsForSegment(segment);
+        _optionsProfilsParSegment[segment] = newOptions;
+
+        return newOptions;
+    }
+
+    private static IReadOnlyList<string> GetOptionsFiltered(
+        IReadOnlyList<string> allOptions,
+        params string?[] exclude)
+    {
+        var excluded = exclude
+            .Where(e => !string.IsNullOrWhiteSpace(e))
+            .Select(e => e!.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return allOptions.Where(p => !excluded.Contains(p.Trim())).ToList();
+    }
+
+    private static void AddIfMissing(List<string> options, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+
+        var normalizedValue = value.Trim();
+
+        if (!options.Any(x => string.Equals(x.Trim(), normalizedValue, StringComparison.OrdinalIgnoreCase)))
+            options.Add(normalizedValue);
+    }
+
+    private static bool IsGpStandard(string? segment)
+    {
+        return string.Equals(segment?.Trim(), "GP Standard", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSegmentNonAffectable(string? segment)
+    {
+        var s = segment?.Trim();
+
+        return string.IsNullOrWhiteSpace(s)
+               || string.Equals(s, "Non segmenté", StringComparison.OrdinalIgnoreCase)
+               || s == "?";
+    }
+
+    private static bool IsSegmentNonRenseigne(string? segment)
+    {
+        return string.IsNullOrWhiteSpace(segment) || segment.Trim() == "?";
+    }
+
+    private static string NormalizeKey(string? value)
+    {
+        return value?.Trim() ?? string.Empty;
+    }
+
+    private double GetIntensite(SegmentIntensite segment)
+    {
+        if (segment == null)
+            return 0;
+
+        return segment.NombreRdvParAn * segment.DureeRdvHeures;
+    }
