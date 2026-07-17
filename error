@@ -1,6 +1,3 @@
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS1061	'ReglesHypothesesModel' ne contient pas de définition pour 'TaillesCalculees' et aucune méthode d'extension accessible 'TaillesCalculees' acceptant un premier argument de type 'ReglesHypothesesModel' n'a été trouvée (une directive using ou une référence d'assembly est-elle manquante ?)		C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\ReglesHypotheses.razor	1278	
-
 @page "/regles-hypotheses"
 @using System.Linq
 @using Segmentation.Client.Models
@@ -646,8 +643,7 @@ Erreur (active)	CS1061	'ReglesHypothesesModel' ne contient pas de définition po
 
     protected override void OnInitialized()
     {
-        if (model == null) return;
-        StateService.UpdateRegles(model);
+        model = StateService.Regles;
         BuildOptionsProfilsParSegment();
         snapshotInitial = CreateSnapshot();
         InitTempsCommerciauxParType();
@@ -1030,10 +1026,10 @@ Erreur (active)	CS1061	'ReglesHypothesesModel' ne contient pas de définition po
 
     private double GetCapaciteMoyenne()
     {
-        if (model == null || model.TaillesTheoretiques == null)
+        if (model == null)
             return 0;
 
-        var valeurs = model.TaillesTheoretiques
+        var valeurs = TaillesCalculees
             .Where(t => !IsSegmentNonRenseigne(t.SegmentCouvert))
             .Select(t =>
             {
@@ -1278,7 +1274,7 @@ Erreur (active)	CS1061	'ReglesHypothesesModel' ne contient pas de définition po
         sb.AppendLine();
         sb.AppendLine("PORTEFEUILLE THÉORIQUE");
         sb.AppendLine("Segment;Intensité;Volume horaire;Taille théorique");
-        foreach (var t in model.TaillesCalculees)
+        foreach (var t in TaillesCalculees)
         {
             var intensite = IsSegmentNonRenseigne(t.SegmentCouvert) ? 0 : GetIntensiteBySegment(t.SegmentCouvert);
             var volume = GetVolumeHoraireByProfil(t.Profil);
