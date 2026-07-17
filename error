@@ -1,106 +1,103 @@
-  private double GetHeuresTravailParAn()
-  {
-      if (model == null)
-          return 0;
+private double GetHeuresTravailParAn()
+{
+    return CalculService.GetHeuresTravailParAn(model);
+}
 
-      return model.HeuresParSemaine * model.NbSemainesParAn;
-  }
+// ── Helpers type d'agence ─────────────────────────────────────────────
 
-  // ── Helpers type d'agence ─────────────────────────────────────────────
+private static string FormatTypeAgenceLabel(string lm) =>
+    string.IsNullOrWhiteSpace(lm) ? "" : char.ToUpperInvariant(lm[0]) + lm[1..];
 
-  private static string FormatTypeAgenceLabel(string lm) =>
-      string.IsNullOrWhiteSpace(lm) ? "" : char.ToUpperInvariant(lm[0]) + lm[1..];
+private double GetTempsCommercialByType(string ligneMetier)
+{
+    var p = model?.ConseillersProfils
+        .FirstOrDefault(x =>
+            x.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true);
 
-  private double GetTempsCommercialByType(string ligneMetier)
-  {
-      var p = model?.ConseillersProfils
-          .FirstOrDefault(x => x.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true);
-      return p != null ? GetPartTempsCommercialPctDisplay(p) : 0;
-  }
+    return p != null
+        ? GetPartTempsCommercialPctDisplay(p)
+        : 0;
+}
 
-  private void SetTempsCommercialByType(string ligneMetier, double pct)
-  {
-      if (model == null) return;
-      _tempsCommerciauxParType[ligneMetier] = pct;   // source de vérité dict en premier
-      foreach (var p in model.ConseillersProfils
-          .Where(x => x.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true))
-      {
-          SetPartTempsCommercialPctFromDisplay(p, pct);
-      }
-  }
+private void SetTempsCommercialByType(string ligneMetier, double pct)
+{
+    if (model == null)
+        return;
 
-  private void SetTempsCommercialByTypeSafe(string ligneMetier, string? val)
-  {
-      if (double.TryParse(val, System.Globalization.NumberStyles.Any,
-              System.Globalization.CultureInfo.InvariantCulture, out var d))
-          SetTempsCommercialByType(ligneMetier, Math.Clamp(d, 0, 100));
-  }
+    _tempsCommerciauxParType[ligneMetier] = pct;
 
-  // ── Fin helpers type d'agence ─────────────────────────────────────────
+    foreach (var p in model.ConseillersProfils
+        .Where(x =>
+            x.LigneMetier?.Equals(
+                ligneMetier,
+                StringComparison.OrdinalIgnoreCase) == true))
+    {
+        SetPartTempsCommercialPctFromDisplay(p, pct);
+    }
+}
 
-  private double GetPartTempsCommercialRatio(ConseillerTempsProfil profil)
-  {
-      if (profil == null)
-          return 0;
+private void SetTempsCommercialByTypeSafe(string ligneMetier, string? val)
+{
+    if (double.TryParse(
+        val,
+        System.Globalization.NumberStyles.Any,
+        System.Globalization.CultureInfo.InvariantCulture,
+        out var d))
+    {
+        SetTempsCommercialByType(
+            ligneMetier,
+            Math.Clamp(d, 0, 100));
+    }
+}
 
-      return ConvertPartTempsCommercialToRatio(profil.PartTempsCommercialPct);
-  }
+// ── Fin helpers type d'agence ─────────────────────────────────────────
 
-  private double ConvertPartTempsCommercialToRatio(double valeur)
-  {
-      if (double.IsNaN(valeur) || double.IsInfinity(valeur))
-          return 0;
+private double GetPartTempsCommercialRatio(ConseillerTempsProfil profil)
+{
+    return CalculService.GetPartTempsCommercialRatio(profil);
+}
 
-      if (valeur < 0)
-          return 0;
+private double ConvertPartTempsCommercialToRatio(double valeur)
+{
+    return CalculService.ConvertPartTempsCommercialToRatio(valeur);
+}
 
-      return valeur > 1 ? valeur / 100.0 : valeur;
-  }
+private double GetPartTempsCommercialPctDisplay(ConseillerTempsProfil profil)
+{
+    return CalculService.GetPartTempsCommercialPctDisplay(profil);
+}
 
-  private double GetPartTempsCommercialPctDisplay(ConseillerTempsProfil profil)
-  {
-      return GetPartTempsCommercialRatio(profil) * 100.0;
-  }
+private double GetPartTempsNonCommercialPctDisplay(ConseillerTempsProfil profil)
+{
+    return CalculService.GetPartTempsNonCommercialPctDisplay(profil);
+}
 
-  private double GetPartTempsNonCommercialPctDisplay(ConseillerTempsProfil profil)
-  {
-      return 100.0 - GetPartTempsCommercialPctDisplay(profil);
-  }
+private void SetPartTempsCommercialPctFromDisplay(
+    ConseillerTempsProfil profil,
+    double valeurPct)
+{
+    CalculService.SetPartTempsCommercialPctFromDisplay(
+        profil,
+        valeurPct);
+}
 
-  private void SetPartTempsCommercialPctFromDisplay(ConseillerTempsProfil profil, double valeurPct)
-  {
-      if (profil == null)
-          return;
+private double GetVolumeHoraire(ConseillerTempsProfil profil)
+{
+    return CalculService.GetVolumeHoraire(
+        model,
+        profil);
+}
 
-      profil.PartTempsCommercialPct = Math.Clamp(valeurPct, 0, 100);
-  }
+private double GetVolumeHoraireByProfil(string profil)
+{
+    return CalculService.GetVolumeHoraireByProfil(
+        model,
+        profil);
+}
 
-  private double GetVolumeHoraire(ConseillerTempsProfil profil)
-  {
-      if (model == null || profil == null)
-          return 0;
-
-      return Math.Round(GetHeuresTravailParAn() * GetPartTempsCommercialRatio(profil), 1);
-  }
-
-  private double GetVolumeHoraireByProfil(string profil)
-  {
-      if (model == null || string.IsNullOrWhiteSpace(profil))
-          return 0;
-
-      var conseiller = model.ConseillersProfils
-          .FirstOrDefault(c => string.Equals(c.Profil?.Trim(), profil.Trim(), StringComparison.OrdinalIgnoreCase));
-
-      return conseiller != null ? GetVolumeHoraire(conseiller) : 0;
-  }
-
-  private double GetIntensiteBySegment(string segment)
-  {
-      if (model == null || IsSegmentNonRenseigne(segment))
-          return 0;
-
-      var segmentTrouve = model.SegmentsIntensite
-          .FirstOrDefault(s => string.Equals(s.Segment?.Trim(), segment.Trim(), StringComparison.OrdinalIgnoreCase));
-
-      return segmentTrouve != null ? GetIntensite(segmentTrouve) : 0;
-  }
+private double GetIntensiteBySegment(string segment)
+{
+    return CalculService.GetIntensiteBySegment(
+        model,
+        segment);
+}
