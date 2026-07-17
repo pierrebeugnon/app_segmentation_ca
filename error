@@ -1,50 +1,22 @@
 private double GetTailleTheoriqueCalculee(string? profil, string? segment)
 {
-    if (string.IsNullOrWhiteSpace(profil) || IsSegmentNonRenseigne(segment))
-        return 0;
-
-    var intensite = GetIntensiteBySegment(segment!);
-    var volume = GetVolumeHoraireByProfil(profil);
-
-    return intensite > 0 ? volume / intensite : 0;
+    return CalculService.GetTailleTheoriqueCalculee(
+        model,
+        profil,
+        segment);
 }
 
 private double GetVolumeMoyen()
 {
-    if (model == null || model.ConseillersProfils == null || !model.ConseillersProfils.Any())
-        return 0;
-
-    return model.ConseillersProfils.Average(c => GetVolumeHoraire(c));
+    return CalculService.GetVolumeMoyen(model);
 }
 
 private double GetIntensiteMoyenne()
 {
-    if (model == null || model.SegmentsIntensite == null || !model.SegmentsIntensite.Any())
-        return 0;
-
-    var valeurs = model.SegmentsIntensite
-        .Select(GetIntensite)
-        .Where(v => v > 0)
-        .ToList();
-
-    return valeurs.Any() ? valeurs.Average() : 0;
+    return CalculService.GetIntensiteMoyenne(model);
 }
 
 private double GetCapaciteMoyenne()
 {
-    if (model == null)
-        return 0;
-
-    var valeurs = TaillesCalculees
-        .Where(t => !IsSegmentNonRenseigne(t.SegmentCouvert))
-        .Select(t =>
-        {
-            var intensite = GetIntensiteBySegment(t.SegmentCouvert);
-            var volume = GetVolumeHoraireByProfil(t.Profil);
-            return intensite > 0 ? volume / intensite : 0;
-        })
-        .Where(v => v > 0)
-        .ToList();
-
-    return valeurs.Any() ? valeurs.Average() : 0;
+    return CalculService.GetCapaciteMoyenne(model);
 }
