@@ -1,1 +1,9 @@
-Add-Migration AddTableParametresGeneraux -Project Segmentation.Infrastructure -StartupProject Segmentation.Server
+@page "/regles-hypotheses"
+@using System.Linq
+@using Segmentation.Client.Models
+@using Segmentation.Client.Services
+@using Segmentation.Shared.Models
+@inject ISnackbar Snackbar
+@inject SegmentationStateService StateService
+@inject ReglesHypothesesService ReglesService
+@inject IJSRuntime JS
