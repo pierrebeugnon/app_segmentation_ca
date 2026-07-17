@@ -1,103 +1,50 @@
-private double GetHeuresTravailParAn()
+private double GetTailleTheoriqueCalculee(string? profil, string? segment)
 {
-    return CalculService.GetHeuresTravailParAn(model);
+    if (string.IsNullOrWhiteSpace(profil) || IsSegmentNonRenseigne(segment))
+        return 0;
+
+    var intensite = GetIntensiteBySegment(segment!);
+    var volume = GetVolumeHoraireByProfil(profil);
+
+    return intensite > 0 ? volume / intensite : 0;
 }
 
-// ── Helpers type d'agence ─────────────────────────────────────────────
-
-private static string FormatTypeAgenceLabel(string lm) =>
-    string.IsNullOrWhiteSpace(lm) ? "" : char.ToUpperInvariant(lm[0]) + lm[1..];
-
-private double GetTempsCommercialByType(string ligneMetier)
+private double GetVolumeMoyen()
 {
-    var p = model?.ConseillersProfils
-        .FirstOrDefault(x =>
-            x.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true);
+    if (model == null || model.ConseillersProfils == null || !model.ConseillersProfils.Any())
+        return 0;
 
-    return p != null
-        ? GetPartTempsCommercialPctDisplay(p)
-        : 0;
+    return model.ConseillersProfils.Average(c => GetVolumeHoraire(c));
 }
 
-private void SetTempsCommercialByType(string ligneMetier, double pct)
+private double GetIntensiteMoyenne()
+{
+    if (model == null || model.SegmentsIntensite == null || !model.SegmentsIntensite.Any())
+        return 0;
+
+    var valeurs = model.SegmentsIntensite
+        .Select(GetIntensite)
+        .Where(v => v > 0)
+        .ToList();
+
+    return valeurs.Any() ? valeurs.Average() : 0;
+}
+
+private double GetCapaciteMoyenne()
 {
     if (model == null)
-        return;
+        return 0;
 
-    _tempsCommerciauxParType[ligneMetier] = pct;
+    var valeurs = TaillesCalculees
+        .Where(t => !IsSegmentNonRenseigne(t.SegmentCouvert))
+        .Select(t =>
+        {
+            var intensite = GetIntensiteBySegment(t.SegmentCouvert);
+            var volume = GetVolumeHoraireByProfil(t.Profil);
+            return intensite > 0 ? volume / intensite : 0;
+        })
+        .Where(v => v > 0)
+        .ToList();
 
-    foreach (var p in model.ConseillersProfils
-        .Where(x =>
-            x.LigneMetier?.Equals(
-                ligneMetier,
-                StringComparison.OrdinalIgnoreCase) == true))
-    {
-        SetPartTempsCommercialPctFromDisplay(p, pct);
-    }
-}
-
-private void SetTempsCommercialByTypeSafe(string ligneMetier, string? val)
-{
-    if (double.TryParse(
-        val,
-        System.Globalization.NumberStyles.Any,
-        System.Globalization.CultureInfo.InvariantCulture,
-        out var d))
-    {
-        SetTempsCommercialByType(
-            ligneMetier,
-            Math.Clamp(d, 0, 100));
-    }
-}
-
-// ── Fin helpers type d'agence ─────────────────────────────────────────
-
-private double GetPartTempsCommercialRatio(ConseillerTempsProfil profil)
-{
-    return CalculService.GetPartTempsCommercialRatio(profil);
-}
-
-private double ConvertPartTempsCommercialToRatio(double valeur)
-{
-    return CalculService.ConvertPartTempsCommercialToRatio(valeur);
-}
-
-private double GetPartTempsCommercialPctDisplay(ConseillerTempsProfil profil)
-{
-    return CalculService.GetPartTempsCommercialPctDisplay(profil);
-}
-
-private double GetPartTempsNonCommercialPctDisplay(ConseillerTempsProfil profil)
-{
-    return CalculService.GetPartTempsNonCommercialPctDisplay(profil);
-}
-
-private void SetPartTempsCommercialPctFromDisplay(
-    ConseillerTempsProfil profil,
-    double valeurPct)
-{
-    CalculService.SetPartTempsCommercialPctFromDisplay(
-        profil,
-        valeurPct);
-}
-
-private double GetVolumeHoraire(ConseillerTempsProfil profil)
-{
-    return CalculService.GetVolumeHoraire(
-        model,
-        profil);
-}
-
-private double GetVolumeHoraireByProfil(string profil)
-{
-    return CalculService.GetVolumeHoraireByProfil(
-        model,
-        profil);
-}
-
-private double GetIntensiteBySegment(string segment)
-{
-    return CalculService.GetIntensiteBySegment(
-        model,
-        segment);
+    return valeurs.Any() ? valeurs.Average() : 0;
 }
