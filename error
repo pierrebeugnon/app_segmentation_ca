@@ -1,288 +1,106 @@
-@code {
-    private ReglesHypothesesModel? model;
-    private bool modeSimulation = false;
-    private SimulationSnapshot? snapshotInitial;
-    // Source de vérité stable pour les % commerciaux par type (évite les re-calculs LINQ en boucle)
-    private Dictionary<string, double> _tempsCommerciauxParType = new();
+  private double GetHeuresTravailParAn()
+  {
+      if (model == null)
+          return 0;
 
-    // Section 4 : calculée dynamiquement à partir des Sections 1, 2, 3
-    private List<TailleTheoriqueRow> TaillesCalculees =>
-    CalculService.BuildTaillesCalculees(model);
+      return model.HeuresParSemaine * model.NbSemainesParAn;
+  }
 
-    private readonly Dictionary<string, List<string>> _optionsProfilsParSegment =
-        new(StringComparer.OrdinalIgnoreCase);
+  // ── Helpers type d'agence ─────────────────────────────────────────────
 
-    private static readonly List<string> ProfilsBanquePrivee = new()
-    {
-        "DIR. BP",
-        "BANQUIER PRIVÉ",
-        "CGP"
-    };
+  private static string FormatTypeAgenceLabel(string lm) =>
+      string.IsNullOrWhiteSpace(lm) ? "" : char.ToUpperInvariant(lm[0]) + lm[1..];
 
-    private static readonly List<string> ProfilsRetail = new()
-    {
-        "RESP. AGENCE",
-        "RCP",
-        "CONSEILLER CLIENTELE",
-        "CONSEILLER COMMERCIAL"
-    };
+  private double GetTempsCommercialByType(string ligneMetier)
+  {
+      var p = model?.ConseillersProfils
+          .FirstOrDefault(x => x.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true);
+      return p != null ? GetPartTempsCommercialPctDisplay(p) : 0;
+  }
 
-    private static readonly List<string> ProfilsRetailAvecAccueil = new()
-    {
-        "RESP. AGENCE",
-        "RCP",
-        "CONSEILLER CLIENTELE",
-        "CONSEILLER COMMERCIAL",
-        "CONSEILLER D'ACCUEIL"
-    };
+  private void SetTempsCommercialByType(string ligneMetier, double pct)
+  {
+      if (model == null) return;
+      _tempsCommerciauxParType[ligneMetier] = pct;   // source de vérité dict en premier
+      foreach (var p in model.ConseillersProfils
+          .Where(x => x.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true))
+      {
+          SetPartTempsCommercialPctFromDisplay(p, pct);
+      }
+  }
 
-    private static readonly HashSet<string> SegmentsBanquePrivee =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            "HDG Premium Potentiel",
-            "HDG Premium Standard"
-        };
+  private void SetTempsCommercialByTypeSafe(string ligneMetier, string? val)
+  {
+      if (double.TryParse(val, System.Globalization.NumberStyles.Any,
+              System.Globalization.CultureInfo.InvariantCulture, out var d))
+          SetTempsCommercialByType(ligneMetier, Math.Clamp(d, 0, 100));
+  }
 
-    protected override void OnInitialized()
-    {
-        model = StateService.Regles;
-        BuildOptionsProfilsParSegment();
-        snapshotInitial = CreateSnapshot();
-        InitTempsCommerciauxParType();
-    }
+  // ── Fin helpers type d'agence ─────────────────────────────────────────
 
-    private void InitTempsCommerciauxParType()
-    {
-        _tempsCommerciauxParType.Clear();
-        if (model?.ConseillersProfils == null) return;
-        foreach (var t in model.ConseillersProfils
-            .Where(p => !string.IsNullOrWhiteSpace(p.LigneMetier))
-            .Select(p => p.LigneMetier!).Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            _tempsCommerciauxParType[t] = GetTempsCommercialByType(t);
-        }
-    }
+  private double GetPartTempsCommercialRatio(ConseillerTempsProfil profil)
+  {
+      if (profil == null)
+          return 0;
 
-    private void ToggleModeSimulation()
-    {
-        modeSimulation = !modeSimulation;
+      return ConvertPartTempsCommercialToRatio(profil.PartTempsCommercialPct);
+  }
 
-        if (snapshotInitial == null)
-            snapshotInitial = CreateSnapshot();
-    }
+  private double ConvertPartTempsCommercialToRatio(double valeur)
+  {
+      if (double.IsNaN(valeur) || double.IsInfinity(valeur))
+          return 0;
 
-    private void ReinitialiserSimulation()
-    {
-        if (snapshotInitial == null || model == null)
-            return;
+      if (valeur < 0)
+          return 0;
 
-        RestoreSnapshot(snapshotInitial);
+      return valeur > 1 ? valeur / 100.0 : valeur;
+  }
 
-        Snackbar.Add(
-            "Simulation réinitialisée avec les valeurs de référence.",
-            Severity.Info,
-            cfg =>
-            {
-                cfg.Icon = Icons.Material.Filled.Restore;
-                cfg.VisibleStateDuration = 3000;
-            }
-        );
-    }
+  private double GetPartTempsCommercialPctDisplay(ConseillerTempsProfil profil)
+  {
+      return GetPartTempsCommercialRatio(profil) * 100.0;
+  }
 
-    private SimulationSnapshot CreateSnapshot()
-    {
-        var snapshot = new SimulationSnapshot();
+  private double GetPartTempsNonCommercialPctDisplay(ConseillerTempsProfil profil)
+  {
+      return 100.0 - GetPartTempsCommercialPctDisplay(profil);
+  }
 
-        if (model == null)
-            return snapshot;
+  private void SetPartTempsCommercialPctFromDisplay(ConseillerTempsProfil profil, double valeurPct)
+  {
+      if (profil == null)
+          return;
 
-        snapshot.HeuresParSemaine = model.HeuresParSemaine;
-        snapshot.NbSemainesParAn = model.NbSemainesParAn;
+      profil.PartTempsCommercialPct = Math.Clamp(valeurPct, 0, 100);
+  }
 
-        foreach (var segment in model.SegmentsIntensite)
-        {
-            var key = NormalizeKey(segment.Segment);
+  private double GetVolumeHoraire(ConseillerTempsProfil profil)
+  {
+      if (model == null || profil == null)
+          return 0;
 
-            if (!snapshot.Segments.ContainsKey(key))
-            {
-                snapshot.Segments[key] = new SegmentSnapshot
-                {
-                    Segment = segment.Segment ?? string.Empty,
-                    NombreRdvParAn = segment.NombreRdvParAn,
-                    DureeRdvHeures = segment.DureeRdvHeures
-                };
-            }
-        }
+      return Math.Round(GetHeuresTravailParAn() * GetPartTempsCommercialRatio(profil), 1);
+  }
 
-        foreach (var profil in model.ConseillersProfils)
-        {
-            var key = NormalizeKey(profil.Profil);
+  private double GetVolumeHoraireByProfil(string profil)
+  {
+      if (model == null || string.IsNullOrWhiteSpace(profil))
+          return 0;
 
-            if (!snapshot.PartsCommerciales.ContainsKey(key))
-                snapshot.PartsCommerciales[key] = profil.PartTempsCommercialPct;
-        }
+      var conseiller = model.ConseillersProfils
+          .FirstOrDefault(c => string.Equals(c.Profil?.Trim(), profil.Trim(), StringComparison.OrdinalIgnoreCase));
 
-        foreach (var regle in model.ReglesAffectationSegments)
-        {
-            var key = NormalizeKey(regle.Segment);
+      return conseiller != null ? GetVolumeHoraire(conseiller) : 0;
+  }
 
-            if (!snapshot.Affectations.ContainsKey(key))
-            {
-                snapshot.Affectations[key] = new AffectationSnapshot
-                {
-                    Segment = regle.Segment ?? string.Empty,
-                    ConseillerPrioritaire = regle.ConseillerPrioritaire ?? string.Empty,
-                    ConseillerSecondaire = regle.ConseillerSecondaire ?? string.Empty,
-                    ConseillerTertiaire = regle.ConseillerTertiaire ?? string.Empty
-                };
-            }
-        }
+  private double GetIntensiteBySegment(string segment)
+  {
+      if (model == null || IsSegmentNonRenseigne(segment))
+          return 0;
 
-        return snapshot;
-    }
+      var segmentTrouve = model.SegmentsIntensite
+          .FirstOrDefault(s => string.Equals(s.Segment?.Trim(), segment.Trim(), StringComparison.OrdinalIgnoreCase));
 
-    private void RestoreSnapshot(SimulationSnapshot snapshot)
-    {
-        if (model == null)
-            return;
-
-        model.HeuresParSemaine = snapshot.HeuresParSemaine;
-        model.NbSemainesParAn = snapshot.NbSemainesParAn;
-
-        foreach (var segment in model.SegmentsIntensite)
-        {
-            var key = NormalizeKey(segment.Segment);
-
-            if (snapshot.Segments.TryGetValue(key, out var saved))
-            {
-                segment.NombreRdvParAn = saved.NombreRdvParAn;
-                segment.DureeRdvHeures = saved.DureeRdvHeures;
-            }
-        }
-
-        foreach (var profil in model.ConseillersProfils)
-        {
-            var key = NormalizeKey(profil.Profil);
-
-            if (snapshot.PartsCommerciales.TryGetValue(key, out var savedPart))
-                profil.PartTempsCommercialPct = savedPart;
-        }
-
-        foreach (var regle in model.ReglesAffectationSegments)
-        {
-            var key = NormalizeKey(regle.Segment);
-
-            if (snapshot.Affectations.TryGetValue(key, out var saved))
-            {
-                regle.ConseillerPrioritaire = saved.ConseillerPrioritaire;
-                regle.ConseillerSecondaire = saved.ConseillerSecondaire;
-                regle.ConseillerTertiaire = saved.ConseillerTertiaire;
-            }
-        }
-
-        BuildOptionsProfilsParSegment();
-    }
-
-    private void BuildOptionsProfilsParSegment()
-    {
-        _optionsProfilsParSegment.Clear();
-
-        if (model?.ReglesAffectationSegments == null)
-            return;
-
-        foreach (var regle in model.ReglesAffectationSegments)
-        {
-            var segment = regle.Segment?.Trim() ?? string.Empty;
-
-            if (string.IsNullOrWhiteSpace(segment))
-                continue;
-
-            if (!_optionsProfilsParSegment.ContainsKey(segment))
-                _optionsProfilsParSegment[segment] = BuildOptionsProfilsForSegment(segment);
-
-            AddIfMissing(_optionsProfilsParSegment[segment], regle.ConseillerPrioritaire);
-            AddIfMissing(_optionsProfilsParSegment[segment], regle.ConseillerSecondaire);
-            AddIfMissing(_optionsProfilsParSegment[segment], regle.ConseillerTertiaire);
-        }
-    }
-
-    private List<string> BuildOptionsProfilsForSegment(string segment)
-    {
-        if (IsSegmentNonAffectable(segment))
-            return new List<string>();
-
-        if (SegmentsBanquePrivee.Contains(segment))
-            return ProfilsBanquePrivee.ToList();
-
-        if (IsGpStandard(segment))
-            return ProfilsRetailAvecAccueil.ToList();
-
-        return ProfilsRetail.ToList();
-    }
-
-    private IReadOnlyList<string> GetOptionsProfilsPourSegment(string segment)
-    {
-        segment = segment?.Trim() ?? string.Empty;
-
-        if (_optionsProfilsParSegment.TryGetValue(segment, out var options))
-            return options;
-
-        var newOptions = BuildOptionsProfilsForSegment(segment);
-        _optionsProfilsParSegment[segment] = newOptions;
-
-        return newOptions;
-    }
-
-    private static IReadOnlyList<string> GetOptionsFiltered(
-        IReadOnlyList<string> allOptions,
-        params string?[] exclude)
-    {
-        var excluded = exclude
-            .Where(e => !string.IsNullOrWhiteSpace(e))
-            .Select(e => e!.Trim())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return allOptions.Where(p => !excluded.Contains(p.Trim())).ToList();
-    }
-
-    private static void AddIfMissing(List<string> options, string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return;
-
-        var normalizedValue = value.Trim();
-
-        if (!options.Any(x => string.Equals(x.Trim(), normalizedValue, StringComparison.OrdinalIgnoreCase)))
-            options.Add(normalizedValue);
-    }
-
-    private static bool IsGpStandard(string? segment)
-    {
-        return string.Equals(segment?.Trim(), "GP Standard", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsSegmentNonAffectable(string? segment)
-    {
-        var s = segment?.Trim();
-
-        return string.IsNullOrWhiteSpace(s)
-               || string.Equals(s, "Non segmenté", StringComparison.OrdinalIgnoreCase)
-               || s == "?";
-    }
-
-    private static bool IsSegmentNonRenseigne(string? segment)
-    {
-        return string.IsNullOrWhiteSpace(segment) || segment.Trim() == "?";
-    }
-
-    private static string NormalizeKey(string? value)
-    {
-        return value?.Trim() ?? string.Empty;
-    }
-
-    private double GetIntensite(SegmentIntensite segment)
-    {
-        if (segment == null)
-            return 0;
-
-        return segment.NombreRdvParAn * segment.DureeRdvHeures;
-    }
+      return segmentTrouve != null ? GetIntensite(segmentTrouve) : 0;
+  }
