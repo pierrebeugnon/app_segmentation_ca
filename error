@@ -1,103 +1,592 @@
-<!-- ════════════════════════════════════════════════════════
-     Section 4 : Portefeuille
-     Une ligne par segment du volet 1.
-     Volume horaire basé sur le TYPE D'AGENCE (BP ou Retail).
-════════════════════════════════════════════════════════ -->
-<MudTabPanel Text="4. Taille théorique des portefeuilles">
-    <MudPaper Elevation="1"
-              Style="border-radius:8px;overflow:visible"
-              Class="pa-0 mt-4">
+@page "/regles-hypotheses"
+@using System.Linq
+@using Segmentation.Client.Models
+@using Segmentation.Client.Services
+@using Segmentation.Shared.Models
+@inject ISnackbar Snackbar
+@inject SegmentationStateService StateService
+@inject ReglesHypothesesService ReglesService
+@inject ReglesHypothesesCalculService CalculService
+@inject IJSRuntime JS
 
-        <div class="ca-section-header">
-            <span class="ca-section-badge">4</span>
-            Taille théorique de portefeuille par segment
+<PageTitle>Règles & Hypothèses — CA Segmentation</PageTitle>
 
-            <MudChip T="string"
-                     Size="Size.Small"
-                     Variant="Variant.Outlined"
-                     Style="color:white;border-color:rgba(255,255,255,.5);margin-left:auto;font-size:11px">
-                Lecture seule — calculé automatiquement
-            </MudChip>
+<div class="ca-page">
+
+    <div class="ca-page-header">
+        <div>
+            <MudText Typo="Typo.h5" Class="ca-page-title">Règles & Hypothèses</MudText>
+            <MudText Typo="Typo.caption" Class="ca-page-subtitle">
+                Configuration des paramètres de dimensionnement du réseau
+            </MudText>
         </div>
 
-        <MudTable Items="@TaillesCalculees.OrderByDescending(t => CalculService.GetTailleTheoriqueParSegment(model, t.SegmentCouvert)).ToList()"
-                  Dense="true"
-                  Hover="true"
-                  Elevation="0"
-                  Striped="true"
-                  Style="overflow:visible">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Success"
+                       Size="Size.Medium"
+                       StartIcon="@Icons.Material.Filled.Download"
+                       OnClick="ExportExcel">
+                Export Excel
+            </MudButton>
 
-            <HeaderContent>
-                <MudTh>Segments distributifs</MudTh>
-                <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                    Intensité relationelle
-                </MudTh>
-                <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                    Volume horaire par conseiller dédié à la gestion <br />
-                    de portefeuilles (en heures/an)
-                </MudTh>
-                <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
-                    Taille théorique de portefeuille par segment
-                </MudTh>
+            <MudButton Variant="Variant.Outlined"
+                       Color="@(modeSimulation ? Color.Warning : Color.Primary)"
+                       Size="Size.Medium"
+                       StartIcon="@Icons.Material.Filled.Science"
+                       OnClick="ToggleModeSimulation">
+                @(modeSimulation ? "Mode simulation activé" : "Activer le mode simulation")
+            </MudButton>
 
-                @if (modeSimulation)
-                {
-                    <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
-                        Référence
-                    </MudTh>
-                    <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
-                        Écart
-                    </MudTh>
-                }
-            </HeaderContent>
+            @if (modeSimulation)
+            {
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Secondary"
+                           Size="Size.Medium"
+                           StartIcon="@Icons.Material.Filled.Restore"
+                           OnClick="ReinitialiserSimulation">
+                    Réinitialiser
+                </MudButton>
+            }
 
-            <RowTemplate>
-                @{
-                    var segmentNonRenseigne = IsSegmentNonRenseigne(context.SegmentCouvert);
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Size="Size.Medium"
+                       StartIcon="@Icons.Material.Filled.Save"
+                       OnClick="Enregistrer">
+                Enregistrer les modifications
+            </MudButton>
+        </div>
+    </div>
 
-                    var intensiteActuelle = segmentNonRenseigne
-                        ? 0
-                        : CalculService.GetIntensiteBySegment(model, context.SegmentCouvert);
+    @if (model != null)
+    {
+        @if (modeSimulation)
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
+                Mode simulation activé : les écarts comparent les valeurs actuelles aux valeurs de référence chargées initialement.
+                L’enregistrement fige les valeurs actuelles comme nouvelle référence.
+            </MudAlert>
+        }
 
-                    var volumeActuel = CalculService.GetVolumeHoraireByTypeAgence(
-                        model,
-                        context.LigneMetier);
+        <!-- ════════════════════════════════════════════════════════
+             Onglets
+        ════════════════════════════════════════════════════════ -->
+        <MudTabs Rounded="true"
+                 Elevation="1"
+                 Class="mb-4"
+                 Style="overflow:visible">
 
-                    var tailleActuelle = segmentNonRenseigne
-                        ? 0
-                        : CalculService.GetTailleTheoriqueParSegment(model, context.SegmentCouvert);
+            <!-- ════════════════════════════════════════════════════════
+                 Section 1 : Intensité
+            ════════════════════════════════════════════════════════ -->
+            <MudTabPanel Text="1. Intensité Relationelle">
+                <MudPaper Elevation="1"
+                          Style="border-radius:8px;overflow:visible"
+                          Class="pa-0 mt-4">
 
-                    var tailleReference = GetBaselineTailleTheorique(context.Profil, context.SegmentCouvert);
-                    var ecartTaille = tailleActuelle - tailleReference;
-                }
+                    <div class="ca-section-header">
+                        <span class="ca-section-badge">1</span>
+                        Segments et intensité relationnelle
+                    </div>
 
-                <MudTd Style="font-weight:600;color:#1A4E6B">
-                    @FormatSegmentLabel(context.SegmentCouvert)
-                </MudTd>
+                    <MudTable Items="@model.SegmentsIntensite"
+                              Dense="true"
+                              Hover="true"
+                              Elevation="0"
+                              Striped="true"
+                              Style="overflow:visible">
 
-                <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89;font-style:italic">
-                    @(segmentNonRenseigne ? "—" : intensiteActuelle.ToString("F2"))
-                </MudTd>
+                        <HeaderContent>
+                            <MudTh>Segments distributifs</MudTh>
+                            <MudTh Style="text-align:center">Nombre de RDV / CC / an</MudTh>
+                            <MudTh Style="text-align:center">Durée du RDV (heure)</MudTh>
+                            <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
+                                Intensité relationelle par segment
+                            </MudTh>
 
-                <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89;font-style:italic">
-                    @(segmentNonRenseigne || volumeActuel <= 0 ? "—" : volumeActuel.ToString("F1"))
-                </MudTd>
+                            @if (modeSimulation)
+                            {
+                                <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
+                                    Référence
+                                </MudTh>
+                                <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
+                                    Écart
+                                </MudTh>
+                            }
+                        </HeaderContent>
 
-                <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B;font-style:italic">
-                    @(segmentNonRenseigne || tailleActuelle <= 0 ? "—" : tailleActuelle.ToString("N2"))
-                </MudTd>
+                        <RowTemplate>
+                            @{
+                                var intensiteActuelle = GetIntensite(context);
+                                var intensiteReference = GetBaselineIntensiteBySegment(context.Segment);
+                                var ecart = intensiteActuelle - intensiteReference;
+                            }
 
-                @if (modeSimulation)
-                {
-                    <MudTd Style="text-align:center;background:#F5F7FA;color:#6C7A89">
-                        @(segmentNonRenseigne || tailleReference == 0 ? "—" : tailleReference.ToString("N2"))
-                    </MudTd>
+                            <MudTd Style="font-weight:600;color:#1A4E6B">
+                                @FormatSegmentLabel(context.Segment)
+                            </MudTd>
 
-                    <MudTd Style="@GetDeltaCellStyle(ecartTaille)">
-                        @(segmentNonRenseigne || tailleReference == 0 ? "—" : FormatDelta(ecartTaille, "clients"))
-                    </MudTd>
-                }
-            </RowTemplate>
-        </MudTable>
-    </MudPaper>
-</MudTabPanel>
+                            <MudTd Style="text-align:center;background:#FFFDE7">
+                                <MudNumericField T="double"
+                                                 @bind-Value="context.NombreRdvParAn"
+                                                 Immediate="true"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 Min="0"
+                                                 Max="52"
+                                                 Step="0.25"
+                                                 Format="F2"
+                                                 Style="max-width:110px;margin:0 auto"
+                                                 HideSpinButtons="true" />
+                            </MudTd>
+
+                            <MudTd Style="text-align:center;background:#FFFDE7">
+                                <MudNumericField T="double"
+                                                 @bind-Value="context.DureeRdvHeures"
+                                                 Immediate="true"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 Min="0"
+                                                 Max="8"
+                                                 Step="0.25"
+                                                 Format="F2"
+                                                 Style="max-width:110px;margin:0 auto"
+                                                 HideSpinButtons="true" />
+                            </MudTd>
+
+                            <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B;font-style:italic">
+                                @intensiteActuelle.ToString("F2")
+                            </MudTd>
+
+                            @if (modeSimulation)
+                            {
+                                <MudTd Style="text-align:center;background:#F5F7FA;color:#6C7A89">
+                                    @intensiteReference.ToString("F2")
+                                </MudTd>
+
+                                <MudTd Style="@GetDeltaCellStyle(ecart)">
+                                    @FormatDelta(ecart, "")
+                                </MudTd>
+                            }
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudTabPanel>
+
+            <!-- ════════════════════════════════════════════════════════
+                 Section 2 : Temps conseiller
+            ════════════════════════════════════════════════════════ -->
+            <MudTabPanel Text="2. Temps commercial">
+                <MudPaper Elevation="1"
+                          Style="border-radius:8px;overflow:visible"
+                          Class="pa-0 mt-4">
+
+                    <div class="ca-section-header">
+                        <span class="ca-section-badge">2</span>
+                        Conseillers et temps commercial
+                    </div>
+
+                    <div class="pa-4">
+                        <MudText Typo="Typo.subtitle2" Style="color:#1A4E6B;margin-bottom:12px">
+                            Hypothèse temps de travail des conseillers
+                        </MudText>
+
+                        <MudGrid Spacing="3" Class="mb-4">
+                            <MudItem xs="12" sm="4">
+                                <MudPaper Elevation="0"
+                                          Style="background:#FFFDE7;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px;overflow:visible">
+
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        Nombre d'heures travaillées par semaine
+                                    </MudText>
+
+                                    <MudNumericField T="double"
+                                                     @bind-Value="model.HeuresParSemaine"
+                                                     Immediate="true"
+                                                     Variant="Variant.Outlined"
+                                                     Margin="Margin.Dense"
+                                                     Min="1"
+                                                     Max="50"
+                                                     Step="0.1"
+                                                     Format="F1" />
+                                </MudPaper>
+                            </MudItem>
+
+                            <MudItem xs="12" sm="4">
+                                <MudPaper Elevation="0"
+                                          Style="background:#FFFDE7;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px;overflow:visible">
+
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        Nombre de semaines travaillées par an
+                                    </MudText>
+
+                                    <MudNumericField T="double"
+                                                     @bind-Value="model.NbSemainesParAn"
+                                                     Immediate="true"
+                                                     Variant="Variant.Outlined"
+                                                     Margin="Margin.Dense"
+                                                     Min="1"
+                                                     Max="52"
+                                                     Step="0.5"
+                                                     Format="F1" />
+                                </MudPaper>
+                            </MudItem>
+
+                            <MudItem xs="12" sm="4">
+                                <MudPaper Elevation="0"
+                                          Style="background:#E8EDF2;border:1px solid #D8DCE0;border-radius:6px;padding:14px 16px;overflow:visible">
+
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        Nombre d'heures travaillées par an
+                                    </MudText>
+
+                                    <MudText Typo="Typo.h6" Style="font-weight:700;color:#1A4E6B;margin-top:4px">
+                                        @GetHeuresTravailParAn().ToString("F2") h
+                                    </MudText>
+
+                                    @if (modeSimulation)
+                                    {
+                                        <MudText Typo="Typo.caption" Style="@GetDeltaStyle(GetDeltaHeuresTravailParAn())">
+                                            @FormatDelta(GetDeltaHeuresTravailParAn(), "h")
+                                        </MudText>
+                                    }
+                                </MudPaper>
+                            </MudItem>
+                        </MudGrid>
+                    </div>
+
+                    <!-- Blocs par type d'agence (dynamique) -->
+                    @{
+                        var typesAgence = model.ConseillersProfils
+                            .Where(p => !string.IsNullOrWhiteSpace(p.LigneMetier))
+                            .Select(p => p.LigneMetier!)
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+                    }
+
+                    @foreach (var typeAgence in typesAgence)
+                    {
+                        var profilsDuType    = model.ConseillersProfils
+                            .Where(p => p.LigneMetier?.Equals(typeAgence, StringComparison.OrdinalIgnoreCase) == true)
+                            .ToList();
+                        var tpCommercial     = GetTempsCommercialByType(typeAgence);
+                        var tpNonCom         = 100.0 - tpCommercial;
+                        var typeLabel        = FormatTypeAgenceLabel(typeAgence);
+
+                        <!-- Bloc type d'agence -->
+                        <div style="margin:0 16px 16px;border-radius:8px;overflow:hidden;border:1px solid #D0D8E4;box-shadow:0 1px 4px rgba(0,0,0,0.07)">
+
+                            <!-- Barre d'en-tête sombre -->
+                            <div style="background:#1A4E6B;padding:12px 20px;display:flex;justify-content:space-between;align-items:center">
+                                <span style="font-weight:700;font-size:15px;color:white;letter-spacing:.2px">@typeLabel</span>
+                                <div style="display:flex;align-items:center;gap:10px">
+                                    <span style="color:rgba(255,255,255,0.75);font-size:13px">Commercial</span>
+                                    <div style="background:#FFF9C4;border:2px solid #F9C825;border-radius:6px;padding:6px 14px 6px 16px;display:inline-flex;align-items:center;gap:4px">
+                                        <input type="number"
+                                               value="@_tempsCommerciauxParType.GetValueOrDefault(typeAgence, 0)"
+                                               @onchange="@(e => SetTempsCommercialByTypeSafe(typeAgence, (string?)e.Value))"
+                                               min="0" max="100"
+                                               style="background:transparent;border:none;color:#1A4E6B;font-weight:700;font-size:16px;width:46px;text-align:center;padding:0;outline:none;-moz-appearance:textfield" />
+                                        <span style="color:#1A4E6B;font-weight:700;font-size:16px">%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tableau des profils (largeurs fixes via colgroup) -->
+                            <table style="width:100%;border-collapse:collapse;background:white;table-layout:fixed">
+                                <colgroup>
+                                    <col style="width:40px">
+                                    <col style="width:32%">
+                                    <col style="width:22%">
+                                    <col style="width:22%">
+                                    <col>
+                                    @if (modeSimulation)
+                                    {
+                                        <col style="width:100px">
+                                        <col style="width:100px">
+                                    }
+                                </colgroup>
+                                <thead>
+                                    <tr style="border-bottom:1px solid #E8EDF2;background:#F8F9FA">
+                                        <th style="padding:8px 4px 8px 16px"></th>
+                                        <th style="text-align:left;padding:8px 12px;font-size:11px;color:#8A97A8;font-weight:700;letter-spacing:.4px">Profil conseiller</th>
+                                        <th style="text-align:center;padding:8px 12px;font-size:11px;color:#8A97A8;font-weight:700;letter-spacing:.4px">Part temps commercial (%)</th>
+                                        <th style="text-align:center;padding:8px 12px;font-size:11px;color:#8A97A8;font-weight:700;letter-spacing:.4px">Part temps non commercial (%)</th>
+                                        <th style="text-align:center;padding:8px 12px;font-size:11px;color:#8A97A8;font-weight:700;letter-spacing:.4px;white-space:normal;line-height:1.3">Volume horaire par conseiller dédié à la gestion de portefeuilles (en heures/an)</th>
+                                        @if (modeSimulation)
+                                        {
+                                            <th style="text-align:center;padding:8px 12px;font-size:11px;color:#8A97A8;font-weight:700;background:#F0F3F7">Référence</th>
+                                            <th style="text-align:center;padding:8px 12px;font-size:11px;color:#8A97A8;font-weight:700;background:#F0F3F7">Écart</th>
+                                        }
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var p in profilsDuType)
+                                    {
+                                        var volActuel  = GetVolumeHoraire(p);
+                                        var volRef     = GetBaselineVolumeHoraireByProfil(p.Profil);
+                                        var ecartVol   = volActuel - volRef;
+                                        <tr style="border-bottom:1px solid #F0F4F8">
+                                            <td style="padding:10px 4px 10px 16px;color:#B0BAC5;font-size:14px;text-align:center">↳</td>
+                                            <td style="padding:10px 12px;font-size:13px;color:#2C3E50;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@p.Profil</td>
+                                            <td style="padding:10px 12px;text-align:center;font-size:13px;color:#4A5568">@GetPartTempsCommercialPctDisplay(p).ToString("F0") %</td>
+                                            <td style="padding:10px 12px;text-align:center;font-size:13px;color:#6C7A89">@GetPartTempsNonCommercialPctDisplay(p).ToString("F0") %</td>
+                                            <td style="padding:10px 16px 10px 12px;text-align:center;font-size:13px;font-weight:700;color:#1A4E6B">@volActuel.ToString("F1") h</td>
+                                            @if (modeSimulation)
+                                            {
+                                                <td style="padding:10px 12px;text-align:center;font-size:12px;color:#6C7A89;background:#F5F7FA">@volRef.ToString("F1")</td>
+                                                <td style="@GetDeltaCellStyle(ecartVol);text-align:center;padding:10px 12px;font-size:12px">@FormatDelta(ecartVol, "h")</td>
+                                            }
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                    <!-- Note de bas de section -->
+                    <div style="padding:10px 20px 14px;color:#8A97A8;font-size:12px">
+                        ↳ Valeur héritée du paramétrage parent affichée sur chaque profil
+                    </div>
+
+                </MudPaper>
+            </MudTabPanel>
+
+            <!-- ════════════════════════════════════════════════════════
+                 Section 3 : Affectation
+            ════════════════════════════════════════════════════════ -->
+            <MudTabPanel Text="3. Règles d'affectation des conseillers">
+                <MudPaper Elevation="1"
+                          Style="border-radius:8px;overflow:visible"
+                          Class="pa-0 mt-4">
+
+                    <div class="ca-section-header">
+                        <span class="ca-section-badge">3</span>
+                        Règles d'affectation des conseillers par segment de clientèle
+                    </div>
+
+                    <MudTable Items="@model.ReglesAffectationSegments"
+                              Dense="true"
+                              Hover="true"
+                              Elevation="0"
+                              Striped="true"
+                              Style="overflow:visible">
+
+                        <HeaderContent>
+                            <MudTh>Segments distributifs</MudTh>
+                            <MudTh>Conseiller Prioritaire</MudTh>
+                            <MudTh>Conseiller Secondaire 1</MudTh>
+                            <MudTh>Conseiller Secondaire 2</MudTh>
+
+                            @if (modeSimulation)
+                            {
+                                <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
+                                    Statut simulation
+                                </MudTh>
+                            }
+                        </HeaderContent>
+
+                        <RowTemplate>
+                            @{
+                                var segment = context.Segment?.Trim() ?? string.Empty;
+                                var allOptions = GetOptionsProfilsPourSegment(segment);
+                                var optionsPrioritaire = GetOptionsFiltered(allOptions, context.ConseillerSecondaire, context.ConseillerTertiaire);
+                                var optionsSecondaire = GetOptionsFiltered(allOptions, context.ConseillerPrioritaire, context.ConseillerTertiaire);
+                                var optionsTertiaire = GetOptionsFiltered(allOptions, context.ConseillerPrioritaire, context.ConseillerSecondaire);
+                                var selectDisabled = IsSegmentNonAffectable(segment);
+                                var affectationModifiee = IsAffectationModifiee(
+                                context.Segment,
+                                context.ConseillerPrioritaire,
+                                context.ConseillerSecondaire,
+                                context.ConseillerTertiaire
+                                );
+                            }
+
+                            <MudTd Style="font-weight:600;color:#1A4E6B">
+                                @FormatSegmentLabel(context.Segment)
+                            </MudTd>
+
+                            <MudTd Style="background:#FFFDE7;overflow:visible">
+                                <MudSelect T="string"
+                                           @bind-Value="context.ConseillerPrioritaire"
+                                           Variant="Variant.Outlined"
+                                           Margin="Margin.Dense"
+                                           Dense="true"
+                                           Clearable="true"
+                                           Disabled="@selectDisabled"
+                                           Style="min-width:220px">
+
+                                    @foreach (var p in optionsPrioritaire)
+                                    {
+                                        <MudSelectItem T="string" Value="@p">@p</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudTd>
+
+                            <MudTd Style="background:#FFFDE7;overflow:visible">
+                                <MudSelect T="string"
+                                           @bind-Value="context.ConseillerSecondaire"
+                                           Variant="Variant.Outlined"
+                                           Margin="Margin.Dense"
+                                           Dense="true"
+                                           Clearable="true"
+                                           Disabled="@selectDisabled"
+                                           Style="min-width:220px">
+
+                                    @foreach (var p in optionsSecondaire)
+                                    {
+                                        <MudSelectItem T="string" Value="@p">@p</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudTd>
+
+                            <MudTd Style="background:#FFFDE7;overflow:visible">
+                                <MudSelect T="string"
+                                           @bind-Value="context.ConseillerTertiaire"
+                                           Variant="Variant.Outlined"
+                                           Margin="Margin.Dense"
+                                           Dense="true"
+                                           Clearable="true"
+                                           Disabled="@selectDisabled"
+                                           Style="min-width:220px">
+
+                                    @foreach (var p in optionsTertiaire)
+                                    {
+                                        <MudSelectItem T="string" Value="@p">@p</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudTd>
+
+                            @if (modeSimulation)
+                            {
+                                <MudTd Style="text-align:center;background:#F5F7FA">
+                                    @if (affectationModifiee)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">
+                                            Modifié
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">
+                                            Inchangé
+                                        </MudChip>
+                                    }
+                                </MudTd>
+                            }
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudTabPanel>
+
+            <!-- ════════════════════════════════════════════════════════
+                 Section 4 : Portefeuille
+                 Une ligne par segment du volet 1.
+                 Volume horaire basé sur le TYPE D'AGENCE (BP ou Retail).
+            ════════════════════════════════════════════════════════ -->
+            <MudTabPanel Text="4. Taille théorique des portefeuilles">
+                <MudPaper Elevation="1"
+                          Style="border-radius:8px;overflow:visible"
+                          Class="pa-0 mt-4">
+
+                    <div class="ca-section-header">
+                        <span class="ca-section-badge">4</span>
+                        Taille théorique de portefeuille par segment
+
+                        <MudChip T="string"
+                                 Size="Size.Small"
+                                 Variant="Variant.Outlined"
+                                 Style="color:white;border-color:rgba(255,255,255,.5);margin-left:auto;font-size:11px">
+                            Lecture seule — calculé automatiquement
+                        </MudChip>
+                    </div>
+
+                    <MudTable Items="@TaillesCalculees.OrderByDescending(t => CalculService.GetTailleTheoriqueParSegment(model, t.SegmentCouvert)).ToList()"
+                              Dense="true"
+                              Hover="true"
+                              Elevation="0"
+                              Striped="true"
+                              Style="overflow:visible">
+
+                        <HeaderContent>
+                            <MudTh>Segments distributifs</MudTh>
+                            <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
+                                Intensité relationelle
+                            </MudTh>
+                            <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
+                                Volume horaire par conseiller dédié à la gestion <br />
+                                de portefeuilles (en heures/an)
+                            </MudTh>
+                            <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
+                                Taille théorique de portefeuille par segment
+                            </MudTh>
+
+                            @if (modeSimulation)
+                            {
+                                <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
+                                    Référence
+                                </MudTh>
+                                <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
+                                    Écart
+                                </MudTh>
+                            }
+                        </HeaderContent>
+
+                        <RowTemplate>
+                            @{
+                                var segmentNonRenseigne = IsSegmentNonRenseigne(context.SegmentCouvert);
+
+                                var intensiteActuelle = segmentNonRenseigne
+                                ? 0
+                                : CalculService.GetIntensiteBySegment(model, context.SegmentCouvert);
+
+                                var volumeActuel = CalculService.GetVolumeHoraireByTypeAgence(
+                                model,
+                                context.LigneMetier);
+
+                                var tailleActuelle = segmentNonRenseigne
+                                ? 0
+                                : CalculService.GetTailleTheoriqueParSegment(model, context.SegmentCouvert);
+
+                                var tailleReference = GetBaselineTailleTheorique(context.Profil, context.SegmentCouvert);
+                                var ecartTaille = tailleActuelle - tailleReference;
+                            }
+
+                            <MudTd Style="font-weight:600;color:#1A4E6B">
+                                @FormatSegmentLabel(context.SegmentCouvert)
+                            </MudTd>
+
+                            <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89;font-style:italic">
+                                @(segmentNonRenseigne ? "—" : intensiteActuelle.ToString("F2"))
+                            </MudTd>
+
+                            <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89;font-style:italic">
+                                @(segmentNonRenseigne || volumeActuel <= 0 ? "—" : volumeActuel.ToString("F1"))
+                            </MudTd>
+
+                            <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B;font-style:italic">
+                                @(segmentNonRenseigne || tailleActuelle <= 0 ? "—" : tailleActuelle.ToString("N2"))
+                            </MudTd>
+
+                            @if (modeSimulation)
+                            {
+                                <MudTd Style="text-align:center;background:#F5F7FA;color:#6C7A89">
+                                    @(segmentNonRenseigne || tailleReference == 0 ? "—" : tailleReference.ToString("N2"))
+                                </MudTd>
+
+                                <MudTd Style="@GetDeltaCellStyle(ecartTaille)">
+                                    @(segmentNonRenseigne || tailleReference == 0 ? "—" : FormatDelta(ecartTaille, "clients"))
+                                </MudTd>
+                            }
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudTabPanel>
+        </MudTabs>
+    }
+
+    <div class="ca-footer">
+        © 2026 Crédit Agricole Nord de France — Plateforme de simulation de dimensionnement des portefeuilles
+    </div>
+</div>
