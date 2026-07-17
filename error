@@ -1,7 +1,103 @@
-var volumeActuel = CalculService.GetVolumeHoraireByTypeAgence(
-    model,
-    context.LigneMetier);
+<!-- ════════════════════════════════════════════════════════
+     Section 4 : Portefeuille
+     Une ligne par segment du volet 1.
+     Volume horaire basé sur le TYPE D'AGENCE (BP ou Retail).
+════════════════════════════════════════════════════════ -->
+<MudTabPanel Text="4. Taille théorique des portefeuilles">
+    <MudPaper Elevation="1"
+              Style="border-radius:8px;overflow:visible"
+              Class="pa-0 mt-4">
 
-var tailleActuelle = CalculService.GetTailleTheoriqueParSegment(
-    model,
-    context.SegmentCouvert);
+        <div class="ca-section-header">
+            <span class="ca-section-badge">4</span>
+            Taille théorique de portefeuille par segment
+
+            <MudChip T="string"
+                     Size="Size.Small"
+                     Variant="Variant.Outlined"
+                     Style="color:white;border-color:rgba(255,255,255,.5);margin-left:auto;font-size:11px">
+                Lecture seule — calculé automatiquement
+            </MudChip>
+        </div>
+
+        <MudTable Items="@TaillesCalculees.OrderByDescending(t => CalculService.GetTailleTheoriqueParSegment(model, t.SegmentCouvert)).ToList()"
+                  Dense="true"
+                  Hover="true"
+                  Elevation="0"
+                  Striped="true"
+                  Style="overflow:visible">
+
+            <HeaderContent>
+                <MudTh>Segments distributifs</MudTh>
+                <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
+                    Intensité relationelle
+                </MudTh>
+                <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
+                    Volume horaire par conseiller dédié à la gestion <br />
+                    de portefeuilles (en heures/an)
+                </MudTh>
+                <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
+                    Taille théorique de portefeuille par segment
+                </MudTh>
+
+                @if (modeSimulation)
+                {
+                    <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
+                        Référence
+                    </MudTh>
+                    <MudTh Style="text-align:center;background:#F5F7FA;color:#1A4E6B">
+                        Écart
+                    </MudTh>
+                }
+            </HeaderContent>
+
+            <RowTemplate>
+                @{
+                    var segmentNonRenseigne = IsSegmentNonRenseigne(context.SegmentCouvert);
+
+                    var intensiteActuelle = segmentNonRenseigne
+                        ? 0
+                        : CalculService.GetIntensiteBySegment(model, context.SegmentCouvert);
+
+                    var volumeActuel = CalculService.GetVolumeHoraireByTypeAgence(
+                        model,
+                        context.LigneMetier);
+
+                    var tailleActuelle = segmentNonRenseigne
+                        ? 0
+                        : CalculService.GetTailleTheoriqueParSegment(model, context.SegmentCouvert);
+
+                    var tailleReference = GetBaselineTailleTheorique(context.Profil, context.SegmentCouvert);
+                    var ecartTaille = tailleActuelle - tailleReference;
+                }
+
+                <MudTd Style="font-weight:600;color:#1A4E6B">
+                    @FormatSegmentLabel(context.SegmentCouvert)
+                </MudTd>
+
+                <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89;font-style:italic">
+                    @(segmentNonRenseigne ? "—" : intensiteActuelle.ToString("F2"))
+                </MudTd>
+
+                <MudTd Style="text-align:center;background:#E8EDF2;font-weight:600;color:#6C7A89;font-style:italic">
+                    @(segmentNonRenseigne || volumeActuel <= 0 ? "—" : volumeActuel.ToString("F1"))
+                </MudTd>
+
+                <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B;font-style:italic">
+                    @(segmentNonRenseigne || tailleActuelle <= 0 ? "—" : tailleActuelle.ToString("N2"))
+                </MudTd>
+
+                @if (modeSimulation)
+                {
+                    <MudTd Style="text-align:center;background:#F5F7FA;color:#6C7A89">
+                        @(segmentNonRenseigne || tailleReference == 0 ? "—" : tailleReference.ToString("N2"))
+                    </MudTd>
+
+                    <MudTd Style="@GetDeltaCellStyle(ecartTaille)">
+                        @(segmentNonRenseigne || tailleReference == 0 ? "—" : FormatDelta(ecartTaille, "clients"))
+                    </MudTd>
+                }
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+</MudTabPanel>
