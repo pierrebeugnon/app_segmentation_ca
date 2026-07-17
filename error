@@ -1,8 +1,6 @@
-<MudTable Items="@TaillesCalculees.OrderByDescending(t => GetTailleTheoriqueCalculee(t.Profil, t.SegmentCouvert)).ToList()"
-          Dense="true"
-          Hover="true"
-          Elevation="0"
-          Striped="true"
-          Style="overflow:visible">
-
-    <HeaderContent>
+private void Enregistrer()
+{
+    if (model == null) return;
+    StateService.UpdateRegles(model);
+    ...
+}
