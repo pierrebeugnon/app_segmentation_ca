@@ -1,22 +1,173 @@
-private double GetTailleTheoriqueCalculee(string? profil, string? segment)
+private double GetBaselineHeuresTravailParAn()
 {
-    return CalculService.GetTailleTheoriqueCalculee(
-        model,
-        profil,
-        segment);
+    if (snapshotInitial == null)
+        return 0;
+
+    return snapshotInitial.HeuresParSemaine * snapshotInitial.NbSemainesParAn;
 }
 
-private double GetVolumeMoyen()
+private double GetBaselineIntensiteBySegment(string? segment)
 {
-    return CalculService.GetVolumeMoyen(model);
+    if (snapshotInitial == null || string.IsNullOrWhiteSpace(segment))
+        return 0;
+
+    var key = NormalizeKey(segment);
+
+    if (!snapshotInitial.Segments.TryGetValue(key, out var saved))
+        return 0;
+
+    return saved.NombreRdvParAn * saved.DureeRdvHeures;
 }
 
-private double GetIntensiteMoyenne()
+private double GetBaselinePartCommercialeRatioByProfil(string? profil)
 {
-    return CalculService.GetIntensiteMoyenne(model);
+    if (snapshotInitial == null || string.IsNullOrWhiteSpace(profil))
+        return 0;
+
+    var key = NormalizeKey(profil);
+
+    if (!snapshotInitial.PartsCommerciales.TryGetValue(key, out var saved))
+        return 0;
+
+    return ConvertPartTempsCommercialToRatio(saved);
 }
 
-private double GetCapaciteMoyenne()
+private double GetBaselineVolumeHoraireByProfil(string? profil)
 {
-    return CalculService.GetCapaciteMoyenne(model);
+    if (string.IsNullOrWhiteSpace(profil))
+        return 0;
+
+    return Math.Round(GetBaselineHeuresTravailParAn() * GetBaselinePartCommercialeRatioByProfil(profil), 1);
+}
+
+private double GetBaselineTailleTheorique(string? profil, string? segment)
+{
+    if (snapshotInitial == null || string.IsNullOrWhiteSpace(profil) || IsSegmentNonRenseigne(segment))
+        return 0;
+
+    var intensite = GetBaselineIntensiteBySegment(segment);
+    var volume = GetBaselineVolumeHoraireByProfil(profil);
+
+    return intensite > 0 ? volume / intensite : 0;
+}
+
+private double GetBaselineVolumeMoyen()
+{
+    if (model == null || snapshotInitial == null || model.ConseillersProfils == null || !model.ConseillersProfils.Any())
+        return 0;
+
+    return model.ConseillersProfils.Average(c => GetBaselineVolumeHoraireByProfil(c.Profil));
+}
+
+private double GetBaselineIntensiteMoyenne()
+{
+    if (snapshotInitial == null || !snapshotInitial.Segments.Any())
+        return 0;
+
+    var valeurs = snapshotInitial.Segments.Values
+        .Select(s => s.NombreRdvParAn * s.DureeRdvHeures)
+        .Where(v => v > 0)
+        .ToList();
+
+    return valeurs.Any() ? valeurs.Average() : 0;
+}
+
+private double GetBaselineCapaciteMoyenne()
+{
+    if (model == null || snapshotInitial == null)
+        return 0;
+
+    var valeurs = TaillesCalculees
+        .Where(t => !IsSegmentNonRenseigne(t.SegmentCouvert))
+        .Select(t => GetBaselineTailleTheorique(t.Profil, t.SegmentCouvert))
+        .Where(v => v > 0)
+        .ToList();
+
+    return valeurs.Any() ? valeurs.Average() : 0;
+}
+
+private double GetDeltaHeuresTravailParAn()
+{
+    return GetHeuresTravailParAn() - GetBaselineHeuresTravailParAn();
+}
+
+private double GetDeltaVolumeMoyen()
+{
+    return GetVolumeMoyen() - GetBaselineVolumeMoyen();
+}
+
+private double GetDeltaIntensiteMoyenne()
+{
+    return GetIntensiteMoyenne() - GetBaselineIntensiteMoyenne();
+}
+
+private double GetDeltaCapaciteMoyenne()
+{
+    return GetCapaciteMoyenne() - GetBaselineCapaciteMoyenne();
+}
+
+private bool IsAffectationModifiee(string? segment, string? conseillerPrioritaire, string? conseillerSecondaire, string? conseillerTertiaire = null)
+{
+    if (snapshotInitial == null || string.IsNullOrWhiteSpace(segment))
+        return false;
+
+    var key = NormalizeKey(segment);
+
+    if (!snapshotInitial.Affectations.TryGetValue(key, out var saved))
+        return false;
+
+    return !string.Equals(saved.ConseillerPrioritaire?.Trim(), conseillerPrioritaire?.Trim(), StringComparison.OrdinalIgnoreCase)
+           || !string.Equals(saved.ConseillerSecondaire?.Trim(), conseillerSecondaire?.Trim(), StringComparison.OrdinalIgnoreCase)
+           || !string.Equals(saved.ConseillerTertiaire?.Trim(), conseillerTertiaire?.Trim(), StringComparison.OrdinalIgnoreCase);
+}
+
+private string FormatDelta(double delta, string unite)
+{
+    if (Math.Abs(delta) < 0.0001)
+        return "0";
+
+    var prefix = delta > 0 ? "+" : "";
+    var suffix = string.IsNullOrWhiteSpace(unite) ? "" : $" {unite}";
+
+    return $"{prefix}{delta:F2}{suffix}";
+}
+
+private string GetDeltaStyle(double delta)
+{
+    if (Math.Abs(delta) < 0.0001)
+        return "color:#6C7A89;font-weight:600";
+
+    if (delta > 0)
+        return "color:#1B5E20;font-weight:700";
+
+    return "color:#B71C1C;font-weight:700";
+}
+
+private string GetDeltaCellStyle(double delta)
+{
+    var baseStyle = "text-align:center;font-weight:700;";
+
+    if (Math.Abs(delta) < 0.0001)
+        return baseStyle + "background:#F5F7FA;color:#6C7A89";
+
+    if (delta > 0)
+        return baseStyle + "background:#E8F5E9;color:#1B5E20";
+
+    return baseStyle + "background:#FDECEA;color:#B71C1C";
+}
+
+private string GetPortefeuilleCellStyle(double taille, bool segmentNonRenseigne)
+{
+    var baseStyle = "text-align:center;font-weight:700;font-size:15px;";
+
+    if (segmentNonRenseigne || taille <= 0)
+        return baseStyle + "background:#E8EDF2;color:#6C7A89";
+
+    if (taille < 150)
+        return baseStyle + "background:#FDECEA;color:#B71C1C";
+
+    if (taille < 300)
+        return baseStyle + "background:#FFF3E0;color:#E65100";
+
+    return baseStyle + "background:#E8F5E9;color:#1B5E20";
 }
