@@ -1,6 +1,4 @@
-private void Enregistrer()
-{
-    if (model == null) return;
-    StateService.UpdateRegles(model);
-    ...
-}
+if (model == null || snapshotInitial == null)
+    return 0;
+
+var valeurs = TaillesCalculees
