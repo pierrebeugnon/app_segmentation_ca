@@ -11,781 +11,879 @@ namespace Segmentation.Client.Pages;
 
 public partial class ReglesHypotheses
 {
-	private ReglesHypothesesModel? model;
-	private bool modeSimulation = false;
-	private SimulationSnapshot? snapshotInitial;
-	// Source de vérité stable pour les % commerciaux par type (évite les re-calculs LINQ en boucle)
-	private Dictionary<string, double> _tempsCommerciauxParType = new();
-
-	// Section 4 : calculée dynamiquement à partir des Sections 1 et 2
-	private List<TailleTheoriqueRow> TaillesCalculees =>
-		CalculService.BuildTaillesCalculees(model);
-
-	private readonly Dictionary<string, List<string>> _optionsProfilsParSegment =
-		new(StringComparer.OrdinalIgnoreCase);
-
-	private static readonly List<string> ProfilsBanquePrivee = new()
-	{
-		"DIR. BP",
-		"BANQUIER PRIVÉ",
-		"CGP"
-	};
-
-	private static readonly List<string> ProfilsRetail = new()
-	{
-		"RESP. AGENCE",
-		"RCP",
-		"CONSEILLER CLIENTELE",
-		"CONSEILLER COMMERCIAL"
-	};
-
-	private static readonly List<string> ProfilsRetailAvecAccueil = new()
-	{
-		"RESP. AGENCE",
-		"RCP",
-		"CONSEILLER CLIENTELE",
-		"CONSEILLER COMMERCIAL",
-		"CONSEILLER D'ACCUEIL"
-	};
-
-	private static readonly HashSet<string> SegmentsBanquePrivee =
-		new(StringComparer.OrdinalIgnoreCase)
-		{
-			"HDG Premium Potentiel",
-			"HDG Premium Standard"
-		};
-
-	// ═══════════════════════════════════════════════════════════════
-	//   LIFECYCLE — Chargement depuis la BDD
-	// ═══════════════════════════════════════════════════════════════
-
-	protected override async Task OnInitializedAsync()
-	{
-		try
-		{
-			var bundle = await ReglesService.LoadAllAsync();
-			model = BuildModelFromBundle(bundle);
-			StateService.UpdateRegles(model);
-
-			Console.WriteLine($">>> R&H chargées : {model.SegmentsIntensite.Count} segments, " +
-							  $"{model.ConseillersProfils.Count} profils, " +
-							  $"{model.ReglesAffectationSegments.Count} règles");
-		}
-		catch (Exception ex)
-		{
-			Console.WriteLine($"Erreur chargement R&H : {ex.Message}");
-			model = new ReglesHypothesesModel();
-		}
-
-		BuildOptionsProfilsParSegment();
-		snapshotInitial = CreateSnapshot();
-		InitTempsCommerciauxParType();
-
-		StateHasChanged();
-	}
-
-	// ── Conversion Bundle API → Model UI ──────────────────────────────
-	private ReglesHypothesesModel BuildModelFromBundle(ReglesHypothesesBundle bundle)
-	{
-		return new ReglesHypothesesModel
-		{
-			HeuresParSemaine = bundle.Parametres?.HeuresParSemaine ?? 0,
-			NbSemainesParAn = bundle.Parametres?.NbSemainesParAn ?? 0,
-
-			SegmentsIntensite = bundle.Segments.Select(x => new SegmentIntensite
-			{
-				LigneMetier = x.LigneMetier,
-				Segment = x.Segment,
-				NombreRdvParAn = x.NombreRdvParAn,
-				DureeRdvHeures = x.DureeRdvHeures
-			}).ToList(),
-
-			ConseillersProfils = bundle.Profils.Select(x => new ConseillerTempsProfil
-			{
-				LigneMetier = x.LigneMetier,
-				Profil = x.Profil,
-				PartTempsCommercialPct = x.PartTempsCommercialPct
-			}).ToList(),
-
-			ReglesAffectationSegments = bundle.Regles.Select(x => new RegleAffectationSegment
-			{
-				Segment = x.Segment,
-				ConseillerPrioritaire = x.ConseillerPrioritaire,
-				ConseillerSecondaire = x.ConseillerSecondaire,
-				ConseillerTertiaire = x.ConseillerTertiaire
-			}).ToList()
-		};
-	}
-
-	private void InitTempsCommerciauxParType()
-	{
-		_tempsCommerciauxParType.Clear();
-		if (model?.ConseillersProfils == null) return;
-		foreach (var t in model.ConseillersProfils
-			.Where(p => !string.IsNullOrWhiteSpace(p.LigneMetier))
-			.Select(p => p.LigneMetier!).Distinct(StringComparer.OrdinalIgnoreCase))
-		{
-			_tempsCommerciauxParType[t] = GetTempsCommercialByType(t);
-		}
-	}
-
-	private void ToggleModeSimulation()
-	{
-		modeSimulation = !modeSimulation;
-
-		if (snapshotInitial == null)
-			snapshotInitial = CreateSnapshot();
-	}
-
-	private void ReinitialiserSimulation()
-	{
-		if (snapshotInitial == null || model == null)
-			return;
-
-		RestoreSnapshot(snapshotInitial);
-
-		Snackbar.Add(
-			"Simulation réinitialisée avec les valeurs de référence.",
-			Severity.Info,
-			cfg =>
-			{
-				cfg.Icon = Icons.Material.Filled.Restore;
-				cfg.VisibleStateDuration = 3000;
-			}
-		);
-	}
-
-	private SimulationSnapshot CreateSnapshot()
-	{
-		var snapshot = new SimulationSnapshot();
-
-		if (model == null)
-			return snapshot;
-
-		snapshot.HeuresParSemaine = model.HeuresParSemaine;
-		snapshot.NbSemainesParAn = model.NbSemainesParAn;
-
-		foreach (var segment in model.SegmentsIntensite)
-		{
-			var key = NormalizeKey(segment.Segment);
-
-			if (!snapshot.Segments.ContainsKey(key))
-			{
-				snapshot.Segments[key] = new SegmentSnapshot
-				{
-					Segment = segment.Segment ?? string.Empty,
-					NombreRdvParAn = segment.NombreRdvParAn,
-					DureeRdvHeures = segment.DureeRdvHeures
-				};
-			}
-		}
-
-		foreach (var profil in model.ConseillersProfils)
-		{
-			var key = NormalizeKey(profil.Profil);
-
-			if (!snapshot.PartsCommerciales.ContainsKey(key))
-				snapshot.PartsCommerciales[key] = profil.PartTempsCommercialPct;
-		}
-
-		foreach (var regle in model.ReglesAffectationSegments)
-		{
-			var key = NormalizeKey(regle.Segment);
-
-			if (!snapshot.Affectations.ContainsKey(key))
-			{
-				snapshot.Affectations[key] = new AffectationSnapshot
-				{
-					Segment = regle.Segment ?? string.Empty,
-					ConseillerPrioritaire = regle.ConseillerPrioritaire ?? string.Empty,
-					ConseillerSecondaire = regle.ConseillerSecondaire ?? string.Empty,
-					ConseillerTertiaire = regle.ConseillerTertiaire ?? string.Empty
-				};
-			}
-		}
-
-		return snapshot;
-	}
-
-	private void RestoreSnapshot(SimulationSnapshot snapshot)
-	{
-		if (model == null)
-			return;
-
-		model.HeuresParSemaine = snapshot.HeuresParSemaine;
-		model.NbSemainesParAn = snapshot.NbSemainesParAn;
-
-		foreach (var segment in model.SegmentsIntensite)
-		{
-			var key = NormalizeKey(segment.Segment);
-
-			if (snapshot.Segments.TryGetValue(key, out var saved))
-			{
-				segment.NombreRdvParAn = saved.NombreRdvParAn;
-				segment.DureeRdvHeures = saved.DureeRdvHeures;
-			}
-		}
-
-		foreach (var profil in model.ConseillersProfils)
-		{
-			var key = NormalizeKey(profil.Profil);
-
-			if (snapshot.PartsCommerciales.TryGetValue(key, out var savedPart))
-				profil.PartTempsCommercialPct = savedPart;
-		}
-
-		foreach (var regle in model.ReglesAffectationSegments)
-		{
-			var key = NormalizeKey(regle.Segment);
-
-			if (snapshot.Affectations.TryGetValue(key, out var saved))
-			{
-				regle.ConseillerPrioritaire = saved.ConseillerPrioritaire;
-				regle.ConseillerSecondaire = saved.ConseillerSecondaire;
-				regle.ConseillerTertiaire = saved.ConseillerTertiaire;
-			}
-		}
-
-		BuildOptionsProfilsParSegment();
-	}
-
-	private void BuildOptionsProfilsParSegment()
-	{
-		_optionsProfilsParSegment.Clear();
-
-		if (model?.ReglesAffectationSegments == null)
-			return;
-
-		foreach (var regle in model.ReglesAffectationSegments)
-		{
-			var segment = regle.Segment?.Trim() ?? string.Empty;
-
-			if (string.IsNullOrWhiteSpace(segment))
-				continue;
-
-			if (!_optionsProfilsParSegment.ContainsKey(segment))
-				_optionsProfilsParSegment[segment] = BuildOptionsProfilsForSegment(segment);
-
-			AddIfMissing(_optionsProfilsParSegment[segment], regle.ConseillerPrioritaire);
-			AddIfMissing(_optionsProfilsParSegment[segment], regle.ConseillerSecondaire);
-			AddIfMissing(_optionsProfilsParSegment[segment], regle.ConseillerTertiaire);
-		}
-	}
-
-	private List<string> BuildOptionsProfilsForSegment(string segment)
-	{
-		if (IsSegmentNonAffectable(segment))
-			return new List<string>();
-
-		if (SegmentsBanquePrivee.Contains(segment))
-			return ProfilsBanquePrivee.ToList();
-
-		if (IsGpStandard(segment))
-			return ProfilsRetailAvecAccueil.ToList();
-
-		return ProfilsRetail.ToList();
-	}
-
-	private IReadOnlyList<string> GetOptionsProfilsPourSegment(string segment)
-	{
-		segment = segment?.Trim() ?? string.Empty;
-
-		if (_optionsProfilsParSegment.TryGetValue(segment, out var options))
-			return options;
-
-		var newOptions = BuildOptionsProfilsForSegment(segment);
-		_optionsProfilsParSegment[segment] = newOptions;
-
-		return newOptions;
-	}
-
-	private static IReadOnlyList<string> GetOptionsFiltered(
-		IReadOnlyList<string> allOptions,
-		params string?[] exclude)
-	{
-		var excluded = exclude
-			.Where(e => !string.IsNullOrWhiteSpace(e))
-			.Select(e => e!.Trim())
-			.ToHashSet(StringComparer.OrdinalIgnoreCase);
-		return allOptions.Where(p => !excluded.Contains(p.Trim())).ToList();
-	}
-
-	private static void AddIfMissing(List<string> options, string? value)
-	{
-		if (string.IsNullOrWhiteSpace(value))
-			return;
-
-		var normalizedValue = value.Trim();
-
-		if (!options.Any(x => string.Equals(x.Trim(), normalizedValue, StringComparison.OrdinalIgnoreCase)))
-			options.Add(normalizedValue);
-	}
-
-	private static bool IsGpStandard(string? segment)
-	{
-		return string.Equals(segment?.Trim(), "GP Standard", StringComparison.OrdinalIgnoreCase);
-	}
-
-	private static bool IsSegmentNonAffectable(string? segment)
-	{
-		var s = segment?.Trim();
-
-		return string.IsNullOrWhiteSpace(s)
-			   || string.Equals(s, "Non segmenté", StringComparison.OrdinalIgnoreCase)
-			   || s == "?";
-	}
-
-	private static bool IsSegmentNonRenseigne(string? segment)
-	{
-		return string.IsNullOrWhiteSpace(segment) || segment.Trim() == "?";
-	}
-
-	private static string NormalizeKey(string? value)
-	{
-		return value?.Trim() ?? string.Empty;
-	}
-
-	// ═══════════════════════════════════════════════════════════════
-	//   Wrappers vers ReglesHypothesesCalculService
-	// ═══════════════════════════════════════════════════════════════
-
-	private double GetIntensite(SegmentIntensite segment)
-	{
-		return CalculService.GetIntensite(segment);
-	}
-
-	private double GetHeuresTravailParAn()
-	{
-		return CalculService.GetHeuresTravailParAn(model);
-	}
-
-	private double GetPartTempsCommercialRatio(ConseillerTempsProfil profil)
-	{
-		return CalculService.GetPartTempsCommercialRatio(profil);
-	}
-
-	private double ConvertPartTempsCommercialToRatio(double valeur)
-	{
-		return CalculService.ConvertPartTempsCommercialToRatio(valeur);
-	}
-
-	private double GetPartTempsCommercialPctDisplay(ConseillerTempsProfil profil)
-	{
-		return CalculService.GetPartTempsCommercialPctDisplay(profil);
-	}
-
-	private double GetPartTempsNonCommercialPctDisplay(ConseillerTempsProfil profil)
-	{
-		return CalculService.GetPartTempsNonCommercialPctDisplay(profil);
-	}
-
-	private void SetPartTempsCommercialPctFromDisplay(ConseillerTempsProfil profil, double valeurPct)
-	{
-		CalculService.SetPartTempsCommercialPctFromDisplay(profil, valeurPct);
-	}
-
-	private double GetVolumeHoraire(ConseillerTempsProfil profil)
-	{
-		return CalculService.GetVolumeHoraire(model, profil);
-	}
-
-	private double GetVolumeHoraireByProfil(string profil)
-	{
-		return CalculService.GetVolumeHoraireByProfil(model, profil);
-	}
-
-	private double GetIntensiteBySegment(string segment)
-	{
-		return CalculService.GetIntensiteBySegment(model, segment);
-	}
-
-	private double GetTailleTheoriqueCalculee(string? profil, string? segment)
-	{
-		return CalculService.GetTailleTheoriqueCalculee(model, profil, segment);
-	}
-
-	private double GetVolumeMoyen()
-	{
-		return CalculService.GetVolumeMoyen(model);
-	}
-
-	private double GetIntensiteMoyenne()
-	{
-		return CalculService.GetIntensiteMoyenne(model);
-	}
-
-	private double GetCapaciteMoyenne()
-	{
-		return CalculService.GetCapaciteMoyenne(model);
-	}
-
-	// ── Helpers type d'agence ─────────────────────────────────────────────
-
-	private static string FormatTypeAgenceLabel(string lm) =>
-		string.IsNullOrWhiteSpace(lm) ? "" : char.ToUpperInvariant(lm[0]) + lm[1..];
-
-	private double GetTempsCommercialByType(string ligneMetier)
-	{
-		var p = model?.ConseillersProfils
-			.FirstOrDefault(x => x.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true);
-		return p != null ? GetPartTempsCommercialPctDisplay(p) : 0;
-	}
-
-	private void SetTempsCommercialByType(string ligneMetier, double pct)
-	{
-		if (model == null) return;
-		_tempsCommerciauxParType[ligneMetier] = pct;
-		foreach (var p in model.ConseillersProfils
-			.Where(x => x.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true))
-		{
-			SetPartTempsCommercialPctFromDisplay(p, pct);
-		}
-	}
-
-	private void SetTempsCommercialByTypeSafe(string ligneMetier, string? val)
-	{
-		if (double.TryParse(val, System.Globalization.NumberStyles.Any,
-				System.Globalization.CultureInfo.InvariantCulture, out var d))
-			SetTempsCommercialByType(ligneMetier, Math.Clamp(d, 0, 100));
-	}
-
-	// ═══════════════════════════════════════════════════════════════
-	//   BASELINE / SIMULATION (spécifique UI, reste dans la page)
-	// ═══════════════════════════════════════════════════════════════
-
-	private double GetBaselineHeuresTravailParAn()
-	{
-		if (snapshotInitial == null)
-			return 0;
-
-		return snapshotInitial.HeuresParSemaine * snapshotInitial.NbSemainesParAn;
-	}
-
-	private double GetBaselineIntensiteBySegment(string? segment)
-	{
-		if (snapshotInitial == null || string.IsNullOrWhiteSpace(segment))
-			return 0;
-
-		var key = NormalizeKey(segment);
-
-		if (!snapshotInitial.Segments.TryGetValue(key, out var saved))
-			return 0;
-
-		return saved.NombreRdvParAn * saved.DureeRdvHeures;
-	}
-
-	private double GetBaselinePartCommercialeRatioByProfil(string? profil)
-	{
-		if (snapshotInitial == null || string.IsNullOrWhiteSpace(profil))
-			return 0;
-
-		var key = NormalizeKey(profil);
-
-		if (!snapshotInitial.PartsCommerciales.TryGetValue(key, out var saved))
-			return 0;
-
-		return ConvertPartTempsCommercialToRatio(saved);
-	}
-
-	private double GetBaselineVolumeHoraireByProfil(string? profil)
-	{
-		if (string.IsNullOrWhiteSpace(profil))
-			return 0;
-
-		return Math.Round(GetBaselineHeuresTravailParAn() * GetBaselinePartCommercialeRatioByProfil(profil), 1);
-	}
-
-	private double GetBaselineTailleTheorique(string? profil, string? segment)
-	{
-		if (snapshotInitial == null || string.IsNullOrWhiteSpace(profil) || IsSegmentNonRenseigne(segment))
-			return 0;
-
-		var intensite = GetBaselineIntensiteBySegment(segment);
-		var volume = GetBaselineVolumeHoraireByProfil(profil);
-
-		return intensite > 0 ? volume / intensite : 0;
-	}
-
-	private double GetBaselineVolumeMoyen()
-	{
-		if (model == null || snapshotInitial == null || model.ConseillersProfils == null || !model.ConseillersProfils.Any())
-			return 0;
-
-		return model.ConseillersProfils.Average(c => GetBaselineVolumeHoraireByProfil(c.Profil));
-	}
-
-	private double GetBaselineIntensiteMoyenne()
-	{
-		if (snapshotInitial == null || !snapshotInitial.Segments.Any())
-			return 0;
-
-		var valeurs = snapshotInitial.Segments.Values
-			.Select(s => s.NombreRdvParAn * s.DureeRdvHeures)
-			.Where(v => v > 0)
-			.ToList();
-
-		return valeurs.Any() ? valeurs.Average() : 0;
-	}
-
-	private double GetBaselineCapaciteMoyenne()
-	{
-		if (model == null || snapshotInitial == null)
-			return 0;
-
-		var valeurs = TaillesCalculees
-			.Where(t => !IsSegmentNonRenseigne(t.SegmentCouvert))
-			.Select(t => GetBaselineTailleTheorique(t.Profil, t.SegmentCouvert))
-			.Where(v => v > 0)
-			.ToList();
-
-		return valeurs.Any() ? valeurs.Average() : 0;
-	}
-
-	private double GetDeltaHeuresTravailParAn()
-	{
-		return GetHeuresTravailParAn() - GetBaselineHeuresTravailParAn();
-	}
-
-	private double GetDeltaVolumeMoyen()
-	{
-		return GetVolumeMoyen() - GetBaselineVolumeMoyen();
-	}
-
-	private double GetDeltaIntensiteMoyenne()
-	{
-		return GetIntensiteMoyenne() - GetBaselineIntensiteMoyenne();
-	}
-
-	private double GetDeltaCapaciteMoyenne()
-	{
-		return GetCapaciteMoyenne() - GetBaselineCapaciteMoyenne();
-	}
-
-	private bool IsAffectationModifiee(string? segment, string? conseillerPrioritaire, string? conseillerSecondaire, string? conseillerTertiaire = null)
-	{
-		if (snapshotInitial == null || string.IsNullOrWhiteSpace(segment))
-			return false;
-
-		var key = NormalizeKey(segment);
-
-		if (!snapshotInitial.Affectations.TryGetValue(key, out var saved))
-			return false;
-
-		return !string.Equals(saved.ConseillerPrioritaire?.Trim(), conseillerPrioritaire?.Trim(), StringComparison.OrdinalIgnoreCase)
-			   || !string.Equals(saved.ConseillerSecondaire?.Trim(), conseillerSecondaire?.Trim(), StringComparison.OrdinalIgnoreCase)
-			   || !string.Equals(saved.ConseillerTertiaire?.Trim(), conseillerTertiaire?.Trim(), StringComparison.OrdinalIgnoreCase);
-	}
-
-	private string FormatDelta(double delta, string unite)
-	{
-		if (Math.Abs(delta) < 0.0001)
-			return "0";
-
-		var prefix = delta > 0 ? "+" : "";
-		var suffix = string.IsNullOrWhiteSpace(unite) ? "" : $" {unite}";
-
-		return $"{prefix}{delta:F2}{suffix}";
-	}
-
-	private string GetDeltaStyle(double delta)
-	{
-		if (Math.Abs(delta) < 0.0001)
-			return "color:#6C7A89;font-weight:600";
-
-		if (delta > 0)
-			return "color:#1B5E20;font-weight:700";
-
-		return "color:#B71C1C;font-weight:700";
-	}
-
-	private string GetDeltaCellStyle(double delta)
-	{
-		var baseStyle = "text-align:center;font-weight:700;";
-
-		if (Math.Abs(delta) < 0.0001)
-			return baseStyle + "background:#F5F7FA;color:#6C7A89";
-
-		if (delta > 0)
-			return baseStyle + "background:#E8F5E9;color:#1B5E20";
-
-		return baseStyle + "background:#FDECEA;color:#B71C1C";
-	}
-
-	private string GetPortefeuilleCellStyle(double taille, bool segmentNonRenseigne)
-	{
-		var baseStyle = "text-align:center;font-weight:700;font-size:15px;";
-
-		if (segmentNonRenseigne || taille <= 0)
-			return baseStyle + "background:#E8EDF2;color:#6C7A89";
-
-		if (taille < 150)
-			return baseStyle + "background:#FDECEA;color:#B71C1C";
-
-		if (taille < 300)
-			return baseStyle + "background:#FFF3E0;color:#E65100";
-
-		return baseStyle + "background:#E8F5E9;color:#1B5E20";
-	}
-
-	// ═══════════════════════════════════════════════════════════════
-	//   ENREGISTRER — Sauvegarde dans les 4 tables SQL
-	// ═══════════════════════════════════════════════════════════════
-
-	private async Task Enregistrer()
-	{
-		if (model == null)
-			return;
-
-		try
-		{
-			var bundle = new ReglesHypothesesBundle
-			{
-				Parametres = new ParametresGenerauxData
-				{
-					HeuresParSemaine = model.HeuresParSemaine,
-					NbSemainesParAn = model.NbSemainesParAn
-				},
-
-				Segments = model.SegmentsIntensite.Select(x => new SegmentIntensiteData
-				{
-					LigneMetier = x.LigneMetier,
-					Segment = x.Segment,
-					NombreRdvParAn = x.NombreRdvParAn,
-					DureeRdvHeures = x.DureeRdvHeures,
-					IntensiteRelationnelle = x.IntensiteRelationnelle
-				}).ToList(),
-
-				Profils = model.ConseillersProfils.Select(x => new ConseillerProfilData
-				{
-					LigneMetier = x.LigneMetier,
-					Profil = x.Profil,
-					PartTempsCommercialPct = x.PartTempsCommercialPct
-				}).ToList(),
-
-				Regles = model.ReglesAffectationSegments.Select(x => new RegleAffectationSegmentData
-				{
-					Segment = x.Segment,
-					ConseillerPrioritaire = x.ConseillerPrioritaire,
-					ConseillerSecondaire = x.ConseillerSecondaire,
-					ConseillerTertiaire = x.ConseillerTertiaire
-				}).ToList()
-			};
-
-			var result = await ReglesService.SaveAllAsync(bundle);
-
-			StateService.UpdateRegles(model);
-			snapshotInitial = CreateSnapshot();
-
-			Snackbar.Add(
-				$"Modifications enregistrées en base : " +
-				$"{result.SegmentsSaved} segments, " +
-				$"{result.ProfilsSaved} profils, " +
-				$"{result.ReglesSaved} règles.",
-				Severity.Success,
-				cfg =>
-				{
-					cfg.Icon = Icons.Material.Filled.CheckCircle;
-					cfg.VisibleStateDuration = 4000;
-				}
-			);
-		}
-		catch (Exception ex)
-		{
-			Console.WriteLine($"Erreur sauvegarde R&H : {ex.Message}");
-
-			Snackbar.Add(
-				$"Erreur lors de l'enregistrement : {ex.Message}",
-				Severity.Error,
-				cfg =>
-				{
-					cfg.Icon = Icons.Material.Filled.Error;
-					cfg.VisibleStateDuration = 5000;
-				}
-			);
-		}
-	}
-
-	private static bool IsBanquePriveeSegment(string? segment) =>
-		SegmentsBanquePrivee.Contains(segment?.Trim() ?? string.Empty);
-
-	private static string FormatSegmentLabel(string? segment) =>
-		IsBanquePriveeSegment(segment) ? $"{segment} (Banque Privée)" : (segment ?? string.Empty);
-
-	private static string FormatProfilLabel(string? profil) =>
-		ProfilsBanquePrivee.Contains(profil ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-			? $"{profil} (Banque Privée)"
-			: (profil ?? string.Empty);
-
-	private async Task ExportExcel()
-	{
-		if (model == null) return;
-
-		var sb = new System.Text.StringBuilder();
-
-		sb.AppendLine("INTENSITÉ RELATIONNELLE");
-		sb.AppendLine("Segment;Nb RDV/an;Durée RDV (h);Intensité");
-		foreach (var s in model.SegmentsIntensite)
-			sb.AppendLine($"{FormatSegmentLabel(s.Segment)};{s.NombreRdvParAn:F2};{s.DureeRdvHeures:F2};{GetIntensite(s):F2}");
-
-		sb.AppendLine();
-		sb.AppendLine("TEMPS CONSEILLER");
-		sb.AppendLine("Profil;Part tps commercial (%);Volume horaire (h)");
-		foreach (var p in model.ConseillersProfils)
-			sb.AppendLine($"{p.Profil};{GetPartTempsCommercialPctDisplay(p):F0};{GetVolumeHoraire(p):F1}");
-
-		sb.AppendLine();
-		sb.AppendLine("RÈGLES D'AFFECTATION");
-		sb.AppendLine("Segment;Conseiller Prioritaire;Conseiller Secondaire;Conseiller Tertiaire");
-		foreach (var r in model.ReglesAffectationSegments)
-			sb.AppendLine($"{FormatSegmentLabel(r.Segment)};{r.ConseillerPrioritaire};{r.ConseillerSecondaire};{r.ConseillerTertiaire}");
-
-		sb.AppendLine();
-		sb.AppendLine("PORTEFEUILLE THÉORIQUE");
-		sb.AppendLine("Segment;Intensité;Volume horaire;Taille théorique");
-		foreach (var t in TaillesCalculees)
-		{
-			var intensite = IsSegmentNonRenseigne(t.SegmentCouvert) ? 0 : GetIntensiteBySegment(t.SegmentCouvert);
-			var volume = CalculService.GetVolumeHoraireByTypeAgence(model, t.LigneMetier);
-			var taille = intensite > 0 ? volume / intensite : 0;
-			sb.AppendLine($"{FormatSegmentLabel(t.SegmentCouvert)};{intensite:F2};{volume:F1};{(taille > 0 ? taille.ToString("N0") : "—")}");
-		}
-
-		var csv = sb.ToString();
-		var fileName = $"parametres_CA_{DateTime.Now:yyyyMMdd_HHmm}.csv";
-		await JS.InvokeVoidAsync("downloadCsvFile", fileName, csv);
-	}
-
-	// ═══════════════════════════════════════════════════════════════
-	//   Classes internes pour le snapshot de simulation
-	// ═══════════════════════════════════════════════════════════════
-
-	private sealed class SimulationSnapshot
-	{
-		public double HeuresParSemaine { get; set; }
-		public double NbSemainesParAn { get; set; }
-
-		public Dictionary<string, SegmentSnapshot> Segments { get; set; } =
-			new(StringComparer.OrdinalIgnoreCase);
-
-		public Dictionary<string, double> PartsCommerciales { get; set; } =
-			new(StringComparer.OrdinalIgnoreCase);
-
-		public Dictionary<string, AffectationSnapshot> Affectations { get; set; } =
-			new(StringComparer.OrdinalIgnoreCase);
-	}
-
-	private sealed class SegmentSnapshot
-	{
-		public string Segment { get; set; } = string.Empty;
-		public double NombreRdvParAn { get; set; }
-		public double DureeRdvHeures { get; set; }
-	}
-
-	private sealed class AffectationSnapshot
-	{
-		public string Segment { get; set; } = string.Empty;
-		public string ConseillerPrioritaire { get; set; } = string.Empty;
-		public string ConseillerSecondaire { get; set; } = string.Empty;
-		public string ConseillerTertiaire { get; set; } = string.Empty;
-	}
+    private ReglesHypothesesModel? model;
+    private bool modeSimulation = false;
+    private SimulationSnapshot? snapshotInitial;
+    private Dictionary<string, double> _tempsCommerciauxParType = new();
+
+    // Référentiel dynamique chargé au démarrage
+    private ReferentielData? _referentiel;
+
+    // Section 4 : calculée dynamiquement à partir des Sections 1 et 2
+    private List<TailleTheoriqueRow> TaillesCalculees =>
+        CalculService.BuildTaillesCalculees(model);
+
+    private readonly Dictionary<string, List<string>> _optionsProfilsParSegment =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    // ═══════════════════════════════════════════════════════════════
+    //   Listes dérivées du référentiel (plus aucun hardcode !)
+    // ═══════════════════════════════════════════════════════════════
+
+    private List<string> ProfilsBanquePrivee =>
+        _referentiel?.Profils
+            .Where(p => string.Equals(p.LigneMetier, "banque privée", StringComparison.OrdinalIgnoreCase))
+            .Select(p => p.Profil)
+            .ToList()
+        ?? new List<string>();
+
+    private List<string> ProfilsRetail =>
+        _referentiel?.Profils
+            .Where(p => string.Equals(p.LigneMetier, "retail", StringComparison.OrdinalIgnoreCase))
+            .Select(p => p.Profil)
+            .ToList()
+        ?? new List<string>();
+
+    private List<string> ProfilsRetailAvecAccueil
+    {
+        get
+        {
+            var list = ProfilsRetail.ToList();
+            const string accueil = "CONSEILLER D'ACCUEIL";
+            if (!list.Contains(accueil, StringComparer.OrdinalIgnoreCase))
+                list.Add(accueil);
+            return list;
+        }
+    }
+
+    // Un segment est BP si son nom contient "Premium"
+    // (règle métier : les segments HDG Premium relèvent toujours de la Banque Privée)
+    private HashSet<string> SegmentsBanquePrivee =>
+        _referentiel?.Segments
+            .Where(s => s.Contains("Premium", StringComparison.OrdinalIgnoreCase))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase)
+        ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    // ═══════════════════════════════════════════════════════════════
+    //   LIFECYCLE — Chargement depuis la BDD + référentiel
+    // ═══════════════════════════════════════════════════════════════
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // 1. Charge les 4 tables R&H
+            var bundle = await ReglesService.LoadAllAsync();
+            model = BuildModelFromBundle(bundle);
+
+            // 2. Charge le référentiel (segments/profils venus de SegmentationDistributives)
+            _referentiel = await ReferentielService.GetAsync();
+
+            // 3. Auto-initialise les tables vides depuis le référentiel
+            AutoInitFromReferentiel(model, _referentiel);
+
+            // 4. Alimente le StateService pour les autres pages
+            StateService.UpdateRegles(model);
+
+            Console.WriteLine($">>> R&H chargées : {model.SegmentsIntensite.Count} segments, " +
+                              $"{model.ConseillersProfils.Count} profils, " +
+                              $"{model.ReglesAffectationSegments.Count} règles");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur chargement R&H : {ex.Message}");
+            model = new ReglesHypothesesModel();
+        }
+
+        BuildOptionsProfilsParSegment();
+        snapshotInitial = CreateSnapshot();
+        InitTempsCommerciauxParType();
+
+        StateHasChanged();
+    }
+
+    // ── Conversion Bundle API → Model UI ──────────────────────────────
+    private ReglesHypothesesModel BuildModelFromBundle(ReglesHypothesesBundle bundle)
+    {
+        return new ReglesHypothesesModel
+        {
+            HeuresParSemaine = bundle.Parametres?.HeuresParSemaine ?? 0,
+            NbSemainesParAn = bundle.Parametres?.NbSemainesParAn ?? 0,
+
+            SegmentsIntensite = bundle.Segments.Select(x => new SegmentIntensite
+            {
+                LigneMetier = x.LigneMetier,
+                Segment = x.Segment,
+                NombreRdvParAn = x.NombreRdvParAn,
+                DureeRdvHeures = x.DureeRdvHeures
+            }).ToList(),
+
+            ConseillersProfils = bundle.Profils.Select(x => new ConseillerTempsProfil
+            {
+                LigneMetier = x.LigneMetier,
+                Profil = x.Profil,
+                PartTempsCommercialPct = x.PartTempsCommercialPct
+            }).ToList(),
+
+            ReglesAffectationSegments = bundle.Regles.Select(x => new RegleAffectationSegment
+            {
+                Segment = x.Segment,
+                ConseillerPrioritaire = x.ConseillerPrioritaire,
+                ConseillerSecondaire = x.ConseillerSecondaire,
+                ConseillerTertiaire = x.ConseillerTertiaire
+            }).ToList()
+        };
+    }
+
+    // ── Auto-initialisation depuis le référentiel ──────────────────────
+    /// <summary>
+    /// Si les tables R&H sont vides, alimente le modèle à partir du référentiel
+    /// (segments et profils issus de SegmentationDistributives).
+    /// L'utilisateur n'aura plus qu'à saisir les valeurs.
+    /// </summary>
+    private void AutoInitFromReferentiel(
+        ReglesHypothesesModel model,
+        ReferentielData? referentiel)
+    {
+        if (referentiel == null)
+            return;
+
+        // ── Section 1 : segments d'intensité ──
+        if (!model.SegmentsIntensite.Any() && referentiel.Segments.Any())
+        {
+            foreach (var segment in referentiel.Segments)
+            {
+                model.SegmentsIntensite.Add(new SegmentIntensite
+                {
+                    LigneMetier = DetermineLigneMetierForSegment(segment),
+                    Segment = segment,
+                    NombreRdvParAn = 0,
+                    DureeRdvHeures = 0
+                });
+            }
+            Console.WriteLine($">>> Auto-init : {model.SegmentsIntensite.Count} segments créés depuis le référentiel");
+        }
+
+        // ── Section 2 : profils conseillers ──
+        if (!model.ConseillersProfils.Any() && referentiel.Profils.Any())
+        {
+            foreach (var profil in referentiel.Profils)
+            {
+                model.ConseillersProfils.Add(new ConseillerTempsProfil
+                {
+                    LigneMetier = profil.LigneMetier,
+                    Profil = profil.Profil,
+                    PartTempsCommercialPct = 0
+                });
+            }
+            Console.WriteLine($">>> Auto-init : {model.ConseillersProfils.Count} profils créés depuis le référentiel");
+        }
+
+        // ── Section 3 : règles d'affectation ──
+        if (!model.ReglesAffectationSegments.Any() && referentiel.Segments.Any())
+        {
+            foreach (var segment in referentiel.Segments)
+            {
+                model.ReglesAffectationSegments.Add(new RegleAffectationSegment
+                {
+                    Segment = segment,
+                    ConseillerPrioritaire = "",
+                    ConseillerSecondaire = "",
+                    ConseillerTertiaire = ""
+                });
+            }
+            Console.WriteLine($">>> Auto-init : {model.ReglesAffectationSegments.Count} règles créées depuis le référentiel");
+        }
+
+        // ── Paramètres généraux : valeurs par défaut si non renseignés ──
+        if (model.HeuresParSemaine <= 0)
+            model.HeuresParSemaine = 37.3;
+
+        if (model.NbSemainesParAn <= 0)
+            model.NbSemainesParAn = 42.5;
+    }
+
+    /// <summary>
+    /// Détermine la ligne métier (banque privée / retail) d'un segment
+    /// en se basant sur son nom.
+    /// </summary>
+    private string DetermineLigneMetierForSegment(string segment)
+    {
+        return SegmentsBanquePrivee.Contains(segment)
+            ? "banque privée"
+            : "retail";
+    }
+
+    private void InitTempsCommerciauxParType()
+    {
+        _tempsCommerciauxParType.Clear();
+        if (model?.ConseillersProfils == null) return;
+        foreach (var t in model.ConseillersProfils
+            .Where(p => !string.IsNullOrWhiteSpace(p.LigneMetier))
+            .Select(p => p.LigneMetier!).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            _tempsCommerciauxParType[t] = GetTempsCommercialByType(t);
+        }
+    }
+
+    private void ToggleModeSimulation()
+    {
+        modeSimulation = !modeSimulation;
+
+        if (snapshotInitial == null)
+            snapshotInitial = CreateSnapshot();
+    }
+
+    private void ReinitialiserSimulation()
+    {
+        if (snapshotInitial == null || model == null)
+            return;
+
+        RestoreSnapshot(snapshotInitial);
+
+        Snackbar.Add(
+            "Simulation réinitialisée avec les valeurs de référence.",
+            Severity.Info,
+            cfg =>
+            {
+                cfg.Icon = Icons.Material.Filled.Restore;
+                cfg.VisibleStateDuration = 3000;
+            }
+        );
+    }
+
+    private SimulationSnapshot CreateSnapshot()
+    {
+        var snapshot = new SimulationSnapshot();
+
+        if (model == null)
+            return snapshot;
+
+        snapshot.HeuresParSemaine = model.HeuresParSemaine;
+        snapshot.NbSemainesParAn = model.NbSemainesParAn;
+
+        foreach (var segment in model.SegmentsIntensite)
+        {
+            var key = NormalizeKey(segment.Segment);
+
+            if (!snapshot.Segments.ContainsKey(key))
+            {
+                snapshot.Segments[key] = new SegmentSnapshot
+                {
+                    Segment = segment.Segment ?? string.Empty,
+                    NombreRdvParAn = segment.NombreRdvParAn,
+                    DureeRdvHeures = segment.DureeRdvHeures
+                };
+            }
+        }
+
+        foreach (var profil in model.ConseillersProfils)
+        {
+            var key = NormalizeKey(profil.Profil);
+
+            if (!snapshot.PartsCommerciales.ContainsKey(key))
+                snapshot.PartsCommerciales[key] = profil.PartTempsCommercialPct;
+        }
+
+        foreach (var regle in model.ReglesAffectationSegments)
+        {
+            var key = NormalizeKey(regle.Segment);
+
+            if (!snapshot.Affectations.ContainsKey(key))
+            {
+                snapshot.Affectations[key] = new AffectationSnapshot
+                {
+                    Segment = regle.Segment ?? string.Empty,
+                    ConseillerPrioritaire = regle.ConseillerPrioritaire ?? string.Empty,
+                    ConseillerSecondaire = regle.ConseillerSecondaire ?? string.Empty,
+                    ConseillerTertiaire = regle.ConseillerTertiaire ?? string.Empty
+                };
+            }
+        }
+
+        return snapshot;
+    }
+
+    private void RestoreSnapshot(SimulationSnapshot snapshot)
+    {
+        if (model == null)
+            return;
+
+        model.HeuresParSemaine = snapshot.HeuresParSemaine;
+        model.NbSemainesParAn = snapshot.NbSemainesParAn;
+
+        foreach (var segment in model.SegmentsIntensite)
+        {
+            var key = NormalizeKey(segment.Segment);
+
+            if (snapshot.Segments.TryGetValue(key, out var saved))
+            {
+                segment.NombreRdvParAn = saved.NombreRdvParAn;
+                segment.DureeRdvHeures = saved.DureeRdvHeures;
+            }
+        }
+
+        foreach (var profil in model.ConseillersProfils)
+        {
+            var key = NormalizeKey(profil.Profil);
+
+            if (snapshot.PartsCommerciales.TryGetValue(key, out var savedPart))
+                profil.PartTempsCommercialPct = savedPart;
+        }
+
+        foreach (var regle in model.ReglesAffectationSegments)
+        {
+            var key = NormalizeKey(regle.Segment);
+
+            if (snapshot.Affectations.TryGetValue(key, out var saved))
+            {
+                regle.ConseillerPrioritaire = saved.ConseillerPrioritaire;
+                regle.ConseillerSecondaire = saved.ConseillerSecondaire;
+                regle.ConseillerTertiaire = saved.ConseillerTertiaire;
+            }
+        }
+
+        BuildOptionsProfilsParSegment();
+    }
+
+    private void BuildOptionsProfilsParSegment()
+    {
+        _optionsProfilsParSegment.Clear();
+
+        if (model?.ReglesAffectationSegments == null)
+            return;
+
+        foreach (var regle in model.ReglesAffectationSegments)
+        {
+            var segment = regle.Segment?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(segment))
+                continue;
+
+            if (!_optionsProfilsParSegment.ContainsKey(segment))
+                _optionsProfilsParSegment[segment] = BuildOptionsProfilsForSegment(segment);
+
+            AddIfMissing(_optionsProfilsParSegment[segment], regle.ConseillerPrioritaire);
+            AddIfMissing(_optionsProfilsParSegment[segment], regle.ConseillerSecondaire);
+            AddIfMissing(_optionsProfilsParSegment[segment], regle.ConseillerTertiaire);
+        }
+    }
+
+    private List<string> BuildOptionsProfilsForSegment(string segment)
+    {
+        if (IsSegmentNonAffectable(segment))
+            return new List<string>();
+
+        if (SegmentsBanquePrivee.Contains(segment))
+            return ProfilsBanquePrivee.ToList();
+
+        if (IsGpStandard(segment))
+            return ProfilsRetailAvecAccueil.ToList();
+
+        return ProfilsRetail.ToList();
+    }
+
+    private IReadOnlyList<string> GetOptionsProfilsPourSegment(string segment)
+    {
+        segment = segment?.Trim() ?? string.Empty;
+
+        if (_optionsProfilsParSegment.TryGetValue(segment, out var options))
+            return options;
+
+        var newOptions = BuildOptionsProfilsForSegment(segment);
+        _optionsProfilsParSegment[segment] = newOptions;
+
+        return newOptions;
+    }
+
+    private static IReadOnlyList<string> GetOptionsFiltered(
+        IReadOnlyList<string> allOptions,
+        params string?[] exclude)
+    {
+        var excluded = exclude
+            .Where(e => !string.IsNullOrWhiteSpace(e))
+            .Select(e => e!.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return allOptions.Where(p => !excluded.Contains(p.Trim())).ToList();
+    }
+
+    private static void AddIfMissing(List<string> options, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+
+        var normalizedValue = value.Trim();
+
+        if (!options.Any(x => string.Equals(x.Trim(), normalizedValue, StringComparison.OrdinalIgnoreCase)))
+            options.Add(normalizedValue);
+    }
+
+    private static bool IsGpStandard(string? segment)
+    {
+        return string.Equals(segment?.Trim(), "GP Standard", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSegmentNonAffectable(string? segment)
+    {
+        var s = segment?.Trim();
+
+        return string.IsNullOrWhiteSpace(s)
+               || string.Equals(s, "Non segmenté", StringComparison.OrdinalIgnoreCase)
+               || s == "?";
+    }
+
+    private static bool IsSegmentNonRenseigne(string? segment)
+    {
+        return string.IsNullOrWhiteSpace(segment) || segment.Trim() == "?";
+    }
+
+    private static string NormalizeKey(string? value)
+    {
+        return value?.Trim() ?? string.Empty;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //   Wrappers vers ReglesHypothesesCalculService
+    // ═══════════════════════════════════════════════════════════════
+
+    private double GetIntensite(SegmentIntensite segment)
+    {
+        return CalculService.GetIntensite(segment);
+    }
+
+    private double GetHeuresTravailParAn()
+    {
+        return CalculService.GetHeuresTravailParAn(model);
+    }
+
+    private double GetPartTempsCommercialRatio(ConseillerTempsProfil profil)
+    {
+        return CalculService.GetPartTempsCommercialRatio(profil);
+    }
+
+    private double ConvertPartTempsCommercialToRatio(double valeur)
+    {
+        return CalculService.ConvertPartTempsCommercialToRatio(valeur);
+    }
+
+    private double GetPartTempsCommercialPctDisplay(ConseillerTempsProfil profil)
+    {
+        return CalculService.GetPartTempsCommercialPctDisplay(profil);
+    }
+
+    private double GetPartTempsNonCommercialPctDisplay(ConseillerTempsProfil profil)
+    {
+        return CalculService.GetPartTempsNonCommercialPctDisplay(profil);
+    }
+
+    private void SetPartTempsCommercialPctFromDisplay(ConseillerTempsProfil profil, double valeurPct)
+    {
+        CalculService.SetPartTempsCommercialPctFromDisplay(profil, valeurPct);
+    }
+
+    private double GetVolumeHoraire(ConseillerTempsProfil profil)
+    {
+        return CalculService.GetVolumeHoraire(model, profil);
+    }
+
+    private double GetVolumeHoraireByProfil(string profil)
+    {
+        return CalculService.GetVolumeHoraireByProfil(model, profil);
+    }
+
+    private double GetIntensiteBySegment(string segment)
+    {
+        return CalculService.GetIntensiteBySegment(model, segment);
+    }
+
+    private double GetTailleTheoriqueCalculee(string? profil, string? segment)
+    {
+        return CalculService.GetTailleTheoriqueCalculee(model, profil, segment);
+    }
+
+    private double GetVolumeMoyen()
+    {
+        return CalculService.GetVolumeMoyen(model);
+    }
+
+    private double GetIntensiteMoyenne()
+    {
+        return CalculService.GetIntensiteMoyenne(model);
+    }
+
+    private double GetCapaciteMoyenne()
+    {
+        return CalculService.GetCapaciteMoyenne(model);
+    }
+
+    // ── Helpers type d'agence ─────────────────────────────────────────────
+
+    private static string FormatTypeAgenceLabel(string lm) =>
+        string.IsNullOrWhiteSpace(lm) ? "" : char.ToUpperInvariant(lm[0]) + lm[1..];
+
+    private double GetTempsCommercialByType(string ligneMetier)
+    {
+        var p = model?.ConseillersProfils
+            .FirstOrDefault(x => x.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true);
+        return p != null ? GetPartTempsCommercialPctDisplay(p) : 0;
+    }
+
+    private void SetTempsCommercialByType(string ligneMetier, double pct)
+    {
+        if (model == null) return;
+        _tempsCommerciauxParType[ligneMetier] = pct;
+        foreach (var p in model.ConseillersProfils
+            .Where(x => x.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true))
+        {
+            SetPartTempsCommercialPctFromDisplay(p, pct);
+        }
+    }
+
+    private void SetTempsCommercialByTypeSafe(string ligneMetier, string? val)
+    {
+        if (double.TryParse(val, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var d))
+            SetTempsCommercialByType(ligneMetier, Math.Clamp(d, 0, 100));
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //   BASELINE / SIMULATION
+    // ═══════════════════════════════════════════════════════════════
+
+    private double GetBaselineHeuresTravailParAn()
+    {
+        if (snapshotInitial == null)
+            return 0;
+
+        return snapshotInitial.HeuresParSemaine * snapshotInitial.NbSemainesParAn;
+    }
+
+    private double GetBaselineIntensiteBySegment(string? segment)
+    {
+        if (snapshotInitial == null || string.IsNullOrWhiteSpace(segment))
+            return 0;
+
+        var key = NormalizeKey(segment);
+
+        if (!snapshotInitial.Segments.TryGetValue(key, out var saved))
+            return 0;
+
+        return saved.NombreRdvParAn * saved.DureeRdvHeures;
+    }
+
+    private double GetBaselinePartCommercialeRatioByProfil(string? profil)
+    {
+        if (snapshotInitial == null || string.IsNullOrWhiteSpace(profil))
+            return 0;
+
+        var key = NormalizeKey(profil);
+
+        if (!snapshotInitial.PartsCommerciales.TryGetValue(key, out var saved))
+            return 0;
+
+        return ConvertPartTempsCommercialToRatio(saved);
+    }
+
+    private double GetBaselineVolumeHoraireByProfil(string? profil)
+    {
+        if (string.IsNullOrWhiteSpace(profil))
+            return 0;
+
+        return Math.Round(GetBaselineHeuresTravailParAn() * GetBaselinePartCommercialeRatioByProfil(profil), 1);
+    }
+
+    private double GetBaselineTailleTheorique(string? profil, string? segment)
+    {
+        if (snapshotInitial == null || string.IsNullOrWhiteSpace(profil) || IsSegmentNonRenseigne(segment))
+            return 0;
+
+        var intensite = GetBaselineIntensiteBySegment(segment);
+        var volume = GetBaselineVolumeHoraireByProfil(profil);
+
+        return intensite > 0 ? volume / intensite : 0;
+    }
+
+    private double GetBaselineVolumeMoyen()
+    {
+        if (model == null || snapshotInitial == null || model.ConseillersProfils == null || !model.ConseillersProfils.Any())
+            return 0;
+
+        return model.ConseillersProfils.Average(c => GetBaselineVolumeHoraireByProfil(c.Profil));
+    }
+
+    private double GetBaselineIntensiteMoyenne()
+    {
+        if (snapshotInitial == null || !snapshotInitial.Segments.Any())
+            return 0;
+
+        var valeurs = snapshotInitial.Segments.Values
+            .Select(s => s.NombreRdvParAn * s.DureeRdvHeures)
+            .Where(v => v > 0)
+            .ToList();
+
+        return valeurs.Any() ? valeurs.Average() : 0;
+    }
+
+    private double GetBaselineCapaciteMoyenne()
+    {
+        if (model == null || snapshotInitial == null)
+            return 0;
+
+        var valeurs = TaillesCalculees
+            .Where(t => !IsSegmentNonRenseigne(t.SegmentCouvert))
+            .Select(t => GetBaselineTailleTheorique(t.Profil, t.SegmentCouvert))
+            .Where(v => v > 0)
+            .ToList();
+
+        return valeurs.Any() ? valeurs.Average() : 0;
+    }
+
+    private double GetDeltaHeuresTravailParAn()
+    {
+        return GetHeuresTravailParAn() - GetBaselineHeuresTravailParAn();
+    }
+
+    private double GetDeltaVolumeMoyen()
+    {
+        return GetVolumeMoyen() - GetBaselineVolumeMoyen();
+    }
+
+    private double GetDeltaIntensiteMoyenne()
+    {
+        return GetIntensiteMoyenne() - GetBaselineIntensiteMoyenne();
+    }
+
+    private double GetDeltaCapaciteMoyenne()
+    {
+        return GetCapaciteMoyenne() - GetBaselineCapaciteMoyenne();
+    }
+
+    private bool IsAffectationModifiee(string? segment, string? conseillerPrioritaire, string? conseillerSecondaire, string? conseillerTertiaire = null)
+    {
+        if (snapshotInitial == null || string.IsNullOrWhiteSpace(segment))
+            return false;
+
+        var key = NormalizeKey(segment);
+
+        if (!snapshotInitial.Affectations.TryGetValue(key, out var saved))
+            return false;
+
+        return !string.Equals(saved.ConseillerPrioritaire?.Trim(), conseillerPrioritaire?.Trim(), StringComparison.OrdinalIgnoreCase)
+               || !string.Equals(saved.ConseillerSecondaire?.Trim(), conseillerSecondaire?.Trim(), StringComparison.OrdinalIgnoreCase)
+               || !string.Equals(saved.ConseillerTertiaire?.Trim(), conseillerTertiaire?.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string FormatDelta(double delta, string unite)
+    {
+        if (Math.Abs(delta) < 0.0001)
+            return "0";
+
+        var prefix = delta > 0 ? "+" : "";
+        var suffix = string.IsNullOrWhiteSpace(unite) ? "" : $" {unite}";
+
+        return $"{prefix}{delta:F2}{suffix}";
+    }
+
+    private string GetDeltaStyle(double delta)
+    {
+        if (Math.Abs(delta) < 0.0001)
+            return "color:#6C7A89;font-weight:600";
+
+        if (delta > 0)
+            return "color:#1B5E20;font-weight:700";
+
+        return "color:#B71C1C;font-weight:700";
+    }
+
+    private string GetDeltaCellStyle(double delta)
+    {
+        var baseStyle = "text-align:center;font-weight:700;";
+
+        if (Math.Abs(delta) < 0.0001)
+            return baseStyle + "background:#F5F7FA;color:#6C7A89";
+
+        if (delta > 0)
+            return baseStyle + "background:#E8F5E9;color:#1B5E20";
+
+        return baseStyle + "background:#FDECEA;color:#B71C1C";
+    }
+
+    private string GetPortefeuilleCellStyle(double taille, bool segmentNonRenseigne)
+    {
+        var baseStyle = "text-align:center;font-weight:700;font-size:15px;";
+
+        if (segmentNonRenseigne || taille <= 0)
+            return baseStyle + "background:#E8EDF2;color:#6C7A89";
+
+        if (taille < 150)
+            return baseStyle + "background:#FDECEA;color:#B71C1C";
+
+        if (taille < 300)
+            return baseStyle + "background:#FFF3E0;color:#E65100";
+
+        return baseStyle + "background:#E8F5E9;color:#1B5E20";
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //   ENREGISTRER
+    // ═══════════════════════════════════════════════════════════════
+
+    private async Task Enregistrer()
+    {
+        if (model == null)
+            return;
+
+        try
+        {
+            var bundle = new ReglesHypothesesBundle
+            {
+                Parametres = new ParametresGenerauxData
+                {
+                    HeuresParSemaine = model.HeuresParSemaine,
+                    NbSemainesParAn = model.NbSemainesParAn
+                },
+
+                Segments = model.SegmentsIntensite.Select(x => new SegmentIntensiteData
+                {
+                    LigneMetier = x.LigneMetier,
+                    Segment = x.Segment,
+                    NombreRdvParAn = x.NombreRdvParAn,
+                    DureeRdvHeures = x.DureeRdvHeures,
+                    IntensiteRelationnelle = x.IntensiteRelationnelle
+                }).ToList(),
+
+                Profils = model.ConseillersProfils.Select(x => new ConseillerProfilData
+                {
+                    LigneMetier = x.LigneMetier,
+                    Profil = x.Profil,
+                    PartTempsCommercialPct = x.PartTempsCommercialPct
+                }).ToList(),
+
+                Regles = model.ReglesAffectationSegments.Select(x => new RegleAffectationSegmentData
+                {
+                    Segment = x.Segment,
+                    ConseillerPrioritaire = x.ConseillerPrioritaire,
+                    ConseillerSecondaire = x.ConseillerSecondaire,
+                    ConseillerTertiaire = x.ConseillerTertiaire
+                }).ToList()
+            };
+
+            var result = await ReglesService.SaveAllAsync(bundle);
+
+            StateService.UpdateRegles(model);
+            snapshotInitial = CreateSnapshot();
+
+            Snackbar.Add(
+                $"Modifications enregistrées en base : " +
+                $"{result.SegmentsSaved} segments, " +
+                $"{result.ProfilsSaved} profils, " +
+                $"{result.ReglesSaved} règles.",
+                Severity.Success,
+                cfg =>
+                {
+                    cfg.Icon = Icons.Material.Filled.CheckCircle;
+                    cfg.VisibleStateDuration = 4000;
+                }
+            );
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur sauvegarde R&H : {ex.Message}");
+
+            Snackbar.Add(
+                $"Erreur lors de l'enregistrement : {ex.Message}",
+                Severity.Error,
+                cfg =>
+                {
+                    cfg.Icon = Icons.Material.Filled.Error;
+                    cfg.VisibleStateDuration = 5000;
+                }
+            );
+        }
+    }
+
+    // ── Helpers formatage (non static car dépendent du référentiel) ──
+    private bool IsBanquePriveeSegment(string? segment) =>
+        SegmentsBanquePrivee.Contains(segment?.Trim() ?? string.Empty);
+
+    private string FormatSegmentLabel(string? segment) =>
+        IsBanquePriveeSegment(segment) ? $"{segment} (Banque Privée)" : (segment ?? string.Empty);
+
+    private string FormatProfilLabel(string? profil) =>
+        ProfilsBanquePrivee.Contains(profil ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            ? $"{profil} (Banque Privée)"
+            : (profil ?? string.Empty);
+
+    private async Task ExportExcel()
+    {
+        if (model == null) return;
+
+        var sb = new System.Text.StringBuilder();
+
+        sb.AppendLine("INTENSITÉ RELATIONNELLE");
+        sb.AppendLine("Segment;Nb RDV/an;Durée RDV (h);Intensité");
+        foreach (var s in model.SegmentsIntensite)
+            sb.AppendLine($"{FormatSegmentLabel(s.Segment)};{s.NombreRdvParAn:F2};{s.DureeRdvHeures:F2};{GetIntensite(s):F2}");
+
+        sb.AppendLine();
+        sb.AppendLine("TEMPS CONSEILLER");
+        sb.AppendLine("Profil;Part tps commercial (%);Volume horaire (h)");
+        foreach (var p in model.ConseillersProfils)
+            sb.AppendLine($"{p.Profil};{GetPartTempsCommercialPctDisplay(p):F0};{GetVolumeHoraire(p):F1}");
+
+        sb.AppendLine();
+        sb.AppendLine("RÈGLES D'AFFECTATION");
+        sb.AppendLine("Segment;Conseiller Prioritaire;Conseiller Secondaire;Conseiller Tertiaire");
+        foreach (var r in model.ReglesAffectationSegments)
+            sb.AppendLine($"{FormatSegmentLabel(r.Segment)};{r.ConseillerPrioritaire};{r.ConseillerSecondaire};{r.ConseillerTertiaire}");
+
+        sb.AppendLine();
+        sb.AppendLine("PORTEFEUILLE THÉORIQUE");
+        sb.AppendLine("Segment;Intensité;Volume horaire;Taille théorique");
+        foreach (var t in TaillesCalculees)
+        {
+            var intensite = IsSegmentNonRenseigne(t.SegmentCouvert) ? 0 : GetIntensiteBySegment(t.SegmentCouvert);
+            var volume = CalculService.GetVolumeHoraireByTypeAgence(model, t.LigneMetier);
+            var taille = intensite > 0 ? volume / intensite : 0;
+            sb.AppendLine($"{FormatSegmentLabel(t.SegmentCouvert)};{intensite:F2};{volume:F1};{(taille > 0 ? taille.ToString("N0") : "—")}");
+        }
+
+        var csv = sb.ToString();
+        var fileName = $"parametres_CA_{DateTime.Now:yyyyMMdd_HHmm}.csv";
+        await JS.InvokeVoidAsync("downloadCsvFile", fileName, csv);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //   Classes internes pour le snapshot de simulation
+    // ═══════════════════════════════════════════════════════════════
+
+    private sealed class SimulationSnapshot
+    {
+        public double HeuresParSemaine { get; set; }
+        public double NbSemainesParAn { get; set; }
+
+        public Dictionary<string, SegmentSnapshot> Segments { get; set; } =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        public Dictionary<string, double> PartsCommerciales { get; set; } =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        public Dictionary<string, AffectationSnapshot> Affectations { get; set; } =
+            new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private sealed class SegmentSnapshot
+    {
+        public string Segment { get; set; } = string.Empty;
+        public double NombreRdvParAn { get; set; }
+        public double DureeRdvHeures { get; set; }
+    }
+
+    private sealed class AffectationSnapshot
+    {
+        public string Segment { get; set; } = string.Empty;
+        public string ConseillerPrioritaire { get; set; } = string.Empty;
+        public string ConseillerSecondaire { get; set; } = string.Empty;
+        public string ConseillerTertiaire { get; set; } = string.Empty;
+    }
 }
