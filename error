@@ -1,11 +1,5 @@
-// ── GET /api/SegmentationDistributive/id/{id} ──
-[HttpGet(template: "id/{id}", Name = "GetSegmentationDistributiveById")]
-public async Task<SegmentationDistributiveData?> GetById(int id)
+[HttpGet(template: "ping", Name = "PingSegmentationDistributive")]
+public IActionResult Ping()
 {
-    var query = new GetSegmentationDistributiveByIdQuery { Id = id };
-    var response = await _mediator.Send(query);
-
-    return response is null
-        ? null
-        : _mapper.Map<SegmentationDistributiveData>(response);
+    return Ok(new { message = "pong", time = DateTime.Now });
 }
