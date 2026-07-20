@@ -3,10 +3,6 @@ using Segmentation.Shared.Models;
 
 namespace Segmentation.Client.Services
 {
-    /// <summary>
-    /// Fournit le référentiel dynamique (segments, profils, régions, secteurs, agences)
-    /// construit à partir de la table SegmentationDistributives.
-    /// </summary>
     public class ReferentielService
     {
         private readonly HttpClient _http;
@@ -22,11 +18,34 @@ namespace Segmentation.Client.Services
             if (_cache != null && !forceReload)
                 return _cache;
 
-            _cache = await _http.GetFromJsonAsync<ReferentielData>(
-                "api/SegmentationDistributive/referentiel"
-            ) ?? new ReferentielData();
+            try
+            {
+                var response = await _http.GetAsync("api/SegmentationDistributive/referentiel");
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($">>> Referentiel : status {response.StatusCode}");
+                    _cache = new ReferentielData();
+                    return _cache;
+                }
 
-            return _cache;
+                var content = await response.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(content) || content == "null")
+                {
+                    _cache = new ReferentielData();
+                    return _cache;
+                }
+
+                _cache = await response.Content.ReadFromJsonAsync<ReferentielData>()
+                         ?? new ReferentielData();
+
+                return _cache;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($">>> Erreur chargement Referentiel : {ex.Message}");
+                _cache = new ReferentielData();
+                return _cache;
+            }
         }
 
         public void InvalidateCache()
