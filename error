@@ -1,125 +1,72 @@
-
-using Segmentation.Application.Contracts;
-using Segmentation.Application.Queries.SegmentationDistributive;
-using Segmentation.Application.Responses;
-using Segmentation.Core.Repositories;
-
-namespace Segmentation.Application.Handlers.SegmentationDistributive
+private void BuildFilterOptions()
 {
-    internal class GetReferentielQueryHandler
-        : IQueryHandler<GetReferentielQuery, ReferentielResponse>
+    if (_segmentationDistributive == null || !_segmentationDistributive.Any())
     {
-        private readonly ISegmentationDistributivesRepository _repository;
-
-        // Mapping profil → ligne métier
-        private static readonly Dictionary<string, string> _mappingProfilLigneMetier =
-            new(StringComparer.OrdinalIgnoreCase)
-            {
-                ["DIR. BP"]                = "banque privée",
-                ["BANQUIER PRIVÉ"]         = "banque privée",
-                ["CGP"]                    = "banque privée",
-                ["RESP. AGENCE"]           = "retail",
-                ["RCP"]                    = "retail",
-                ["CONSEILLER CLIENTELE"]   = "retail",
-                ["CONSEILLER COMMERCIAL"]  = "retail",
-                ["CONSEILLER D'ACCUEIL"]   = "retail",
-            };
-
-        // Segments toujours disponibles pour la configuration
-        private static readonly List<string> _segmentsStandards = new()
-        {
-            "HDG Premium Potentiel",
-            "HDG Premium Standard",
-            "HDG Potentiel",
-            "HDG Senior Epargnant",
-            "HDG Standard",
-            "CI Potentiel",
-            "CI Standard",
-            "GP Potentiel",
-            "GP Standard",
-            "Non segmenté",
-            "Non classé"
-        };
-
-        // Profils toujours disponibles pour la configuration
-        // (même si absents de SegmentationDistributives)
-        private static readonly List<ReferentielProfilResponse> _profilsStandards = new()
-        {
-            new() { Profil = "DIR. BP",                LigneMetier = "banque privée" },
-            new() { Profil = "BANQUIER PRIVÉ",         LigneMetier = "banque privée" },
-            new() { Profil = "CGP",                    LigneMetier = "banque privée" },
-            new() { Profil = "RESP. AGENCE",           LigneMetier = "retail" },
-            new() { Profil = "RCP",                    LigneMetier = "retail" },
-            new() { Profil = "CONSEILLER CLIENTELE",   LigneMetier = "retail" },
-            new() { Profil = "CONSEILLER COMMERCIAL",  LigneMetier = "retail" },
-        };
-
-        public GetReferentielQueryHandler(
-            ISegmentationDistributivesRepository repository)
-        {
-            _repository = repository;
-        }
-
-        public async Task<ReferentielResponse> Handle(
-            GetReferentielQuery request,
-            CancellationToken cancellationToken)
-        {
-            var entities = await _repository.GetAllAsync();
-            var data = entities.ToList();
-
-            // Profils depuis la table (peut être vide ou incomplet)
-            var profilsFromData = data
-                .Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
-                .Select(x => x.TypeConseiller.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Select(profil => new ReferentielProfilResponse
-                {
-                    Profil = profil,
-                    LigneMetier = _mappingProfilLigneMetier.TryGetValue(profil, out var lm)
-                        ? lm
-                        : "retail"
-                })
-                .ToList();
-
-            // Union : profils standards + profils trouvés en base
-            // Les profils standards garantissent que BP est toujours configurable
-            var profils = _profilsStandards
-                .Concat(profilsFromData)
-                .GroupBy(p => p.Profil, StringComparer.OrdinalIgnoreCase)
-                .Select(g => g.First())
-                .OrderBy(p => p.LigneMetier)
-                .ThenBy(p => p.Profil)
-                .ToList();
-
-            var regions = data
-                .Where(x => !string.IsNullOrWhiteSpace(x.LibRegion))
-                .Select(x => x.LibRegion.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(x => x)
-                .ToList();
-
-            var secteurs = data
-                .Where(x => !string.IsNullOrWhiteSpace(x.LibSecteur))
-                .Select(x => x.LibSecteur.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(x => x)
-                .ToList();
-
-            var agences = data
-                .Where(x => !string.IsNullOrWhiteSpace(x.LibAgence))
-                .Select(x => x.LibAgence.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(x => x)
-                .ToList();
-
-            return new ReferentielResponse
-            {
-                Segments = _segmentsStandards,
-                Profils = profils,
-                Regions = regions,
-                Secteurs = secteurs,
-                Agences = agences
-            };
-        }
+        allRegions = new List<string>();
+        allSecteurs = new List<string>();
+        allAgences = new List<string>();
+        return;
     }
+
+    // Régions : toujours toutes les régions distinctes
+    allRegions = _segmentationDistributive
+        .Select(x => x.LibRegion)
+        .Where(x => !string.IsNullOrWhiteSpace(x))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(x => x)
+        .ToList();
+
+    // Secteurs : filtrés selon la région sélectionnée
+    allSecteurs = _segmentationDistributive
+        .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
+        .Select(x => x.LibSecteur)
+        .Where(x => !string.IsNullOrWhiteSpace(x))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(x => x)
+        .ToList();
+
+    // Agences : filtrées selon la région et le secteur sélectionnés
+    allAgences = _segmentationDistributive
+        .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
+        .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
+        .Select(x => x.LibAgence)
+        .Where(x => !string.IsNullOrWhiteSpace(x))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(x => x)
+        .ToList();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+private void ApplyFilters()
+{
+    // Filtrer les lignes SegmentationDistributive selon les 3 filtres
+    _segmentationDistributiveFiltree = _segmentationDistributive
+        .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
+        .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
+        .Where(x => string.IsNullOrEmpty(filtreAgence) || x.LibAgence == filtreAgence)
+        .ToList();
+
+    // Rafraîchir les options de filtres en cascade
+    BuildFilterOptions();
+
+    // Reconstruire les slots (conseillers) et les rows depuis les données filtrées
+    _slots = BuildSlots();
+    rows = BuildRows();
+
+    RecalcTotal();
+
+    filteredRows = rows.ToList();
+
+    StateHasChanged();
 }
