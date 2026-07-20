@@ -39,6 +39,25 @@ namespace Segmentation.Server.Controllers
             return result;
         }
 
+        [HttpGet(template: "referentiel", Name = "GetReferentiel")]
+public async Task<ReferentielData> GetReferentiel()
+{
+    var response = await _mediator.Send(new GetReferentielQuery());
+
+    return new ReferentielData
+    {
+        Segments = response.Segments,
+        Profils = response.Profils.Select(p => new ReferentielProfilData
+        {
+            Profil = p.Profil,
+            LigneMetier = p.LigneMetier
+        }).ToList(),
+        Regions = response.Regions,
+        Secteurs = response.Secteurs,
+        Agences = response.Agences
+    };
+}
+
         [HttpGet(Name = "GetAllSegmentationDistributive")]
         public async Task<List<SegmentationDistributiveData>> GetAll()
         {
