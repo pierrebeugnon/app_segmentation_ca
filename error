@@ -1,10 +1,77 @@
-// ── Filtres appliqués (à jour dans _segmentationDistributiveFiltree) ──
-private string? filtreRegionApplique = null;
-private string? filtreSecteurApplique = null;
-private string? filtreAgenceApplique = null;
+// ── Handlers de changement des filtres ────────────────────────────────
+// Reset en cascade sans recalculer les données (juste les options)
 
-// Détection de changement non appliqué
-private bool HasPendingFilterChanges =>
-    filtreRegion != filtreRegionApplique ||
-    filtreSecteur != filtreSecteurApplique ||
-    filtreAgence != filtreAgenceApplique;
+private void OnRegionChanged(string? newRegion)
+{
+    filtreRegion = newRegion;
+
+    // Reset secteur et agence
+    filtreSecteur = null;
+    filtreAgence = null;
+
+    // Recalcule les options dépendantes
+    BuildFilterOptions();
+}
+
+private void OnSecteurChanged(string? newSecteur)
+{
+    filtreSecteur = newSecteur;
+
+    // Reset agence
+    filtreAgence = null;
+
+    BuildFilterOptions();
+}
+
+private void OnAgenceChanged(string? newAgence)
+{
+    filtreAgence = newAgence;
+
+    // Pas de reset, l'agence est le dernier filtre
+}
+
+
+
+
+
+
+
+private void ApplyFilters()
+{
+    // Filtre les données selon les valeurs choisies
+    _segmentationDistributiveFiltree = _segmentationDistributive
+        .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
+        .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
+        .Where(x => string.IsNullOrEmpty(filtreAgence) || x.LibAgence == filtreAgence)
+        .ToList();
+
+    // Mémorise les valeurs actuellement appliquées
+    filtreRegionApplique = filtreRegion;
+    filtreSecteurApplique = filtreSecteur;
+    filtreAgenceApplique = filtreAgence;
+
+    // Rafraîchit les options dépendantes
+    BuildFilterOptions();
+
+    // Reconstruit les slots et les rows depuis les données filtrées
+    _slots = BuildSlots();
+    rows = BuildRows();
+
+    RecalcTotal();
+
+    filteredRows = rows.ToList();
+
+    StateHasChanged();
+}
+
+
+
+
+private void ClearFilters()
+{
+    filtreRegion = null;
+    filtreSecteur = null;
+    filtreAgence = null;
+
+    ApplyFilters();
+}s
