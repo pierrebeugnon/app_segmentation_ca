@@ -66,13 +66,10 @@
         {
             <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
                 Mode simulation activé : les écarts comparent les valeurs actuelles aux valeurs de référence chargées initialement.
-                L’enregistrement fige les valeurs actuelles comme nouvelle référence.
+                L'enregistrement fige les valeurs actuelles comme nouvelle référence.
             </MudAlert>
         }
 
-        <!-- ════════════════════════════════════════════════════════
-             Onglets
-        ════════════════════════════════════════════════════════ -->
         <MudTabs Rounded="true"
                  Elevation="1"
                  Class="mb-4"
@@ -130,7 +127,7 @@
 
                             <MudTd Style="text-align:center;background:#FFFDE7">
                                 <MudNumericField T="double"
-                                                 Value="context.NombreRdvParAn"
+                                                 @bind-Value="context.NombreRdvParAn"
                                                  Immediate="true"
                                                  Variant="Variant.Outlined"
                                                  Margin="Margin.Dense"
@@ -144,7 +141,7 @@
 
                             <MudTd Style="text-align:center;background:#FFFDE7">
                                 <MudNumericField T="double"
-                                                 Value="context.DureeRdvHeures"
+                                                 @bind-Value="context.DureeRdvHeures"
                                                  Immediate="true"
                                                  Variant="Variant.Outlined"
                                                  Margin="Margin.Dense"
@@ -203,7 +200,7 @@
                                     </MudText>
 
                                     <MudNumericField T="double"
-                                                     Value="model.HeuresParSemaine"
+                                                     @bind-Value="model.HeuresParSemaine"
                                                      Immediate="true"
                                                      Variant="Variant.Outlined"
                                                      Margin="Margin.Dense"
@@ -223,7 +220,7 @@
                                     </MudText>
 
                                     <MudNumericField T="double"
-                                                     Value="model.NbSemainesParAn"
+                                                     @bind-Value="model.NbSemainesParAn"
                                                      Immediate="true"
                                                      Variant="Variant.Outlined"
                                                      Margin="Margin.Dense"
@@ -275,10 +272,8 @@
                         var tpNonCom         = 100.0 - tpCommercial;
                         var typeLabel        = FormatTypeAgenceLabel(typeAgence);
 
-                        <!-- Bloc type d'agence -->
                         <div style="margin:0 16px 16px;border-radius:8px;overflow:hidden;border:1px solid #D0D8E4;box-shadow:0 1px 4px rgba(0,0,0,0.07)">
 
-                            <!-- Barre d'en-tête sombre -->
                             <div style="background:#1A4E6B;padding:12px 20px;display:flex;justify-content:space-between;align-items:center">
                                 <span style="font-weight:700;font-size:15px;color:white;letter-spacing:.2px">@typeLabel</span>
                                 <div style="display:flex;align-items:center;gap:10px">
@@ -294,7 +289,6 @@
                                 </div>
                             </div>
 
-                            <!-- Tableau des profils (largeurs fixes via colgroup) -->
                             <table style="width:100%;border-collapse:collapse;background:white;table-layout:fixed">
                                 <colgroup>
                                     <col style="width:40px">
@@ -346,7 +340,6 @@
                         </div>
                     }
 
-                    <!-- Note de bas de section -->
                     <div style="padding:10px 20px 14px;color:#8A97A8;font-size:12px">
                         ↳ Valeur héritée du paramétrage parent affichée sur chaque profil
                     </div>
@@ -390,27 +383,29 @@
 
                         <RowTemplate>
                             @{
-                                var segment = context.Segment?.Trim() ?? string.Empty;
+                                var currentRegle = context;
+                                var segment = currentRegle.Segment?.Trim() ?? string.Empty;
                                 var allOptions = GetOptionsProfilsPourSegment(segment);
-                                var optionsPrioritaire = GetOptionsFiltered(allOptions, context.ConseillerSecondaire, context.ConseillerTertiaire);
-                                var optionsSecondaire = GetOptionsFiltered(allOptions, context.ConseillerPrioritaire, context.ConseillerTertiaire);
-                                var optionsTertiaire = GetOptionsFiltered(allOptions, context.ConseillerPrioritaire, context.ConseillerSecondaire);
+                                var optionsPrioritaire = GetOptionsFiltered(allOptions, currentRegle.ConseillerSecondaire, currentRegle.ConseillerTertiaire);
+                                var optionsSecondaire = GetOptionsFiltered(allOptions, currentRegle.ConseillerPrioritaire, currentRegle.ConseillerTertiaire);
+                                var optionsTertiaire = GetOptionsFiltered(allOptions, currentRegle.ConseillerPrioritaire, currentRegle.ConseillerSecondaire);
                                 var selectDisabled = IsSegmentNonAffectable(segment);
                                 var affectationModifiee = IsAffectationModifiee(
-                                context.Segment,
-                                context.ConseillerPrioritaire,
-                                context.ConseillerSecondaire,
-                                context.ConseillerTertiaire
+                                    currentRegle.Segment,
+                                    currentRegle.ConseillerPrioritaire,
+                                    currentRegle.ConseillerSecondaire,
+                                    currentRegle.ConseillerTertiaire
                                 );
                             }
 
                             <MudTd Style="font-weight:600;color:#1A4E6B">
-                                @FormatSegmentLabel(context.Segment)
+                                @FormatSegmentLabel(currentRegle.Segment)
                             </MudTd>
 
                             <MudTd Style="background:#FFFDE7;overflow:visible">
                                 <MudSelect T="string"
-                                           Value="context.ConseillerPrioritaire"
+                                           Value="@currentRegle.ConseillerPrioritaire"
+                                           ValueChanged="@(v => { currentRegle.ConseillerPrioritaire = v; StateHasChanged(); })"
                                            Variant="Variant.Outlined"
                                            Margin="Margin.Dense"
                                            Dense="true"
@@ -427,7 +422,8 @@
 
                             <MudTd Style="background:#FFFDE7;overflow:visible">
                                 <MudSelect T="string"
-                                           Value="context.ConseillerSecondaire"
+                                           Value="@currentRegle.ConseillerSecondaire"
+                                           ValueChanged="@(v => { currentRegle.ConseillerSecondaire = v; StateHasChanged(); })"
                                            Variant="Variant.Outlined"
                                            Margin="Margin.Dense"
                                            Dense="true"
@@ -444,7 +440,8 @@
 
                             <MudTd Style="background:#FFFDE7;overflow:visible">
                                 <MudSelect T="string"
-                                           Value="context.ConseillerTertiaire"
+                                           Value="@currentRegle.ConseillerTertiaire"
+                                           ValueChanged="@(v => { currentRegle.ConseillerTertiaire = v; StateHasChanged(); })"
                                            Variant="Variant.Outlined"
                                            Margin="Margin.Dense"
                                            Dense="true"
@@ -539,16 +536,16 @@
                                 var segmentNonRenseigne = IsSegmentNonRenseigne(context.SegmentCouvert);
 
                                 var intensiteActuelle = segmentNonRenseigne
-                                ? 0
-                                : CalculService.GetIntensiteBySegment(model, context.SegmentCouvert);
+                                    ? 0
+                                    : CalculService.GetIntensiteBySegment(model, context.SegmentCouvert);
 
                                 var volumeActuel = CalculService.GetVolumeHoraireByTypeAgence(
-                                model,
-                                context.LigneMetier);
+                                    model,
+                                    context.LigneMetier);
 
                                 var tailleActuelle = segmentNonRenseigne
-                                ? 0
-                                : CalculService.GetTailleTheoriqueParSegment(model, context.SegmentCouvert);
+                                    ? 0
+                                    : CalculService.GetTailleTheoriqueParSegment(model, context.SegmentCouvert);
 
                                 var tailleReference = GetBaselineTailleTheorique(context.Profil, context.SegmentCouvert);
                                 var ecartTaille = tailleActuelle - tailleReference;
