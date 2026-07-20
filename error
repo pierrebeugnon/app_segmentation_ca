@@ -4,198 +4,88 @@ using Microsoft.AspNetCore.Mvc;
 using Segmentation.Application.Commands.SegmentationDistributive;
 using Segmentation.Application.Queries.SegmentationDistributive;
 using Segmentation.Shared.Models;
-using Segmentation.Application.Queries.SegmentationDistributive;
-
 
 namespace Segmentation.Server.Controllers
 {
-	public class SegmentationDistributiveController : SegmentationBaseController
-	{
-		public SegmentationDistributiveController(
-			IMediator mediator,
-			IMapper mapper)
-			: base(mediator, mapper)
-		{
-		}
-
-		// ── GET /api/SegmentationDistributive ──
-		[HttpGet(Name = "GetAllSegmentationDistributive")]
-		public async Task<List<SegmentationDistributiveData>> GetAll()
-		{
-			var query = new GetAllSegmentationDistributiveQuery();
-
-			List<SegmentationDistributiveData> result =
-				_mapper.Map<List<SegmentationDistributiveData>>(await _mediator.Send(query));
-
-			return result;
-		}
-
-		[HttpGet(template: "ping", Name = "PingSegmentationDistributive")]
-		public IActionResult Ping()
-		{
-			return Ok(new { message = "pong", time = DateTime.Now });
-		}
-
-		// ── GET /api/SegmentationDistributive/id/{id} ──
-		[HttpGet(template: "id/{id}", Name = "GetSegmentationDistributiveById")]
-		public async Task<SegmentationDistributiveData?> GetById(int id)
-		{
-			var query = new GetSegmentationDistributiveByIdQuery { Id = id };
-			var response = await _mediator.Send(query);
-
-			return response is null
-				? null
-				: _mapper.Map<SegmentationDistributiveData>(response);
-		}
-
-		public async Task<ReferentielData> GetReferentiel()
-		{
-			var response = await _mediator.Send(new GetReferentielQuery());
-
-			return new ReferentielData
-			{
-				Segments = response.Segments,
-				Profils = response.Profils.Select(p => new ReferentielProfilData
-				{
-					Profil = p.Profil,
-					LigneMetier = p.LigneMetier
-				}).ToList(),
-				Regions = response.Regions,
-				Secteurs = response.Secteurs,
-				Agences = response.Agences
-			};
-		}
-
-		// ── POST /api/SegmentationDistributive/import ──
-		[HttpPost(template: "import", Name = "ImportSegmentationDistributive")]
-		[RequestSizeLimit(50_000_000)]
-		public async Task<IActionResult> Import(
-			IFormFile file,
-			[FromQuery] bool replaceExisting = false)
-		{
-			if (file == null || file.Length == 0)
-				return BadRequest("Fichier vide.");
-
-			using Stream stream = file.OpenReadStream();
-
-			int count = await _mediator.Send(new ImportSegmentationDistributiveCommand
-			{
-				CsvStream = stream,
-				ReplaceExisting = replaceExisting
-			});
-
-			return Ok(new { imported = count });
-		}
-	}
-}
-
-
-
-
-
-
-
-
-
-using Segmentation.Application.Contracts;
-using Segmentation.Application.Queries.SegmentationDistributive;
-using Segmentation.Application.Responses;
-using Segmentation.Core.Repositories;
-
-namespace Segmentation.Application.Handlers.SegmentationDistributive
-{
-    internal class GetReferentielQueryHandler
-        : IQueryHandler<GetReferentielQuery, ReferentielResponse>
+    public class SegmentationDistributiveController : SegmentationBaseController
     {
-        private readonly ISegmentationDistributivesRepository _repository;
-
-        // Mapping profil → ligne métier (Option A)
-        private static readonly Dictionary<string, string> _mappingProfilLigneMetier =
-            new(StringComparer.OrdinalIgnoreCase)
-            {
-                ["DIR. BP"]                = "banque privée",
-                ["BANQUIER PRIVÉ"]         = "banque privée",
-                ["CGP"]                    = "banque privée",
-                ["RESP. AGENCE"]           = "retail",
-                ["RCP"]                    = "retail",
-                ["CONSEILLER CLIENTELE"]   = "retail",
-                ["CONSEILLER COMMERCIAL"]  = "retail",
-                ["CONSEILLER D'ACCUEIL"]   = "retail",
-            };
-
-        // Segments (colonnes de la table)
-        private static readonly List<string> _segmentsStandards = new()
+        public SegmentationDistributiveController(
+            IMediator mediator,
+            IMapper mapper)
+            : base(mediator, mapper)
         {
-            "HDG Premium Potentiel",
-            "HDG Premium Standard",
-            "HDG Potentiel",
-            "HDG Senior Epargnant",
-            "HDG Standard",
-            "CI Potentiel",
-            "CI Standard",
-            "GP Potentiel",
-            "GP Standard",
-            "Non segmenté",
-            "Non classé"
-        };
-
-        public GetReferentielQueryHandler(
-            ISegmentationDistributivesRepository repository)
-        {
-            _repository = repository;
         }
 
-        public async Task<ReferentielResponse> Handle(
-            GetReferentielQuery request,
-            CancellationToken cancellationToken)
+        // ── GET /api/SegmentationDistributive ──
+        [HttpGet(Name = "GetAllSegmentationDistributive")]
+        public async Task<List<SegmentationDistributiveData>> GetAll()
         {
-            var entities = await _repository.GetAllAsync();
-            var data = entities.ToList();
+            var query = new GetAllSegmentationDistributiveQuery();
 
-            // Profils uniques présents dans la table
-            var profils = data
-                .Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
-                .Select(x => x.TypeConseiller.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(x => x)
-                .Select(profil => new ReferentielProfilResponse
-                {
-                    Profil = profil,
-                    LigneMetier = _mappingProfilLigneMetier.TryGetValue(profil, out var lm)
-                        ? lm
-                        : "retail" // par défaut retail si profil inconnu
-                })
-                .ToList();
+            List<SegmentationDistributiveData> result =
+                _mapper.Map<List<SegmentationDistributiveData>>(await _mediator.Send(query));
 
-            var regions = data
-                .Where(x => !string.IsNullOrWhiteSpace(x.LibRegion))
-                .Select(x => x.LibRegion.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(x => x)
-                .ToList();
+            return result;
+        }
 
-            var secteurs = data
-                .Where(x => !string.IsNullOrWhiteSpace(x.LibSecteur))
-                .Select(x => x.LibSecteur.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(x => x)
-                .ToList();
+        // ── GET /api/SegmentationDistributive/ping ──
+        [HttpGet(template: "ping", Name = "PingSegmentationDistributive")]
+        public IActionResult Ping()
+        {
+            return Ok(new { message = "pong", time = DateTime.Now });
+        }
 
-            var agences = data
-                .Where(x => !string.IsNullOrWhiteSpace(x.LibAgence))
-                .Select(x => x.LibAgence.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(x => x)
-                .ToList();
+        // ── GET /api/SegmentationDistributive/id/{id} ──
+        [HttpGet(template: "id/{id}", Name = "GetSegmentationDistributiveById")]
+        public async Task<SegmentationDistributiveData?> GetById(int id)
+        {
+            var query = new GetSegmentationDistributiveByIdQuery { Id = id };
+            var response = await _mediator.Send(query);
 
-            return new ReferentielResponse
+            return response is null
+                ? null
+                : _mapper.Map<SegmentationDistributiveData>(response);
+        }
+
+        // ── GET /api/SegmentationDistributive/referentiel ──
+        [HttpGet(template: "referentiel", Name = "GetReferentiel")]
+        public async Task<ReferentielData> GetReferentiel()
+        {
+            var response = await _mediator.Send(new GetReferentielQuery());
+
+            return new ReferentielData
             {
-                Segments = _segmentsStandards,
-                Profils = profils,
-                Regions = regions,
-                Secteurs = secteurs,
-                Agences = agences
+                Segments = response.Segments,
+                Profils = response.Profils.Select(p => new ReferentielProfilData
+                {
+                    Profil = p.Profil,
+                    LigneMetier = p.LigneMetier
+                }).ToList(),
+                Regions = response.Regions,
+                Secteurs = response.Secteurs,
+                Agences = response.Agences
             };
+        }
+
+        // ── POST /api/SegmentationDistributive/import ──
+        [HttpPost(template: "import", Name = "ImportSegmentationDistributive")]
+        [RequestSizeLimit(50_000_000)]
+        public async Task<IActionResult> Import(
+            IFormFile file,
+            [FromQuery] bool replaceExisting = false)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("Fichier vide.");
+
+            using Stream stream = file.OpenReadStream();
+
+            int count = await _mediator.Send(new ImportSegmentationDistributiveCommand
+            {
+                CsvStream = stream,
+                ReplaceExisting = replaceExisting
+            });
+
+            return Ok(new { imported = count });
         }
     }
-}
+}s
