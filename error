@@ -383,29 +383,27 @@
 
                         <RowTemplate>
                             @{
-                                var currentRegle = context;
-                                var segment = currentRegle.Segment?.Trim() ?? string.Empty;
+                                var segment = context.Segment?.Trim() ?? string.Empty;
                                 var allOptions = GetOptionsProfilsPourSegment(segment);
-                                var optionsPrioritaire = GetOptionsFiltered(allOptions, currentRegle.ConseillerSecondaire, currentRegle.ConseillerTertiaire);
-                                var optionsSecondaire = GetOptionsFiltered(allOptions, currentRegle.ConseillerPrioritaire, currentRegle.ConseillerTertiaire);
-                                var optionsTertiaire = GetOptionsFiltered(allOptions, currentRegle.ConseillerPrioritaire, currentRegle.ConseillerSecondaire);
+                                var optionsPrioritaire = GetOptionsFiltered(allOptions, context.ConseillerSecondaire, context.ConseillerTertiaire);
+                                var optionsSecondaire = GetOptionsFiltered(allOptions, context.ConseillerPrioritaire, context.ConseillerTertiaire);
+                                var optionsTertiaire = GetOptionsFiltered(allOptions, context.ConseillerPrioritaire, context.ConseillerSecondaire);
                                 var selectDisabled = IsSegmentNonAffectable(segment);
                                 var affectationModifiee = IsAffectationModifiee(
-                                    currentRegle.Segment,
-                                    currentRegle.ConseillerPrioritaire,
-                                    currentRegle.ConseillerSecondaire,
-                                    currentRegle.ConseillerTertiaire
+                                    context.Segment,
+                                    context.ConseillerPrioritaire,
+                                    context.ConseillerSecondaire,
+                                    context.ConseillerTertiaire
                                 );
                             }
 
                             <MudTd Style="font-weight:600;color:#1A4E6B">
-                                @FormatSegmentLabel(currentRegle.Segment)
+                                @FormatSegmentLabel(context.Segment)
                             </MudTd>
 
                             <MudTd Style="background:#FFFDE7;overflow:visible">
                                 <MudSelect T="string"
-                                           Value="@currentRegle.ConseillerPrioritaire"
-                                           ValueChanged="@(v => { currentRegle.ConseillerPrioritaire = v; StateHasChanged(); })"
+                                           @bind-Value="context.ConseillerPrioritaire"
                                            Variant="Variant.Outlined"
                                            Margin="Margin.Dense"
                                            Dense="true"
@@ -415,15 +413,14 @@
 
                                     @foreach (var p in optionsPrioritaire)
                                     {
-                                        <MudSelectItem T="string" Value="@p">@p</MudSelectItem>
+                                        <MudSelectItem T="string" @key="@($"prio-{segment}-{p}")" Value="@p">@p</MudSelectItem>
                                     }
                                 </MudSelect>
                             </MudTd>
 
                             <MudTd Style="background:#FFFDE7;overflow:visible">
                                 <MudSelect T="string"
-                                           Value="@currentRegle.ConseillerSecondaire"
-                                           ValueChanged="@(v => { currentRegle.ConseillerSecondaire = v; StateHasChanged(); })"
+                                           @bind-Value="context.ConseillerSecondaire"
                                            Variant="Variant.Outlined"
                                            Margin="Margin.Dense"
                                            Dense="true"
@@ -433,15 +430,14 @@
 
                                     @foreach (var p in optionsSecondaire)
                                     {
-                                        <MudSelectItem T="string" Value="@p">@p</MudSelectItem>
+                                        <MudSelectItem T="string" @key="@($"sec-{segment}-{p}")" Value="@p">@p</MudSelectItem>
                                     }
                                 </MudSelect>
                             </MudTd>
 
                             <MudTd Style="background:#FFFDE7;overflow:visible">
                                 <MudSelect T="string"
-                                           Value="@currentRegle.ConseillerTertiaire"
-                                           ValueChanged="@(v => { currentRegle.ConseillerTertiaire = v; StateHasChanged(); })"
+                                           @bind-Value="context.ConseillerTertiaire"
                                            Variant="Variant.Outlined"
                                            Margin="Margin.Dense"
                                            Dense="true"
@@ -451,7 +447,7 @@
 
                                     @foreach (var p in optionsTertiaire)
                                     {
-                                        <MudSelectItem T="string" Value="@p">@p</MudSelectItem>
+                                        <MudSelectItem T="string" @key="@($"ter-{segment}-{p}")" Value="@p">@p</MudSelectItem>
                                     }
                                 </MudSelect>
                             </MudTd>
@@ -588,3 +584,4 @@
         © 2026 Crédit Agricole Nord de France — Plateforme de simulation de dimensionnement des portefeuilles
     </div>
 </div>
+``
