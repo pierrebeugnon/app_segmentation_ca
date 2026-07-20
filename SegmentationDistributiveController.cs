@@ -4,8 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using Segmentation.Application.Commands.SegmentationDistributive;
 using Segmentation.Application.Queries.SegmentationDistributive;
 using Segmentation.Shared.Models;
-using Segmentation.Application.Queries.SegmentationDistributive;
-
 
 namespace Segmentation.Server.Controllers
 {
@@ -16,64 +14,55 @@ namespace Segmentation.Server.Controllers
         {
         }
 
+        // ── GET /api/SegmentationDistributive ──
         [HttpGet(Name = "GetAllSegmentationDistributive")]
         public async Task<List<SegmentationDistributiveData>> GetAll()
         {
-        var query = new GetAllSegmentationDistributiveQuery();
+            var query = new GetAllSegmentationDistributiveQuery();
 
-        return _mapper.Map<List<SegmentationDistributiveData>>
-            (
-        await _mediator.Send(query)
-            );
+            return _mapper.Map<List<SegmentationDistributiveData>>(
+                await _mediator.Send(query));
         }
 
+        // ── GET /api/SegmentationDistributive/id/{id} ──
         [HttpGet(template: "id/{id}", Name = "GetSegmentationDistributiveById")]
         public async Task<SegmentationDistributiveData> GetById(int id)
         {
-            GetSegmentationDistributiveByIdQuery query = new GetSegmentationDistributiveByIdQuery
+            var query = new GetSegmentationDistributiveByIdQuery
             {
                 Id = id
             };
 
-            SegmentationDistributiveData result =
-                _mapper.Map<SegmentationDistributiveData>(await _mediator.Send(query));
-
-            return result;
+            return _mapper.Map<SegmentationDistributiveData>(
+                await _mediator.Send(query));
         }
 
+        // ── GET /api/SegmentationDistributive/referentiel ──
         [HttpGet(template: "referentiel", Name = "GetReferentiel")]
-public async Task<ReferentielData> GetReferentiel()
-{
-    var response = await _mediator.Send(new GetReferentielQuery());
-
-    return new ReferentielData
-    {
-        Segments = response.Segments,
-        Profils = response.Profils.Select(p => new ReferentielProfilData
+        public async Task<ReferentielData> GetReferentiel()
         {
-            Profil = p.Profil,
-            LigneMetier = p.LigneMetier
-        }).ToList(),
-        Regions = response.Regions,
-        Secteurs = response.Secteurs,
-        Agences = response.Agences
-    };
-}
+            var response = await _mediator.Send(new GetReferentielQuery());
 
-        [HttpGet(Name = "GetAllSegmentationDistributive")]
-        public async Task<List<SegmentationDistributiveData>> GetAll()
-        {
-            GetAllSegmentationDistributiveQuery query = new GetAllSegmentationDistributiveQuery();
-
-            List<SegmentationDistributiveData> result =
-                _mapper.Map<List<SegmentationDistributiveData>>(await _mediator.Send(query));
-
-            return result;
+            return new ReferentielData
+            {
+                Segments = response.Segments,
+                Profils = response.Profils.Select(p => new ReferentielProfilData
+                {
+                    Profil = p.Profil,
+                    LigneMetier = p.LigneMetier
+                }).ToList(),
+                Regions = response.Regions,
+                Secteurs = response.Secteurs,
+                Agences = response.Agences
+            };
         }
 
+        // ── POST /api/SegmentationDistributive/import ──
         [HttpPost(template: "import", Name = "ImportSegmentationDistributive")]
-        [RequestSizeLimit(50_000_000)] // 50 Mo
-        public async Task<IActionResult> Import(IFormFile file, [FromQuery] bool replaceExisting = false)
+        [RequestSizeLimit(50_000_000)]
+        public async Task<IActionResult> Import(
+            IFormFile file,
+            [FromQuery] bool replaceExisting = false)
         {
             if (file is null || file.Length == 0)
                 return BadRequest("Fichier vide.");
