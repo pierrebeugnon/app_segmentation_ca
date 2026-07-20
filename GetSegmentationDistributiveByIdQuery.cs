@@ -1,0 +1,11 @@
+using Segmentation.Application.Contracts;
+using Segmentation.Application.Responses;
+
+namespace Segmentation.Application.Queries.SegmentationDistributive
+{
+    public class GetSegmentationDistributiveByIdQuery
+        : IQuery<SegmentationDistributiveResponse?>
+    {
+        public int Id { get; set; }
+    }
+}s
