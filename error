@@ -1,2 +1,11 @@
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Avertissement (actif)	CS0105	La directive using de 'Segmentation.Application.Queries.SegmentationDistributive' est apparue précédemment dans cet espace de noms	Segmentation.Server	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Server\Controllers\SegmentationDistributiveController.cs	7	
+// ── GET /api/SegmentationDistributive/id/{id} ──
+[HttpGet(template: "id/{id}", Name = "GetSegmentationDistributiveById")]
+public async Task<SegmentationDistributiveData?> GetById(int id)
+{
+    var query = new GetSegmentationDistributiveByIdQuery { Id = id };
+    var response = await _mediator.Send(query);
+
+    return response is null
+        ? null
+        : _mapper.Map<SegmentationDistributiveData>(response);
+}
