@@ -1,56 +1,64 @@
-private void InitTempsCommerciauxParType()
+private IReadOnlyList<string> GetOptionsProfilsPourSegment(string segment)
 {
-    _tempsCommerciauxParType.Clear();
-    if (model?.ConseillersProfils == null)
-        return;
+    return BuildOptionsProfilsForSegment(segment?.Trim() ?? string.Empty);
+}
 
-    var lignesMetier = model.ConseillersProfils
-        .Where(p => !string.IsNullOrWhiteSpace(p.LigneMetier))
-        .Select(p => p.LigneMetier!)
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .ToList();
 
-    foreach (var ligneMetier in lignesMetier)
-    {
-        // Prend la première valeur > 0 trouvée pour cette ligne métier
-        var pct = model.ConseillersProfils
-            .Where(p => string.Equals(p.LigneMetier, ligneMetier, StringComparison.OrdinalIgnoreCase))
-            .Select(p => GetPartTempsCommercialPctDisplay(p))
-            .FirstOrDefault(v => v > 0);
 
-        _tempsCommerciauxParType[ligneMetier] = pct;
 
-        // Propage cette valeur à tous les profils de la ligne métier
-        // (au cas où certains étaient à 0)
-        if (pct > 0)
+
+
+
+<MudTd Style="background:#FFFDE7;overflow:visible">
+    <MudSelect T="string"
+               Value="@context.ConseillerPrioritaire"
+               ValueChanged="@(v => { context.ConseillerPrioritaire = v; StateHasChanged(); })"
+               Variant="Variant.Outlined"
+               Margin="Margin.Dense"
+               Dense="true"
+               Clearable="true"
+               Disabled="@selectDisabled"
+               Style="min-width:220px">
+
+        @foreach (var p in optionsPrioritaire)
         {
-            foreach (var p in model.ConseillersProfils
-                .Where(x => string.Equals(x.LigneMetier, ligneMetier, StringComparison.OrdinalIgnoreCase)))
-            {
-                SetPartTempsCommercialPctFromDisplay(p, pct);
-            }
+            <MudSelectItem T="string" Value="@p">@p</MudSelectItem>
         }
-    }
-}
+    </MudSelect>
+</MudTd>
 
+<MudTd Style="background:#FFFDE7;overflow:visible">
+    <MudSelect T="string"
+               Value="@context.ConseillerSecondaire"
+               ValueChanged="@(v => { context.ConseillerSecondaire = v; StateHasChanged(); })"
+               Variant="Variant.Outlined"
+               Margin="Margin.Dense"
+               Dense="true"
+               Clearable="true"
+               Disabled="@selectDisabled"
+               Style="min-width:220px">
 
+        @foreach (var p in optionsSecondaire)
+        {
+            <MudSelectItem T="string" Value="@p">@p</MudSelectItem>
+        }
+    </MudSelect>
+</MudTd>
 
+<MudTd Style="background:#FFFDE7;overflow:visible">
+    <MudSelect T="string"
+               Value="@context.ConseillerTertiaire"
+               ValueChanged="@(v => { context.ConseillerTertiaire = v; StateHasChanged(); })"
+               Variant="Variant.Outlined"
+               Margin="Margin.Dense"
+               Dense="true"
+               Clearable="true"
+               Disabled="@selectDisabled"
+               Style="min-width:220px">
 
-
-
-
-
-
-
-
-
-private void SetTempsCommercialByType(string ligneMetier, double pct)
-{
-    if (model == null) return;
-    _tempsCommerciauxParType[ligneMetier] = pct;
-    foreach (var p in model.ConseillersProfils
-        .Where(x => x.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true))
-    {
-        SetPartTempsCommercialPctFromDisplay(p, pct);
-    }
-}
+        @foreach (var p in optionsTertiaire)
+        {
+            <MudSelectItem T="string" Value="@p">@p</MudSelectItem>
+        }
+    </MudSelect>
+</MudTd>
