@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Segmentation.Application.Commands.SegmentationDistributive;
 using Segmentation.Application.Queries.SegmentationDistributive;
 using Segmentation.Shared.Models;
+using Segmentation.Application.Queries.SegmentationDistributive;
+
 
 namespace Segmentation.Server.Controllers
 {
