@@ -1,7 +1,86 @@
-info: System.Net.Http.HttpClient.default.LogicalHandler[101]
-      End processing HTTP request after 1212ms - 200
-invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
-      Received HTTP response headers after 1354ms - 200
-invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
-      End processing HTTP request after 1355.1ms - 200
-blazor.webassembly.js:1 Erreur chargement R&H : ExpectedJsonTokens Path: $ | LineNumber: 0 | BytePositionInLine: 0.
+/// <summary>
+/// Complète le modèle avec les segments/profils du référentiel qui ne sont pas
+/// encore présents. Fait une UNION entre les données BDD et le référentiel.
+/// L'utilisateur voit toujours tout, même s'il n'a saisi qu'une partie.
+/// </summary>
+private void AutoInitFromReferentiel(
+    ReglesHypothesesModel model,
+    ReferentielData? referentiel)
+{
+    if (referentiel == null)
+        return;
+
+    // ── Section 1 : segments d'intensité ──
+    // Pour chaque segment du référentiel, l'ajouter s'il manque
+    var segmentsAjoutes = 0;
+    foreach (var segment in referentiel.Segments)
+    {
+        var existe = model.SegmentsIntensite.Any(s =>
+            string.Equals(s.Segment?.Trim(), segment.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (!existe)
+        {
+            model.SegmentsIntensite.Add(new SegmentIntensite
+            {
+                LigneMetier = DetermineLigneMetierForSegment(segment),
+                Segment = segment,
+                NombreRdvParAn = 0,
+                DureeRdvHeures = 0
+            });
+            segmentsAjoutes++;
+        }
+    }
+    if (segmentsAjoutes > 0)
+        Console.WriteLine($">>> Auto-init : {segmentsAjoutes} segments ajoutés depuis le référentiel");
+
+    // ── Section 2 : profils conseillers ──
+    var profilsAjoutes = 0;
+    foreach (var profil in referentiel.Profils)
+    {
+        var existe = model.ConseillersProfils.Any(p =>
+            string.Equals(p.Profil?.Trim(), profil.Profil.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (!existe)
+        {
+            model.ConseillersProfils.Add(new ConseillerTempsProfil
+            {
+                LigneMetier = profil.LigneMetier,
+                Profil = profil.Profil,
+                PartTempsCommercialPct = 0
+            });
+            profilsAjoutes++;
+        }
+    }
+    if (profilsAjoutes > 0)
+        Console.WriteLine($">>> Auto-init : {profilsAjoutes} profils ajoutés depuis le référentiel");
+
+    // ── Section 3 : règles d'affectation ──
+    // Une règle par segment (pour que chaque segment ait sa ligne dans le tableau)
+    var reglesAjoutees = 0;
+    foreach (var segment in referentiel.Segments)
+    {
+        var existe = model.ReglesAffectationSegments.Any(r =>
+            string.Equals(r.Segment?.Trim(), segment.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (!existe)
+        {
+            model.ReglesAffectationSegments.Add(new RegleAffectationSegment
+            {
+                Segment = segment,
+                ConseillerPrioritaire = "",
+                ConseillerSecondaire = "",
+                ConseillerTertiaire = ""
+            });
+            reglesAjoutees++;
+        }
+    }
+    if (reglesAjoutees > 0)
+        Console.WriteLine($">>> Auto-init : {reglesAjoutees} règles ajoutées depuis le référentiel");
+
+    // ── Paramètres généraux : valeurs par défaut si non renseignés ──
+    if (model.HeuresParSemaine <= 0)
+        model.HeuresParSemaine = 37.3;
+
+    if (model.NbSemainesParAn <= 0)
+        model.NbSemainesParAn = 42.5;
+}
