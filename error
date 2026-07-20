@@ -1,72 +1,59 @@
-private void BuildFilterOptions()
-{
-    if (_segmentationDistributive == null || !_segmentationDistributive.Any())
-    {
-        allRegions = new List<string>();
-        allSecteurs = new List<string>();
-        allAgences = new List<string>();
-        return;
-    }
+<!-- ── Filtres organisationnels ────────────────────────────────────── -->
+<MudPaper Elevation="1" Style="border-radius:8px;padding:12px 16px;margin-bottom:8px">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <MudIcon Icon="@Icons.Material.Outlined.FilterAlt" Style="color:#1A4E6B;font-size:20px" />
 
-    // Régions : toujours toutes les régions distinctes
-    allRegions = _segmentationDistributive
-        .Select(x => x.LibRegion)
-        .Where(x => !string.IsNullOrWhiteSpace(x))
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .OrderBy(x => x)
-        .ToList();
+        <MudSelect T="string" Label="Région" Dense="true" Margin="Margin.Dense"
+                   Variant="Variant.Outlined" Style="min-width:160px"
+                   Value="@filtreRegion" ValueChanged="OnRegionChanged"
+                   Clearable="true">
+            @foreach (var r in allRegions)
+            {
+                <MudSelectItem Value="@r">@r</MudSelectItem>
+            }
+        </MudSelect>
 
-    // Secteurs : filtrés selon la région sélectionnée
-    allSecteurs = _segmentationDistributive
-        .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-        .Select(x => x.LibSecteur)
-        .Where(x => !string.IsNullOrWhiteSpace(x))
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .OrderBy(x => x)
-        .ToList();
+        <MudSelect T="string" Label="Secteur" Dense="true" Margin="Margin.Dense"
+                   Variant="Variant.Outlined" Style="min-width:180px"
+                   Value="@filtreSecteur" ValueChanged="OnSecteurChanged"
+                   Clearable="true">
+            @foreach (var s in allSecteurs)
+            {
+                <MudSelectItem Value="@s">@s</MudSelectItem>
+            }
+        </MudSelect>
 
-    // Agences : filtrées selon la région et le secteur sélectionnés
-    allAgences = _segmentationDistributive
-        .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-        .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
-        .Select(x => x.LibAgence)
-        .Where(x => !string.IsNullOrWhiteSpace(x))
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .OrderBy(x => x)
-        .ToList();
-}
+        <MudSelect T="string" Label="Agence" Dense="true" Margin="Margin.Dense"
+                   Variant="Variant.Outlined" Style="min-width:200px"
+                   Value="@filtreAgence" ValueChanged="OnAgenceChanged"
+                   Clearable="true">
+            @foreach (var a in allAgences)
+            {
+                <MudSelectItem Value="@a">@a</MudSelectItem>
+            }
+        </MudSelect>
 
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Search"
+                   OnClick="ApplyFilters"
+                   Disabled="@(!HasPendingFilterChanges)">
+            Valider
+        </MudButton>
 
+        @if (!string.IsNullOrEmpty(filtreRegion) || !string.IsNullOrEmpty(filtreSecteur) || !string.IsNullOrEmpty(filtreAgence))
+        {
+            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary"
+                       StartIcon="@Icons.Material.Outlined.Clear"
+                       OnClick="ClearFilters">Effacer filtres</MudButton>
+        }
 
+        @if (HasPendingFilterChanges)
+        {
+            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">
+                Filtres non appliqués
+            </MudChip>
+        }
 
-
-
-
-
-
-
-
-
-
-private void ApplyFilters()
-{
-    // Filtrer les lignes SegmentationDistributive selon les 3 filtres
-    _segmentationDistributiveFiltree = _segmentationDistributive
-        .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-        .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
-        .Where(x => string.IsNullOrEmpty(filtreAgence) || x.LibAgence == filtreAgence)
-        .ToList();
-
-    // Rafraîchir les options de filtres en cascade
-    BuildFilterOptions();
-
-    // Reconstruire les slots (conseillers) et les rows depuis les données filtrées
-    _slots = BuildSlots();
-    rows = BuildRows();
-
-    RecalcTotal();
-
-    filteredRows = rows.ToList();
-
-    StateHasChanged();
-}
+        <div style="flex:1"></div>
+    </div>
+</MudPaper>
