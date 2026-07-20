@@ -32,3 +32,25 @@ private void InitTempsCommerciauxParType()
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+private void SetTempsCommercialByType(string ligneMetier, double pct)
+{
+    if (model == null) return;
+    _tempsCommerciauxParType[ligneMetier] = pct;
+    foreach (var p in model.ConseillersProfils
+        .Where(x => x.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true))
+    {
+        SetPartTempsCommercialPctFromDisplay(p, pct);
+    }
+}
