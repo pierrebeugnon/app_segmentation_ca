@@ -1,0 +1,173 @@
+@using Segmentation.Client.Services
+
+<MudPaper Elevation="0" Class="dash-repartition">
+    <div class="dash-section-title">
+        <span>Répartition par segment</span>
+        <span class="dash-section-hint">Volume clients gérés</span>
+    </div>
+
+    @if (Repartition == null || !Repartition.Any())
+    {
+        <div class="dash-placeholder">Aucune donnée disponible</div>
+    }
+    else
+    {
+        var maxRep = Repartition.Max(x => x.NbClients);
+
+        <div class="dash-rep-list">
+            @foreach (var seg in Repartition)
+            {
+                var barWidth = maxRep > 0 ? seg.NbClients * 100.0 / maxRep : 0;
+                var segColor = GetSegmentColor(seg.Segment);
+
+                <div class="dash-rep-row">
+                    <div class="dash-rep-label">@seg.Segment</div>
+                    <div class="dash-rep-barwrap">
+                        <div class="dash-rep-bar"
+                             style="width:@(barWidth.ToString("F0"))%;background:@segColor">
+                        </div>
+                    </div>
+                    <div class="dash-rep-value">
+                        <span class="dash-rep-value-nb">@FormatCompact(seg.NbClients)</span>
+                        <span class="dash-rep-value-pct">@seg.Pourcentage.ToString("F0")%</span>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</MudPaper>
+
+<style>
+    /* ── Répartition par segment ──────────────────── */
+    .dash-repartition {
+        background: white;
+        border-radius: 12px;
+        padding: 20px 24px;
+        min-height: 300px;
+    }
+
+    .dash-repartition .dash-section-title {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+
+    .dash-repartition .dash-section-title span:first-child {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1A4E6B;
+    }
+
+    .dash-repartition .dash-section-hint {
+        font-size: 11px;
+        color: #8A97A8;
+        font-style: italic;
+    }
+
+    .dash-rep-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding-top: 4px;
+    }
+
+    .dash-rep-row {
+        display: grid;
+        grid-template-columns: 180px 1fr 90px;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .dash-rep-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #2C3E50;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .dash-rep-barwrap {
+        height: 14px;
+        background: #F0F3F7;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .dash-rep-bar {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.4s ease;
+    }
+
+    .dash-rep-value {
+        display: flex;
+        align-items: baseline;
+        justify-content: flex-end;
+        gap: 6px;
+    }
+
+    .dash-rep-value-nb {
+        font-size: 13px;
+        font-weight: 700;
+        color: #1A4E6B;
+    }
+
+    .dash-rep-value-pct {
+        font-size: 11px;
+        color: #8A97A8;
+        font-weight: 600;
+        min-width: 30px;
+        text-align: right;
+    }
+
+    .dash-repartition .dash-placeholder {
+        color: #B0BAC5;
+        text-align: center;
+        padding: 40px;
+        font-style: italic;
+        font-size: 13px;
+    }
+</style>
+
+@code {
+    /// <summary>
+    /// Liste des segments avec leur répartition (clients + pourcentage).
+    /// </summary>
+    [Parameter]
+    public List<SegmentRepartition>? Repartition { get; set; }
+
+    // ── Helpers ────────────────────────────────────
+
+    /// <summary>
+    /// Couleur d'une barre selon la famille du segment.
+    /// Dégradé bleu : BP Premium (foncé) → GP (clair).
+    /// </summary>
+    private string GetSegmentColor(string segment)
+    {
+        if (segment.Contains("Premium", StringComparison.OrdinalIgnoreCase))
+            return "#0A2540";  // navy foncé (BP Premium)
+
+        if (segment.StartsWith("HDG", StringComparison.OrdinalIgnoreCase))
+            return "#1A4E6B";  // navy CA (HDG)
+
+        if (segment.StartsWith("CI", StringComparison.OrdinalIgnoreCase))
+            return "#4A80B5";  // bleu moyen (CI)
+
+        if (segment.StartsWith("GP", StringComparison.OrdinalIgnoreCase))
+            return "#5CA6D9";  // bleu clair (GP)
+
+        return "#B0BAC5";  // gris neutre (Non segmenté / Non classé)
+    }
+
+    /// <summary>
+    /// Formatage compact des grands nombres (12.4K, 1.2M).
+    /// </summary>
+    private string FormatCompact(int value)
+    {
+        if (value >= 1_000_000) return $"{value / 1_000_000.0:F1}M";
+        if (value >= 1_000)     return $"{value / 1_000.0:F0}K";
+        return value.ToString("N0");
+    }
+}
