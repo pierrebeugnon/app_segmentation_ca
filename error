@@ -68,3 +68,45 @@
         @_slots.Where(s => s.IsCible).Sum(s => s.EtpCible).ToString("F2")
     </td>
 </tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- ── Ligne Existant (en bas) — lecture seule uniquement ── -->
+<tr>
+    <td style="padding:7px 12px;font-size:12px;font-weight:700;color:#E65100;background:#FFF8F2;position:sticky;left:0;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
+        ▲ Existant
+    </td>
+    @foreach (var slot in _slots)
+    {
+        var isRemoved = slot.IsActuel && !slot.IsCible;
+        <td style="text-align:center;padding:8px 2px;
+                   @(isRemoved ? "background:#F0F2F5" : "background:#FFF8F2")">
+            @if (slot.IsActuel)
+            {
+                <span style="font-size:12px;font-weight:700;@(isRemoved ? "color:#9AA5B1" : "color:#E65100")">
+                    @slot.EtpActuel.ToString("F2")
+                </span>
+            }
+            else
+            {
+                <span style="color:#BDBDBD;font-size:10px">—</span>
+            }
+        </td>
+    }
+    <td style="text-align:center;padding:5px;font-weight:700;font-size:13px;background:#FAEEE0;color:#E65100">
+        @_slots.Where(s => s.IsActuel).Sum(s => s.EtpActuel).ToString("F2")
+    </td>
+</tr>
