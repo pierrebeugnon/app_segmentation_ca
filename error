@@ -1,1 +1,1 @@
-private List<SegmentRepartition> _repartition = new();
+_repartition = DashboardService.ComputeRepartitionParSegment(_dataFiltree);
