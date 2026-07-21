@@ -1,66 +1,70 @@
-protected override async Task OnInitializedAsync()
-{
-    _isLoading = true;
-
-    try
+<!-- ── Ligne Cible (en haut) — ETP + boutons d'action ── -->
+<tr>
+    <td style="padding:7px 12px;font-size:12px;font-weight:700;color:#1A4E6B;background:#EBF3FF;border-bottom:1px solid #D0DFF0;position:sticky;left:0;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
+        ▼ Cible
+    </td>
+    @foreach (var slot in _slots)
     {
-        // 1. Abonnement aux changements des règles
-        StateService.OnChange += OnReglesChanged;
+        var s         = slot;
+        var isRemoved = slot.IsActuel && !slot.IsCible;
+        var isNew     = !slot.IsActuel && slot.IsCible;
+        var isActive  = slot.IsActuel && slot.IsCible;
+        <td style="text-align:center;padding:4px 2px;border-bottom:1px solid #D0DFF0;
+                   @(isRemoved ? "background:#F0F2F5" : isNew ? "background:#F1FBF4" : "background:#EBF3FF")">
 
-        // 2. Chargement des 1258 lignes depuis l'API
-        _segmentationDistributive = await Http.GetFromJsonAsync<List<SegmentationDistributiveData>>(
-            "api/SegmentationDistributive"
-        ) ?? new();
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
 
-        Console.WriteLine($">>> SegmentationDistributive chargée : {_segmentationDistributive.Count} lignes");
+                @* ── Zone valeur ETP ── *@
+                @if (isActive || isNew)
+                {
+                    <div style="display:flex;justify-content:center;align-items:center;width:100%">
+                        <MudNumericField T="double"
+                                         Value="@s.EtpCible"
+                                         ValueChanged="@(v => { s.EtpCible = v; StateHasChanged(); })"
+                                         Format="F2" Step="0.25" Min="0" Max="2.0"
+                                         HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
+                                         Class="ca-eff-etp-input"
+                                         Style="width:100%"
+                                         InputStyle="@($"text-align:center;font-size:12px;font-weight:700;padding:1px 2px;{(isNew ? "color:#2E7D32" : "color:#1A4E6B")}")" />
+                    </div>
+                }
+                else if (isRemoved)
+                {
+                    <span style="color:#9AA5B1;font-size:12px">✗</span>
+                }
 
-        // 3. Filtre par défaut sur la première agence pour ne pas exploser l'affichage
-        filtreRegion = _segmentationDistributive
-            .Select(x => x.LibRegion)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .OrderBy(x => x)
-            .FirstOrDefault();
-
-        filtreSecteur = _segmentationDistributive
-            .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-            .Select(x => x.LibSecteur)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .OrderBy(x => x)
-            .FirstOrDefault();
-
-        filtreAgence = _segmentationDistributive
-            .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-            .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
-            .Select(x => x.LibAgence)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .OrderBy(x => x)
-            .FirstOrDefault();
-
-        // 4. Applique les filtres par défaut sur les données
-        _segmentationDistributiveFiltree = _segmentationDistributive
-            .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-            .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
-            .Where(x => string.IsNullOrEmpty(filtreAgence) || x.LibAgence == filtreAgence)
-            .ToList();
-
-        // 5. Mémorise l'état appliqué (pour HasPendingFilterChanges)
-        filtreRegionApplique = filtreRegion;
-        filtreSecteurApplique = filtreSecteur;
-        filtreAgenceApplique = filtreAgence;
-
-        // 6. Init des données de la page
-        BuildFilterOptions();
-        InitData();
-
-        Console.WriteLine($">>> Agence par défaut : {filtreAgence}");
-        Console.WriteLine($">>> Lignes filtrées : {_segmentationDistributiveFiltree.Count}");
+                @* ── Bouton d'action (dépend de l'état) ── *@
+                @if (isActive)
+                {
+                    <MudTooltip Text="Retirer cet effectif de la répartition cible (reste dans l'existant)">
+                        <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
+                                       Size="Size.Small"
+                                       Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
+                                       OnClick="@(() => RemoveCibleForExistingSlot(s))" />
+                    </MudTooltip>
+                }
+                else if (isRemoved)
+                {
+                    <MudTooltip Text="Réintégrer ce conseiller dans la répartition cible">
+                        <MudIconButton Icon="@Icons.Material.Outlined.AddCircleOutline"
+                                       Size="Size.Small"
+                                       Style="padding:0;width:18px;height:18px;color:#2E7D32;opacity:0.7"
+                                       OnClick="@(() => RestoreCible(s))" />
+                    </MudTooltip>
+                }
+                else if (isNew)
+                {
+                    <MudTooltip Text="Retirer ce conseiller ajouté manuellement">
+                        <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
+                                       Size="Size.Small"
+                                       Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
+                                       OnClick="@(() => RemoveNewSlot(s))" />
+                    </MudTooltip>
+                }
+            </div>
+        </td>
     }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Erreur chargement Portefeuille : {ex.Message}");
-    }
-    finally
-    {
-        _isLoading = false;
-    }
-}
+    <td style="text-align:center;padding:5px;font-weight:700;font-size:13px;background:#D6E8F7;color:#1A4E6B;border-bottom:1px solid #D0DFF0">
+        @_slots.Where(s => s.IsCible).Sum(s => s.EtpCible).ToString("F2")
+    </td>
+</tr>
