@@ -1,0 +1,468 @@
+@page "/dashboard"
+@page "/"
+@inject SegmentationStateService StateService
+@inject DashboardService DashboardService
+@inject HttpClient Http
+@using Segmentation.Client.Services
+@using Segmentation.Shared.Models
+@using System.Net.Http.Json
+
+<PageTitle>Pilotage — CA Segmentation</PageTitle>
+
+<div class="dash-page">
+
+    @if (_isLoading)
+    {
+        <div class="dash-loader">
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+        </div>
+    }
+
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 1 — En-tête épuré
+    ═══════════════════════════════════════════════════════ -->
+    <div class="dash-header">
+        <div>
+            <div class="dash-title">Pilotage du dimensionnement</div>
+            <div class="dash-subtitle">Vue d'ensemble du réseau CA Nord de France</div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 1B — Filtres cascadés
+    ═══════════════════════════════════════════════════════ -->
+    <MudPaper Elevation="0" Class="dash-filters">
+        <div class="dash-filters-inner">
+            <span class="dash-filter-label">FILTRER PAR</span>
+
+            <MudSelect T="string" Label="Région" Dense="true" Margin="Margin.Dense"
+                       Variant="Variant.Outlined" Style="min-width:180px"
+                       Value="@filtreRegion" ValueChanged="OnRegionChanged"
+                       Clearable="true">
+                @foreach (var r in allRegions)
+                {
+                    <MudSelectItem Value="@r">@r</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSelect T="string" Label="Secteur" Dense="true" Margin="Margin.Dense"
+                       Variant="Variant.Outlined" Style="min-width:200px"
+                       Value="@filtreSecteur" ValueChanged="OnSecteurChanged"
+                       Clearable="true">
+                @foreach (var s in allSecteurs)
+                {
+                    <MudSelectItem Value="@s">@s</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSelect T="string" Label="Agence" Dense="true" Margin="Margin.Dense"
+                       Variant="Variant.Outlined" Style="min-width:220px"
+                       Value="@filtreAgence" ValueChanged="OnAgenceChanged"
+                       Clearable="true">
+                @foreach (var a in allAgences)
+                {
+                    <MudSelectItem Value="@a">@a</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Check"
+                       OnClick="ApplyFilters"
+                       Disabled="@(!HasPendingFilterChanges || _isLoading)">
+                Valider
+            </MudButton>
+
+            @if (!string.IsNullOrEmpty(filtreRegion) || !string.IsNullOrEmpty(filtreSecteur) || !string.IsNullOrEmpty(filtreAgence))
+            {
+                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary"
+                           OnClick="ClearFilters">Effacer</MudButton>
+            }
+        </div>
+    </MudPaper>
+
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 2 — 4 KPI HÉROS
+    ═══════════════════════════════════════════════════════ -->
+    <div class="dash-kpi-grid">
+
+        <!-- KPI 1 — Taux de couverture -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-label">Taux de couverture</div>
+            <div class="dash-kpi-value @GetKpiClass(_kpis.TauxCouverture, 100, 90)">
+                @_kpis.TauxCouverture.ToString("F0")<span class="dash-kpi-unit">%</span>
+            </div>
+            <div class="dash-kpi-hint">Effectif ÷ ETP nécessaires</div>
+        </div>
+
+        <!-- KPI 2 — Concordance -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-label">Concordance moyenne</div>
+            <div class="dash-kpi-value @GetKpiClass(_kpis.Concordance, 80, 60)">
+                @_kpis.Concordance.ToString("F0")<span class="dash-kpi-unit">%</span>
+            </div>
+            <div class="dash-kpi-hint">Alignement avec les règles R&H</div>
+        </div>
+
+        <!-- KPI 3 — Conseillers actifs -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-label">Conseillers actifs</div>
+            <div class="dash-kpi-value dash-kpi-neutral">
+                @_kpis.ConseillersActifs.ToString("N0")
+            </div>
+            <div class="dash-kpi-hint">Matricules distincts</div>
+        </div>
+
+        <!-- KPI 4 — Clients gérés -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-label">Clients gérés</div>
+            <div class="dash-kpi-value dash-kpi-neutral">
+                @FormatCompact(_kpis.ClientsGeres)
+            </div>
+            <div class="dash-kpi-hint">Tous segments confondus</div>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 3 — HEATMAP TERRITORIALE
+    ═══════════════════════════════════════════════════════ -->
+    <div class="dash-section-title">
+        <span>Vision territoriale</span>
+        <span class="dash-section-hint">@GetHeatmapLevel()</span>
+    </div>
+    <MudPaper Elevation="0" Class="dash-heatmap">
+        <!-- À remplir en étape 3 -->
+        <div class="dash-placeholder">Heatmap à venir (étape 3)</div>
+    </MudPaper>
+
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 4 + 5 — Répartition + Alerte
+    ═══════════════════════════════════════════════════════ -->
+    <div class="dash-bottom-grid">
+
+        <MudPaper Elevation="0" Class="dash-repartition">
+            <div class="dash-section-title">
+                <span>Répartition ETP par segment</span>
+            </div>
+            <div class="dash-placeholder">Graphique à venir (étape 4)</div>
+        </MudPaper>
+
+        <MudPaper Elevation="0" Class="dash-alerte">
+            <div class="dash-section-title">
+                <span>Attention prioritaire</span>
+                <span class="dash-section-hint">Concordance la plus faible</span>
+            </div>
+            <div class="dash-placeholder">Top 5 à venir (étape 5)</div>
+        </MudPaper>
+
+    </div>
+
+    <div class="dash-footer">
+        © 2026 CA Nord de France — Pilotage réseau
+    </div>
+</div>
+
+<style>
+    /* ═══════════════════════════════════════════════════════
+       Design épuré — pas de bordures, whitespace, typography-driven
+    ═══════════════════════════════════════════════════════ */
+    .dash-page {
+        padding: 24px 32px;
+        background: #F5F7FA;
+        min-height: 100vh;
+        font-family: 'Calibri', sans-serif;
+    }
+
+    .dash-loader {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(255,255,255,0.75);
+        z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── En-tête ────────────────────────────────── */
+    .dash-header {
+        margin-bottom: 20px;
+    }
+    .dash-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1A4E6B;
+        letter-spacing: -0.3px;
+    }
+    .dash-subtitle {
+        font-size: 13px;
+        color: #6C7A89;
+        margin-top: 2px;
+    }
+
+    /* ── Filtres ────────────────────────────────── */
+    .dash-filters {
+        background: white;
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin-bottom: 24px;
+    }
+    .dash-filters-inner {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+    }
+    .dash-filter-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: #8A97A8;
+        letter-spacing: 2px;
+    }
+
+    /* ── KPI Grid ────────────────────────────────── */
+    .dash-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 28px;
+    }
+    .dash-kpi-card {
+        background: white;
+        border-radius: 12px;
+        padding: 22px 24px;
+        transition: transform 0.15s ease;
+    }
+    .dash-kpi-card:hover {
+        transform: translateY(-2px);
+    }
+    .dash-kpi-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #8A97A8;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+    }
+    .dash-kpi-value {
+        font-size: 42px;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: -1px;
+    }
+    .dash-kpi-unit {
+        font-size: 20px;
+        font-weight: 500;
+        color: #B0BAC5;
+        margin-left: 2px;
+    }
+    .dash-kpi-hint {
+        font-size: 11px;
+        color: #A0AAB8;
+        margin-top: 10px;
+        font-style: italic;
+    }
+    .dash-kpi-good     { color: #1B5E20; }
+    .dash-kpi-warn     { color: #E65100; }
+    .dash-kpi-critical { color: #C62828; }
+    .dash-kpi-neutral  { color: #1A4E6B; }
+
+    /* ── Sections ────────────────────────────────── */
+    .dash-section-title {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+    .dash-section-title span:first-child {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1A4E6B;
+    }
+    .dash-section-hint {
+        font-size: 11px;
+        color: #8A97A8;
+        font-style: italic;
+    }
+
+    .dash-heatmap {
+        background: white;
+        border-radius: 12px;
+        padding: 20px 24px;
+        margin-bottom: 24px;
+        min-height: 200px;
+    }
+
+    .dash-bottom-grid {
+        display: grid;
+        grid-template-columns: 3fr 2fr;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    .dash-repartition, .dash-alerte {
+        background: white;
+        border-radius: 12px;
+        padding: 20px 24px;
+        min-height: 300px;
+    }
+
+    .dash-placeholder {
+        color: #B0BAC5;
+        text-align: center;
+        padding: 40px;
+        font-style: italic;
+        font-size: 13px;
+    }
+
+    .dash-footer {
+        text-align: center;
+        color: #A0AAB8;
+        font-size: 11px;
+        padding: 20px 0 10px;
+    }
+</style>
+
+@code {
+    // ── État ────────────────────────────────────────
+    private bool _isLoading = false;
+    private DashboardKpis _kpis = new();
+    private List<SegmentationDistributiveData> _data = new();
+    private List<SegmentationDistributiveData> _dataFiltree = new();
+
+    // ── Filtres ────────────────────────────────────
+    private string? filtreRegion, filtreSecteur, filtreAgence;
+    private string? filtreRegionApplique, filtreSecteurApplique, filtreAgenceApplique;
+
+    private List<string> allRegions = new();
+    private List<string> allSecteurs = new();
+    private List<string> allAgences = new();
+
+    private bool HasPendingFilterChanges =>
+        filtreRegion  != filtreRegionApplique ||
+        filtreSecteur != filtreSecteurApplique ||
+        filtreAgence  != filtreAgenceApplique;
+
+    // ── Lifecycle ──────────────────────────────────
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _data = await Http.GetFromJsonAsync<List<SegmentationDistributiveData>>(
+                "api/SegmentationDistributive") ?? new();
+
+            _dataFiltree = _data.ToList();
+
+            BuildFilterOptions();
+            RecomputeAll();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur Dashboard : {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    // ── Recalcul global ────────────────────────────
+    private void RecomputeAll()
+    {
+        _kpis = DashboardService.ComputeGlobalKpis(_dataFiltree, StateService.Regles);
+    }
+
+    // ── Handlers de filtres ────────────────────────
+    private void OnRegionChanged(string? r)
+    {
+        filtreRegion = r;
+        filtreSecteur = null;
+        filtreAgence = null;
+        BuildFilterOptions();
+    }
+
+    private void OnSecteurChanged(string? s)
+    {
+        filtreSecteur = s;
+        filtreAgence = null;
+        BuildFilterOptions();
+    }
+
+    private void OnAgenceChanged(string? a)
+    {
+        filtreAgence = a;
+    }
+
+    private async Task ApplyFilters()
+    {
+        _isLoading = true;
+        StateHasChanged();
+        await Task.Delay(1);
+
+        try
+        {
+            _dataFiltree = _data
+                .Where(x => string.IsNullOrEmpty(filtreRegion)  || x.LibRegion  == filtreRegion)
+                .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
+                .Where(x => string.IsNullOrEmpty(filtreAgence)  || x.LibAgence  == filtreAgence)
+                .ToList();
+
+            filtreRegionApplique  = filtreRegion;
+            filtreSecteurApplique = filtreSecteur;
+            filtreAgenceApplique  = filtreAgence;
+
+            BuildFilterOptions();
+            RecomputeAll();
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ClearFilters()
+    {
+        filtreRegion = filtreSecteur = filtreAgence = null;
+        await ApplyFilters();
+    }
+
+    private void BuildFilterOptions()
+    {
+        allRegions = _data.Select(x => x.LibRegion)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
+
+        allSecteurs = _data
+            .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
+            .Select(x => x.LibSecteur)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
+
+        allAgences = _data
+            .Where(x => string.IsNullOrEmpty(filtreRegion)  || x.LibRegion  == filtreRegion)
+            .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
+            .Select(x => x.LibAgence)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
+    }
+
+    // ── Helpers UI ─────────────────────────────────
+    private string GetKpiClass(double value, double greenThreshold, double orangeThreshold)
+    {
+        if (value >= greenThreshold)  return "dash-kpi-good";
+        if (value >= orangeThreshold) return "dash-kpi-warn";
+        return "dash-kpi-critical";
+    }
+
+    private string FormatCompact(int value)
+    {
+        if (value >= 1_000_000) return $"{value / 1_000_000.0:F1}M";
+        if (value >= 1_000)     return $"{value / 1_000.0:F0}K";
+        return value.ToString("N0");
+    }
+
+    private string GetHeatmapLevel()
+    {
+        if (!string.IsNullOrWhiteSpace(filtreSecteurApplique)) return "Par agence";
+        if (!string.IsNullOrWhiteSpace(filtreRegionApplique))  return "Par secteur";
+        return "Par région";
+    }
+}
