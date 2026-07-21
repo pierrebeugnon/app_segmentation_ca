@@ -1,1 +1,23 @@
 new() { Text = "Pilotage", IconClass = "k-icon fad fa-chart-line", NavigateTo = "/dashboard" },
+
+
+
+
+
+
+
+
+
+private void SetMenuData()
+{
+    Data = new List<DrawerItem>
+    {
+        new() { Text = "Accueil",                    IconClass = "k-icon fad fa-home",             NavigateTo = "/"},
+        new() { Text = "Pilotage",                   IconClass = "k-icon fad fa-chart-line",       NavigateTo = "/dashboard" },
+        new() { Text = "Dimensionnement par agence", IconClass = "k-icon fad fa-briefcase",        NavigateTo = "/portefeuille" },
+        new() { Text = "Règles & Hypothèses",        IconClass = "k-icon fad fa-sliders",          NavigateTo = "/regles-hypotheses" },
+        new() { Text = "Administration",             IconClass = "k-icon fad fa-cog",              NavigateTo = "/Administration", HabilitationCodes = new List<string>() { "ADMIN" } },
+        new() { Text = "Assistance",                 IconClass = "k-icon fad fa-comments-question",NavigateTo = "/Help", Position = DrawerItem.ItemPosition.Bottom },
+    };
+    SelectedItem = Data.SingleOrDefault(x => x.Tag == tag) ?? Data[0];
+}
