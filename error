@@ -1,936 +1,654 @@
-@page "/portefeuille"
-@inject SegmentationStateService StateService
-@inject IDialogService DialogService
-@inject ISnackbar Snackbar
-@inject RepartitionAutomatiqueService RepartitionService
-@inject EtpConversionService EtpService
-@implements IDisposable
-@using Segmentation.Client.Components.Dialogs
-@using Segmentation.Client.Services
-@using Segmentation.Shared.Models
-@using System.Net.Http.Json
-@inject HttpClient Http
-
-<PageTitle>Dimensionnement Portefeuilles — CA Segmentation</PageTitle>
-
-<div class="ca-page">
-
-    @if (_isLoading)
-    {
-        <div style="position:fixed;top:0;left:0;width:100%;height:100%;
-                    background:rgba(255,255,255,0.7);z-index:9999;
-                    display:flex;align-items:center;justify-content:center;
-                    flex-direction:column;gap:16px">
-            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-            <MudText Typo="Typo.body1" Style="color:#1A4E6B;font-weight:600">
-                Chargement en cours...
-            </MudText>
-        </div>
-    }
-
-    <!-- ══════════════════════════════════════════════════════════
-         En-tête + toggle ETP / Volume
-    ══════════════════════════════════════════════════════════ -->
-    <div class="ca-page-header">
-        <div>
-            <MudText Typo="Typo.h5" Class="ca-page-title">Dimensionnement des Portefeuilles</MudText>
-            <MudText Typo="Typo.caption" Class="ca-page-subtitle">
-                @(vueEtp
-                    ? "Vue ETP — simulation des charges cibles par agence"
-                    : "Vue Nombre de clients — projection informative")
-            </MudText>
-        </div>
-
-        <div class="ca-view-toggle">
-            <button class="@(vueEtp ? "ca-view-toggle-btn active" : "ca-view-toggle-btn")"
-                    @onclick="@(() => vueEtp = true)">
-                <MudIcon Icon="@Icons.Material.Filled.BarChart" Style="font-size:15px" />
-                ETP
-            </button>
-            <button class="@(!vueEtp ? "ca-view-toggle-btn active" : "ca-view-toggle-btn")"
-                    @onclick="@(() => vueEtp = false)">
-                <MudIcon Icon="@Icons.Material.Filled.People" Style="font-size:15px" />
-                Nombre de clients
-            </button>
+<MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden">
+    <div class="ca-section-header" style="display:flex;align-items:center;gap:10px">
+        <span class="ca-section-badge">1</span>
+        Répartition des charges par agence @(vueEtp ? "(en ETP)" : "(nombre de clients)") — Existant vs Cible
+        <MudTooltip Text="Chaque cellule affiche : ▲ la valeur existante (lecture seule) et ▼ la cible à saisir. Les colonnes grisées correspondent aux conseillers supprimés du scénario cible.">
+            <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small"
+                     Style="color:rgba(255,255,255,0.65)" />
+        </MudTooltip>
+        @if (vueEtp)
+        {
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                     Style="height:20px;font-size:10px;color:rgba(255,255,255,0.85);border-color:rgba(255,255,255,0.4)">
+                Cellules ▼ cible modifiables
+            </MudChip>
+        }
+        <div style="margin-left:auto">
+            <MudTooltip Text="Distribue automatiquement la charge ETP existante par segment vers les conseillers prioritaires (R&H). Remplace toutes les valeurs cibles existantes.">
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.AutoFixHigh"
+                           Style="color:rgba(255,255,255,0.92);border-color:rgba(255,255,255,0.5);font-size:11px;height:28px;text-transform:none"
+                           OnClick="AutoDistribuerCible">
+                    Répartir auto (R&amp;H)
+                </MudButton>
+            </MudTooltip>
         </div>
     </div>
 
-    <!-- ── Filtres organisationnels ────────────────────────────────────── -->
-    <MudPaper Elevation="1" Style="border-radius:8px;padding:12px 16px;margin-bottom:8px">
-        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-            <MudIcon Icon="@Icons.Material.Outlined.FilterAlt" Style="color:#1A4E6B;font-size:20px" />
-
-            <MudSelect T="string" Label="Région" Dense="true" Margin="Margin.Dense"
-                       Variant="Variant.Outlined" Style="min-width:160px"
-                       Value="@filtreRegion" ValueChanged="OnRegionChanged"
-                       Disabled="@_isLoading"
-                       Clearable="true">
-                @foreach (var r in allRegions)
+    <div class="ca-dim-scroll-wrapper">
+        <table class="ca-dim-table">
+            <colgroup>
+                <col style="min-width:160px;width:160px" />
+                @foreach (var profil in profils)
                 {
-                    <MudSelectItem Value="@r">@r</MudSelectItem>
-                }
-            </MudSelect>
-
-            <MudSelect T="string" Label="Secteur" Dense="true" Margin="Margin.Dense"
-                       Variant="Variant.Outlined" Style="min-width:180px"
-                       Value="@filtreSecteur" ValueChanged="OnSecteurChanged"
-                       Disabled="@_isLoading"
-                       Clearable="true">
-                @foreach (var s in allSecteurs)
-                {
-                    <MudSelectItem Value="@s">@s</MudSelectItem>
-                }
-            </MudSelect>
-
-            <MudSelect T="string" Label="Agence" Dense="true" Margin="Margin.Dense"
-                       Variant="Variant.Outlined" Style="min-width:200px"
-                       Value="@filtreAgence" ValueChanged="OnAgenceChanged"
-                       Disabled="@_isLoading"
-                       Clearable="true">
-                @foreach (var a in allAgences)
-                {
-                    <MudSelectItem Value="@a">@a</MudSelectItem>
-                }
-            </MudSelect>
-
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
-                       StartIcon="@Icons.Material.Filled.Search"
-                       OnClick="ApplyFilters"
-                       Disabled="@(!HasPendingFilterChanges)">
-                Valider
-            </MudButton>
-
-            @if (!string.IsNullOrEmpty(filtreRegion) || !string.IsNullOrEmpty(filtreSecteur) || !string.IsNullOrEmpty(filtreAgence))
-            {
-                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary"
-                           StartIcon="@Icons.Material.Outlined.Clear"
-                           OnClick="ClearFilters">Effacer filtres</MudButton>
-            }
-
-            @if (HasPendingFilterChanges)
-            {
-                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">
-                    Filtres non appliqués
-                </MudChip>
-            }
-
-            <div style="flex:1"></div>
-        </div>
-    </MudPaper>
-    <!-- ── Légende Tab effectif ───────────────────────────────────────────────────── -->
-    <div class="ca-dim-legend-bar">
-        <span class="ca-dim-legend-item">
-            <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Style="font-size:15px;color:#2E7D32" />
-            Ajouter un conseiller (bouton en haut du tableau Effectifs)
-        </span>
-        <span class="ca-dim-legend-item">
-            <MudIcon Icon="@Icons.Material.Outlined.RemoveCircleOutline" Style="font-size:15px;color:#B71C1C" />
-            Retirer de la cible — l'effectif ajouté manuellement est supprimé définitivement ; l'effectif existant reste visible (grisé) mais sort de la répartition cible
-        </span>
-        <span class="ca-dim-legend-item">
-            <MudIcon Icon="@Icons.Material.Outlined.AddCircleOutline" Style="font-size:15px;color:#2E7D32" />
-            Réintégrer un effectif existant précédemment retiré de la cible
-        </span>
-    </div>
-
-    <MudAlert Severity="Severity.Info" Class="mt-2">
-        <div><strong>DEBUG :</strong></div>
-        <div>SegmentationDistributive : @_segmentationDistributive.Count</div>
-        <div>SegmentationDistributiveFiltree : @_segmentationDistributiveFiltree.Count</div>
-        <div>Slots : @_slots.Count</div>
-        <div>Segments : @segments.Count</div>
-        <div>Profils : @profils.Count</div>
-        <div>Filtre agence : @(filtreAgence ?? "aucun")</div>
-    </MudAlert>
-
-    @if (!_slots.Any() || !segments.Any())
-    {
-        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mt-2">
-            Aucune donnée disponible.
-        </MudAlert>
-    }
-    else
-    {
-        <!-- ══════════════════════════════════════════════════════════
-             BLOC 0 — EFFECTIFS CONSEILLERS
-             Existant (orange) : conseillers en poste
-             Cible  (bleu)   : scénario cible — ajout / suppression
-        ══════════════════════════════════════════════════════════ -->
-        <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden;margin-bottom:12px">
-            <div class="ca-section-header" style="display:flex;align-items:center;gap:10px">
-                <span class="ca-section-badge">1</span>
-                Effectif cible de l'agence (vs existant) 
-                <MudTooltip Text="Ligne ▲ Existant : conseillers présents aujourd'hui (jamais supprimés définitivement). Ligne ▼ Cible : scénario simulé. Retirez un effectif de la cible (×) — s'il a déjà une charge cible répartie, elle devra être reportée sur un autre conseiller du même métier. Ajoutez un conseiller (+ Ajouter) pour l'intégrer à la répartition cible.">
-                    <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small"
-                             Style="color:rgba(255,255,255,0.65)" />
-                </MudTooltip>
-                <!-- ── Bouton Ajouter un conseiller ── -->
-                <div style="margin-left:auto">
-                    <MudMenu Label="+ Ajouter un conseiller"
-                             StartIcon="@Icons.Material.Filled.PersonAdd"
-                             Variant="Variant.Filled" Size="Size.Small" Color="Color.Success"
-                             IconColor="Color.Inherit">
-                        @foreach (var profil in profils)
+                    if (_collapsedProfils.Contains(profil))
+                    {
+                        <col style="min-width:90px;width:90px" />
+                    }
+                    else
+                    {
+                        foreach (var _ in SlotsForProfil(profil))
                         {
-                            var p = profil;
-                            <MudMenuItem OnClick="@(() => AddSlot(p))" Icon="@Icons.Material.Outlined.PersonAdd">
-                                @p
-                            </MudMenuItem>
+                            <col style="min-width:90px;width:90px" />
                         }
-                    </MudMenu>
-                </div>
-            </div>
+                    }
+                }
+                <col style="min-width:68px;width:68px" />
+                <col style="min-width:100px;width:100px" />
+                <col style="min-width:100px;width:100px" />
+                <col style="min-width:100px;width:100px" />
+                <col style="min-width:82px;width:82px" />
+                <col style="min-width:82px;width:82px" />
+            </colgroup>
+            <thead>
+                <!-- ── Ligne 1 : super-en-tête par métier ── -->
+                <tr style="background:#0A1F30">
+                    <th class="ca-dim-sticky-col"
+                        style="min-width:160px;text-align:left;padding:5px 12px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);letter-spacing:.5px;text-transform:uppercase;background:#0A1F30">
+                        Segments distributifs
+                    </th>
+                    @foreach (var profil in profils)
+                    {
+                        var p          = profil;
+                        var isCollapsed = _collapsedProfils.Contains(profil);
+                        var slotsGroup  = SlotsForProfil(profil).ToList();
+                        var span        = isCollapsed ? 1 : slotsGroup.Count;
+                        <th colspan="@span"
+                            style="text-align:center;padding:5px 6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.90);
+                                   border-left:2px solid rgba(255,255,255,0.15);letter-spacing:.3px;text-transform:uppercase">
+                            <div style="display:flex;align-items:center;justify-content:center;gap:6px">
+                                <span>@_profilShort.GetValueOrDefault(profil, profil)</span>
+                                <button class="ca-profil-toggle"
+                                        @onclick="@(() => ToggleProfil(p))">
+                                    <MudIcon Icon="@(isCollapsed ? Icons.Material.Filled.Add : Icons.Material.Filled.Remove)"
+                                             Style="font-size:13px;color:white;display:block" />
+                                </button>
+                            </div>
+                            @if (isCollapsed)
+                            {
+                                <div style="font-size:8px;font-weight:400;opacity:0.60;margin-top:2px">@slotsGroup.Count conseiller(s)</div>
+                            }
+                        </th>
+                    }
+                    <th colspan="6"
+                        style="text-align:center;padding:4px 6px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);
+                               border-left:2px solid rgba(255,255,255,0.15)">
+                    </th>
+                </tr>
 
-            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-                <table style="border-collapse:collapse;min-width:max-content;width:100%">
-                    <colgroup>
-                        <col style="min-width:140px;width:140px" />
-                        @foreach (var slot in _slots)
+                <!-- ── Ligne 2 : colonnes individuelles + colonnes KPI ── -->
+                <tr class="ca-dim-superheader">
+                    <th class="ca-dim-sticky-col" style="min-width:160px;text-align:left;padding-left:12px;font-size:11px">
+                    </th>
+                    @foreach (var profil in profils)
+                    {
+                        if (_collapsedProfils.Contains(profil))
                         {
-                            <col style="min-width:88px;width:88px" />
-                        }
-                        <col style="min-width:72px;width:72px" />
-                    </colgroup>
-                    <thead>
-                        <tr>
-                            <th style="text-align:left;padding:6px 12px;font-size:11px;color:#6C7A89;background:#F8FAFD;border-bottom:2px solid #E2E8F0;position:sticky;left:0;z-index:3;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
-                                Conseiller
+                            <th class="ca-dim-th-profil" style="background:#1C3654;font-style:italic;opacity:0.85">
+                                <div style="font-size:10px;font-weight:600">Σ @_profilShort.GetValueOrDefault(profil, profil)</div>
+                                <div style="font-size:8px;font-weight:400;opacity:0.7">agrégé</div>
                             </th>
-                            @foreach (var slot in _slots)
+                        }
+                        else
+                        {
+                            foreach (var slot in SlotsForProfil(profil))
                             {
                                 var isGrey = !slot.IsCible;
                                 var isNew  = !slot.IsActuel && slot.IsCible;
-                                <th style="text-align:center;padding:5px 3px;font-size:11px;border-bottom:2px solid #E2E8F0;
-                                           @(isGrey ? "background:#F0F2F5;color:#9AA5B1" : isNew ? "background:#F1FBF4;color:#2E7D32" : "background:#F8FAFD;color:#1A4E6B")">
-                                    <div style="font-weight:700">@slot.Label</div>
-                                    <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:1px">
+                                <th class="ca-dim-th-profil"
+                                    style="@(isGrey ? "background:#D8DEE8;color:#8A9BB0;text-decoration:line-through;opacity:0.65" :
+                                             isNew  ? "background:#2E8B57;color:white" : "")">
+                                    <div style="font-size:11px;font-weight:700">@slot.Label</div>
+                                    <div style="font-size:9px;font-weight:400;opacity:0.75">
                                         @_profilShort.GetValueOrDefault(slot.Profil, slot.Profil)
                                     </div>
                                 </th>
                             }
-                            <th style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;background:#EEF3FA;color:#1A4E6B;border-bottom:2px solid #E2E8F0">
-                                Total
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- ── Ligne Cible (en haut) — ETP + boutons d'action ── -->
-                        <tr>
-                            <td style="padding:7px 12px;font-size:12px;font-weight:700;color:#1A4E6B;background:#EBF3FF;border-bottom:1px solid #D0DFF0;position:sticky;left:0;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
-                                ▼ Cible
-                            </td>
-                            @foreach (var slot in _slots)
-                            {
-                                var s = slot;
-                                var isRemoved = slot.IsActuel && !slot.IsCible;
-                                var isNew = !slot.IsActuel && slot.IsCible;
-                                var isActive = slot.IsActuel && slot.IsCible;
-                                <td style="text-align:center;padding:4px 2px;border-bottom:1px solid #D0DFF0;
-                           @(isRemoved ? "background:#F0F2F5" : isNew ? "background:#F1FBF4" : "background:#EBF3FF")">
-
-                                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
-
-                                        @* ── Zone valeur ETP ── *@
-                                        @if (isActive || isNew)
-                                        {
-                                            <div style="display:flex;justify-content:center;align-items:center;width:100%">
-                                                <MudNumericField T="double"
-                                                                 Value="@s.EtpCible"
-                                                                 ValueChanged="@(v => { s.EtpCible = v; StateHasChanged(); })"
-                                                                 Format="F2" Step="0.25" Min="0" Max="2.0"
-                                                                 HideSpinButtons="true" Variant="Variant.Text" Margin="Margin.Dense"
-                                                                 Class="ca-eff-etp-input"
-                                                                 Style="width:100%"
-                                                                 InputStyle="@($"text-align:center;font-size:12px;font-weight:700;padding:1px 2px;{(isNew ? "color:#2E7D32" : "color:#1A4E6B")}")" />
-                                            </div>
-                                        }
-                                        else if (isRemoved)
-                                        {
-                                            <span style="color:#9AA5B1;font-size:12px">✗</span>
-                                        }
-
-                                        @* ── Bouton d'action (dépend de l'état) ── *@
-                                        @if (isActive)
-                                        {
-                                            <MudTooltip Text="Retirer cet effectif de la répartition cible (reste dans l'existant)">
-                                                <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
-                                                               Size="Size.Small"
-                                                               Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
-                                                               OnClick="@(() => RemoveCibleForExistingSlot(s))" />
-                                            </MudTooltip>
-                                        }
-                                        else if (isRemoved)
-                                        {
-                                            <MudTooltip Text="Réintégrer ce conseiller dans la répartition cible">
-                                                <MudIconButton Icon="@Icons.Material.Outlined.AddCircleOutline"
-                                                               Size="Size.Small"
-                                                               Style="padding:0;width:18px;height:18px;color:#2E7D32;opacity:0.7"
-                                                               OnClick="@(() => RestoreCible(s))" />
-                                            </MudTooltip>
-                                        }
-                                        else if (isNew)
-                                        {
-                                            <MudTooltip Text="Retirer ce conseiller ajouté manuellement">
-                                                <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
-                                                               Size="Size.Small"
-                                                               Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
-                                                               OnClick="@(() => RemoveNewSlot(s))" />
-                                            </MudTooltip>
-                                        }
-                                    </div>
-                                </td>
-                            }
-                            <td style="text-align:center;padding:5px;font-weight:700;font-size:13px;background:#D6E8F7;color:#1A4E6B;border-bottom:1px solid #D0DFF0">
-                                @_slots.Where(s => s.IsCible).Sum(s => s.EtpCible).ToString("F2")
-                            </td>
-                        </tr>
-                        <!-- ── Ligne Existant (en bas) — lecture seule + bouton action ── -->
-                        <!-- ── Ligne Existant (en bas) — lecture seule uniquement ── -->
-                        <tr>
-                            <td style="padding:7px 12px;font-size:12px;font-weight:700;color:#E65100;background:#FFF8F2;position:sticky;left:0;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
-                                ▲ Existant
-                            </td>
-                            @foreach (var slot in _slots)
-                            {
-                                var isRemoved = slot.IsActuel && !slot.IsCible;
-                                <td style="text-align:center;padding:8px 2px;
-                           @(isRemoved ? "background:#F0F2F5" : "background:#FFF8F2")">
-                                    @if (slot.IsActuel)
-                                    {
-                                        <span style="font-size:12px;font-weight:700;@(isRemoved ? "color:#9AA5B1" : "color:#E65100")">
-                                            @slot.EtpActuel.ToString("F2")
-                                        </span>
-                                    }
-                                    else
-                                    {
-                                        <span style="color:#BDBDBD;font-size:10px">—</span>
-                                    }
-                                </td>
-                            }
-                            <td style="text-align:center;padding:5px;font-weight:700;font-size:13px;background:#FAEEE0;color:#E65100">
-                                @_slots.Where(s => s.IsActuel).Sum(s => s.EtpActuel).ToString("F2")
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </MudPaper>
-
-        <!-- ── Légende ───────────────────────────────────────────────────── -->
-        <div class="ca-dim-legend-bar">
-            <span class="ca-dim-legend-item">
-                <span class="ca-dim-swatch" style="background:#1A6B3C"></span>Conseiller Prioritaire
-            </span>
-            <span class="ca-dim-legend-item">
-                <span class="ca-dim-swatch" style="background:#52A86B"></span>Conseiller Secondaire 1
-            </span>
-            <span class="ca-dim-legend-item">
-                <span class="ca-dim-swatch" style="background:#C3E6CB;border:1px solid #52A86B"></span>Conseiller Secondaire 2
-            </span>
-            <span class="ca-dim-legend-sep"></span>
-            <span class="ca-dim-legend-item" style="font-size:11px;color:#6C7A89;gap:10px">
-                <span style="font-weight:700;color:#1A4E6B">▼ Cible (saisie)</span>
-                <span style="color:#C5CAD0">·</span>
-                <span style="font-weight:600;color:#FF8F00;font-style:italic">▲ Existant</span>
-            </span>
-        </div>
-
-        <!-- ══════════════════════════════════════════════════════════
-             BLOC 1 — RÉPARTITION DES CHARGES — Existant (▲) + Cible (▼)
-             Colonnes = conseillers individuels (slots)
-        ══════════════════════════════════════════════════════════ -->
-        <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden">
-            <div class="ca-section-header" style="display:flex;align-items:center;gap:10px">
-                <span class="ca-section-badge">1</span>
-                Répartition des charges par agence @(vueEtp ? "(en ETP)" : "(nombre de clients)") — Existant vs Cible
-                <MudTooltip Text="Chaque cellule affiche : ▲ la valeur existante (lecture seule) et ▼ la cible à saisir. Les colonnes grisées correspondent aux conseillers supprimés du scénario cible.">
-                    <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small"
-                             Style="color:rgba(255,255,255,0.65)" />
-                </MudTooltip>
-                @if (vueEtp)
-                {
-                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
-                             Style="height:20px;font-size:10px;color:rgba(255,255,255,0.85);border-color:rgba(255,255,255,0.4)">
-                        Cellules ▼ cible modifiables
-                    </MudChip>
-                }
-                <div style="margin-left:auto">
-                    <MudTooltip Text="Distribue automatiquement la charge ETP existante par segment vers les conseillers prioritaires (R&H). Remplace toutes les valeurs cibles existantes.">
-                        <MudButton Variant="Variant.Outlined" Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.AutoFixHigh"
-                                   Style="color:rgba(255,255,255,0.92);border-color:rgba(255,255,255,0.5);font-size:11px;height:28px;text-transform:none"
-                                   OnClick="AutoDistribuerCible">
-                            Répartir auto (R&amp;H)
-                        </MudButton>
-                    </MudTooltip>
-                </div>
-            </div>
-
-            <div class="ca-dim-scroll-wrapper">
-                <table class="ca-dim-table">
-                    <!-- Colgroup : 1 col agrégée si replié, N cols si déplié -->
-                    <colgroup>
-                        <col style="min-width:160px;width:160px" />
-                        @foreach (var profil in profils)
-                        {
-                            if (_collapsedProfils.Contains(profil))
-                            {
-                                <col style="min-width:90px;width:90px" />
-                            }
-                            else
-                            {
-                                foreach (var _ in SlotsForProfil(profil))
-                                {
-                                    <col style="min-width:90px;width:90px" />
-                                }
-                            }
                         }
-                        <col style="min-width:68px;width:68px" />
-                        <col style="min-width:100px;width:100px" />
-                        <col style="min-width:82px;width:82px" />
-                        <col style="min-width:82px;width:82px" />
-                    </colgroup>
-                    <thead>
-                        <!-- ── Ligne 1 : super-en-tête par métier avec bouton +/− ── -->
-                        <tr style="background:#0A1F30">
-                            <th class="ca-dim-sticky-col"
-                                style="min-width:160px;text-align:left;padding:5px 12px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);letter-spacing:.5px;text-transform:uppercase;background:#0A1F30">
-                                Segments distributifs
-                            </th>
-                            @foreach (var profil in profils)
-                            {
-                                var p          = profil;
-                                var isCollapsed = _collapsedProfils.Contains(profil);
-                                var slotsGroup  = SlotsForProfil(profil).ToList();
-                                var span        = isCollapsed ? 1 : slotsGroup.Count;
-                                <th colspan="@span"
-                                    style="text-align:center;padding:5px 6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.90);
-                                           border-left:2px solid rgba(255,255,255,0.15);letter-spacing:.3px;text-transform:uppercase">
-                                    <div style="display:flex;align-items:center;justify-content:center;gap:6px">
-                                        <span>@_profilShort.GetValueOrDefault(profil, profil)</span>
-                                        <button class="ca-profil-toggle"
-                                                @onclick="@(() => ToggleProfil(p))">
-                                            <MudIcon Icon="@(isCollapsed ? Icons.Material.Filled.Add : Icons.Material.Filled.Remove)"
-                                                     Style="font-size:13px;color:white;display:block" />
-                                        </button>
-                                    </div>
-                                    @if (isCollapsed)
-                                    {
-                                        <div style="font-size:8px;font-weight:400;opacity:0.60;margin-top:2px">@slotsGroup.Count conseiller(s)</div>
-                                    }
-                                </th>
-                            }
-                            <th colspan="4"
-                                style="text-align:center;padding:4px 6px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);
-                                       border-left:2px solid rgba(255,255,255,0.15)">
-                            </th>
-                        </tr>
-                        <!-- ── Ligne 2 : colonnes individuelles (ou étiquette agrégée) ── -->
-                        <tr class="ca-dim-superheader">
-                            <th class="ca-dim-sticky-col" style="min-width:160px;text-align:left;padding-left:12px;font-size:11px">
-                            </th>
-                            @foreach (var profil in profils)
-                            {
-                                if (_collapsedProfils.Contains(profil))
-                                {
-                                    <th class="ca-dim-th-profil" style="background:#1C3654;font-style:italic;opacity:0.85">
-                                        <div style="font-size:10px;font-weight:600">Σ @_profilShort.GetValueOrDefault(profil, profil)</div>
-                                        <div style="font-size:8px;font-weight:400;opacity:0.7">agrégé</div>
-                                    </th>
-                                }
-                                else
-                                {
-                                    foreach (var slot in SlotsForProfil(profil))
-                                    {
-                                        var isGrey = !slot.IsCible;
-                                        var isNew  = !slot.IsActuel && slot.IsCible;
-                                        <th class="ca-dim-th-profil"
-                                            style="@(isGrey ? "background:#D8DEE8;color:#8A9BB0;text-decoration:line-through;opacity:0.65" :
-                                                     isNew  ? "background:#2E8B57;color:white" : "")">
-                                            <div style="font-size:11px;font-weight:700">@slot.Label</div>
-                                            <div style="font-size:9px;font-weight:400;opacity:0.75">
-                                                @_profilShort.GetValueOrDefault(slot.Profil, slot.Profil)
-                                            </div>
-                                        </th>
-                                    }
-                                }
-                            }
-                            <th class="ca-dim-th-profil" style="background:#D5D8DC;color:#3A4550">Aide à la répartition des charges cibles par segment</th>
-                            <th class="ca-dim-th-profil" style="background:#1C3F5E">
-                                Charge Totale ETP par segment
-                            </th>
-                            <th class="ca-dim-th-profil" style="background:#1C3F5E">Taux de concordance par segment ("pureté" des portefeuilles)</th>
-                            <th class="ca-dim-th-profil" style="background:#1C3F5E">Taux de rotation par segment</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @foreach (var row in filteredRows)
+                    }
+                    <th class="ca-dim-th-profil" style="background:#D5D8DC;color:#3A4550">Aide à la répartition des charges cibles par segment</th>
+                    <th class="ca-dim-th-profil" style="background:#1C3F5E">
+                        Charge Totale ETP par segment
+                        <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">ajustée</div>
+                    </th>
+                    <th class="ca-dim-th-profil" style="background:#7A4A1E;color:white">
+                        Charge ETP à transférer
+                        <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">saisie manuelle</div>
+                    </th>
+                    <th class="ca-dim-th-profil" style="background:#1B5E20;color:white">
+                        Charge ETP à ajouter
+                        <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">saisie manuelle</div>
+                    </th>
+                    <th class="ca-dim-th-profil" style="background:#1C3F5E">Taux de concordance par segment ("pureté" des portefeuilles)</th>
+                    <th class="ca-dim-th-profil" style="background:#1C3F5E">Taux de rotation par segment</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var row in filteredRows)
+            {
+                var coverageDiff = GetCoverageDiff(row);
+                var concordance  = GetConcordance(row);
+                var rowCible     = GetRowCibleTotal(row);
+                var rowExist     = GetRowExistantTotal(row);
+
+                <tr class="@(row.IsTotal ? "ca-dim-tr-total" : "ca-dim-tr-data")">
+                    <!-- Segment label -->
+                    <td class="ca-dim-td-segment ca-dim-sticky-col">@row.Segment</td>
+
+                    <!-- Cellules par métier -->
+                    @foreach (var profil in profils)
                     {
-                        var coverageDiff = GetCoverageDiff(row);
-                        var concordance  = GetConcordance(row);
-                        var rowCible     = GetRowCibleTotal(row);
-                        var rowExist     = GetRowExistantTotal(row);
-
-                        <tr class="@(row.IsTotal ? "ca-dim-tr-total" : "ca-dim-tr-data")">
-                            <!-- Segment label -->
-                            <td class="ca-dim-td-segment ca-dim-sticky-col">@row.Segment</td>
-
-                            <!-- ── Cellules par métier : agrégé ou détail selon état ── -->
-                            @foreach (var profil in profils)
-                            {
-                                if (_collapsedProfils.Contains(profil))
+                        if (_collapsedProfils.Contains(profil))
+                        {
+                            var aggExist = GetAggregateExistantForProfil(row, profil);
+                            var aggCib   = GetAggregateCibleForProfil(row, profil);
+                            var aggTotal = GetEtpCibleSaisieTotalForProfil(profil);
+                            <td class="ca-dim-td-merged" style="text-align:center;padding:2px;background:#F0F4FA;border-left:2px solid #C4CFDD">
+                                @if (row.IsTotal)
                                 {
-                                    // ── Vue consolidée : 1 cellule agrégée par métier ──
-                                    var aggExist = GetAggregateExistantForProfil(row, profil);
-                                    var aggCib   = GetAggregateCibleForProfil(row, profil);
-                                    var aggTotal = GetEtpCibleSaisieTotalForProfil(profil);
-                                    <td class="ca-dim-td-merged" style="text-align:center;padding:2px;background:#F0F4FA;border-left:2px solid #C4CFDD">
-                                        @if (row.IsTotal)
-                                        {
-                                            <div style="display:flex;flex-direction:column;align-items:center;padding:4px 2px">
-                                                <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                    @(aggTotal.HasValue ? aggTotal.Value.ToString("F2") : "—")
-                                                </span>
-                                                <div style="border-top:1.5px solid #C5CAD0;width:60%;margin:2px 0"></div>
-                                                <span style="font-size:10px;color:#E65100">
-                                                    @(aggExist.HasValue ? aggExist.Value.ToString("F2") : "—")
-                                                </span>
-                                            </div>
-                                        }
-                                        else if (vueEtp)
-                                        {
-                                            <div class="ca-dim-cell-inner">
-                                                <div class="ca-dim-cell-top">
-                                                    <span style="font-size:11px;font-weight:600;color:#1A4E6B">
-                                                        @(aggCib.HasValue ? aggCib.Value.ToString("F2") : "—")
-                                                    </span>
-                                                </div>
-                                                <div class="ca-dim-cell-bottom">
-                                                    <span style="@GetExistantColor(aggExist);font-size:10px;font-weight:600;font-style:italic">
-                                                        @(aggExist.HasValue ? aggExist.Value.ToString("F2") : "—")
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        }
-                                        else
-                                        {
+                                    <div style="display:flex;flex-direction:column;align-items:center;padding:4px 2px">
+                                        <span style="font-weight:700;font-size:12px;color:#1A4E6B">
+                                            @(aggTotal.HasValue ? aggTotal.Value.ToString("F2") : "—")
+                                        </span>
+                                        <div style="border-top:1.5px solid #C5CAD0;width:60%;margin:2px 0"></div>
+                                        <span style="font-size:10px;color:#E65100">
+                                            @(aggExist.HasValue ? aggExist.Value.ToString("F2") : "—")
+                                        </span>
+                                    </div>
+                                }
+                                else if (vueEtp)
+                                {
+                                    <div class="ca-dim-cell-inner">
+                                        <div class="ca-dim-cell-top">
                                             <span style="font-size:11px;font-weight:600;color:#1A4E6B">
                                                 @(aggCib.HasValue ? aggCib.Value.ToString("F2") : "—")
                                             </span>
-                                        }
-                                    </td>
-                                }
-                                else
-                                {
-                                    // ── Vue détail : 1 cellule par conseiller ──────────
-                                    foreach (var slot in SlotsForProfil(profil))
-                                    {
-                                        var s    = slot;
-                                        var lvl  = GetAssignmentLevel(row.Segment, s.Profil);
-                                        var etp  = row.EtpParProfil.GetValueOrDefault(s.Id);
-                                        var cib  = row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id);
-                                        // Rouge si ETP cible saisi sur un conseiller non désigné dans R&H
-                                        var cibNonPrio = !row.IsTotal && lvl == 0 && s.IsCible && cib.HasValue && cib.Value > 0;
-
-                                        <td class="ca-dim-td-merged" style="@GetMergedCellStyle(lvl, row.IsTotal, !s.IsCible);text-align:center;padding:2px">
-                                            @if (row.IsTotal)
-                                            {
-                                                var totCib   = GetEtpCibleSaisieTotal(s.Id);
-                                                var totExist = etp;
-                                                <div style="display:flex;flex-direction:column;align-items:center;padding:4px 2px">
-                                                    <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                        @(totCib.HasValue ? totCib.Value.ToString("F2") : "—")
-                                                    </span>
-                                                    <div style="border-top:1.5px solid #C5CAD0;width:60%;margin:2px 0"></div>
-                                                    <span style="font-size:10px;color:#E65100">
-                                                        @(totExist.HasValue ? totExist.Value.ToString("F2") : "—")
-                                                    </span>
-                                                </div>
-                                            }
-                                            else if (vueEtp)
-                                            {
-                                                <div class="ca-dim-cell-inner">
-                                                    <div class="ca-dim-cell-top">
-                                                        @if (s.IsCible)
-                                                        {
-                                                            <MudNumericField T="double?"
-                                                                             Value="@cib"
-                                                                             ValueChanged="@(v => SetEtpCible(row, s.Id, v))"
-                                                                             Format="F2" Step="0.25" Min="0"
-                                                                             HideSpinButtons="true"
-                                                                             Variant="Variant.Text"
-                                                                             Margin="Margin.Dense"
-                                                                             Class="@($"ca-dim-etp-input{(cibNonPrio ? " ca-etp-nonprio" : "")}")"
-                                                                             InputStyle="text-align:center;font-size:11px;font-weight:700;padding:2px 4px" />
-                                                        }
-                                                        else
-                                                        {
-                                                            <span style="font-size:11px;color:#9AA5B1">—</span>
-                                                        }
-                                                    </div>
-                                                    <div class="ca-dim-cell-bottom">
-                                                        <span style="@GetExistantColor(etp);font-size:10px;font-weight:600;font-style:italic">
-                                                            @(etp.HasValue ? etp.Value.ToString("F2") : "—")
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            }
-                                            else
-                                            {
-                                                var etpCible = GetEtpCible(row.Segment, s.Profil);
-                                                <span style="font-size:11px;font-weight:600">
-                                                    @(etpCible.HasValue ? etpCible.Value.ToString("F2") : "—")
-                                                </span>
-                                            }
-                                        </td>
-                                    }
-                                }
-                            }
-
-                            <!-- ── Colonne Aide à la répartition (Couverture) : différence cible − charge ── -->
-                            <td style="text-align:center;padding:4px 3px;background:#F4F5F6">
-                                @if (!row.IsTotal)
-                                {
-                                    @if (!coverageDiff.HasValue)
-                                    {
-                                        <span style="color:#BDBDBD;font-size:11px">—</span>
-                                    }
-                                    else
-                                    {
-                                        var diff  = coverageDiff.Value;
-                                        var absDiff = Math.Abs(diff);
-                                        var (diffFg, diffBg, diffTooltip, diffIcon) = diff switch
-                                        {
-                                            _ when absDiff < 0.01 =>
-                                                ("#2E7D32", "#E8F5E9", "Couverture complète", Icons.Material.Filled.CheckCircle),
-                                            _ when diff < 0 =>
-                                                ("#C62828", "#FFEBEE", $"Sous-couverture : {diff:F2} ETP manquant", Icons.Material.Filled.ArrowDropDown),
-                                            _ =>
-                                                ("#E65100", "#FFF3E0", $"Sur-répartition : +{diff:F2} ETP au-delà de la charge", Icons.Material.Filled.ArrowDropUp)
-                                        };
-                                        <MudTooltip Text="@diffTooltip">
-                                            <div style="display:flex;flex-direction:column;align-items:center;gap:0;
-                                                        background:@diffBg;border-radius:5px;padding:2px 4px;min-width:48px">
-                                                <MudIcon Icon="@diffIcon" Style="@($"font-size:14px;color:{diffFg};line-height:1")" />
-                                                <span style="font-size:10px;font-weight:700;color:@diffFg;line-height:1.2">
-                                                    @(absDiff < 0.01 ? "OK" : (diff > 0 ? "+" : "") + diff.ToString("F2"))
-                                                </span>
-                                            </div>
-                                        </MudTooltip>
-                                    }
-                                }
-                            </td>
-
-                            <!-- ── Colonne Total ETP ─────────────────────────────── -->
-                            <td style="text-align:center;padding:6px 4px;background:#EEF3FA">
-                                @if (row.IsTotal)
-                                {
-                                    <!-- Ligne Total : cible / existant pour chaque type de conseiller -->
-                                    <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
-                                        <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                            @(rowCible.HasValue ? rowCible.Value.ToString("F2") : "—")
-                                        </span>
-                                        <div style="border-top:1.5px solid #C5CAD0;width:55%;margin:1px 0"></div>
-                                        <span style="font-size:10px;color:#E65100;font-style:italic">
-                                            @(rowExist.HasValue ? rowExist.Value.ToString("F2") : "—")
-                                        </span>
+                                        </div>
+                                        <div class="ca-dim-cell-bottom">
+                                            <span style="@GetExistantColor(aggExist);font-size:10px;font-weight:600;font-style:italic">
+                                                @(aggExist.HasValue ? aggExist.Value.ToString("F2") : "—")
+                                            </span>
+                                        </div>
                                     </div>
                                 }
                                 else
                                 {
-                                    <!-- Segments : total ETP à distribuer uniquement -->
-                                    <span style="font-weight:700;font-size:13px;color:#1A4E6B">
-                                        @(rowExist.HasValue && rowExist.Value > 0 ? rowExist.Value.ToString("F2") : "—")
+                                    <span style="font-size:11px;font-weight:600;color:#1A4E6B">
+                                        @(aggCib.HasValue ? aggCib.Value.ToString("F2") : "—")
                                     </span>
                                 }
                             </td>
+                        }
+                        else
+                        {
+                            foreach (var slot in SlotsForProfil(profil))
+                            {
+                                var s    = slot;
+                                var lvl  = GetAssignmentLevel(row.Segment, s.Profil);
+                                var etp  = row.EtpParProfil.GetValueOrDefault(s.Id);
+                                var cib  = row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id);
+                                var cibNonPrio = !row.IsTotal && lvl == 0 && s.IsCible && cib.HasValue && cib.Value > 0;
 
-                            <!-- ── Colonne Concordance : % ETP dans type prioritaire ── -->
-                            <td style="text-align:center;padding:4px 3px;background:#EEF3FA">
-                                @if (!row.IsTotal && concordance.pct.HasValue)
-                                {
-                                    var pct = concordance.pct.Value;
-                                    var (concBg, concFg) = pct switch
+                                <td class="ca-dim-td-merged" style="@GetMergedCellStyle(lvl, row.IsTotal, !s.IsCible);text-align:center;padding:2px">
+                                    @if (row.IsTotal)
                                     {
-                                        _ when pct >= 99.9 => ("#E8F5E9", "#2E7D32"),
-                                        _ when pct >= 80   => ("#FFF3E0", "#E65100"),
-                                        _                  => ("#FFEBEE", "#C62828")
-                                    };
-                                    <MudTooltip Text="@concordance.tooltip">
-                                        <div style="background:@concBg;border-radius:5px;padding:2px 6px;min-width:48px">
-                                            <span style="font-size:12px;font-weight:700;color:@concFg">
-                                                @pct.ToString("F0")%
+                                        var totCib   = GetEtpCibleSaisieTotal(s.Id);
+                                        var totExist = etp;
+                                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 2px">
+                                            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
+                                                @(totCib.HasValue ? totCib.Value.ToString("F2") : "—")
+                                            </span>
+                                            <div style="border-top:1.5px solid #C5CAD0;width:60%;margin:2px 0"></div>
+                                            <span style="font-size:10px;color:#E65100">
+                                                @(totExist.HasValue ? totExist.Value.ToString("F2") : "—")
                                             </span>
                                         </div>
-                                    </MudTooltip>
-                                }
-                                else if (!row.IsTotal)
-                                {
-                                    <span style="color:#BDBDBD;font-size:11px">—</span>
-                                }
-                            </td>
-
-                            <!-- ── Colonne Taux de rotation par segment ──────────── -->
-                            <td style="text-align:center;padding:4px 3px;background:#EEF3FA">
-                                @{
-                                    var rotRow = GetTauxRotationForRow(row);
-                                }
-                                @if (!row.IsTotal && rotRow.HasValue)
-                                {
-                                    var rotColor = rotRow.Value switch
+                                    }
+                                    else if (vueEtp)
                                     {
-                                        > 0 => "#2E7D32",
-                                        < 0 => "#C62828",
-                                        _   => "#6C7A89"
-                                    };
-                                    <span style="font-size:12px;font-weight:700;color:@rotColor">
-                                        @(rotRow.Value >= 0 ? "+" : "")@rotRow.Value.ToString("F0")%
-                                    </span>
-                                }
-                                else if (!row.IsTotal)
-                                {
-                                    <span style="color:#BDBDBD;font-size:11px">—</span>
-                                }
-                            </td>
-
-                        </tr>
+                                        <div class="ca-dim-cell-inner">
+                                            <div class="ca-dim-cell-top">
+                                                @if (s.IsCible)
+                                                {
+                                                    <MudNumericField T="double?"
+                                                                     Value="@cib"
+                                                                     ValueChanged="@(v => SetEtpCible(row, s.Id, v))"
+                                                                     Format="F2" Step="0.25" Min="0"
+                                                                     HideSpinButtons="true"
+                                                                     Variant="Variant.Text"
+                                                                     Margin="Margin.Dense"
+                                                                     Class="@($"ca-dim-etp-input{(cibNonPrio ? " ca-etp-nonprio" : "")}")"
+                                                                     InputStyle="text-align:center;font-size:11px;font-weight:700;padding:2px 4px" />
+                                                }
+                                                else
+                                                {
+                                                    <span style="font-size:11px;color:#9AA5B1">—</span>
+                                                }
+                                            </div>
+                                            <div class="ca-dim-cell-bottom">
+                                                <span style="@GetExistantColor(etp);font-size:10px;font-weight:600;font-style:italic">
+                                                    @(etp.HasValue ? etp.Value.ToString("F2") : "—")
+                                                </span>
+                                            </div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        var etpCible = GetEtpCible(row.Segment, s.Profil);
+                                        <span style="font-size:11px;font-weight:600">
+                                            @(etpCible.HasValue ? etpCible.Value.ToString("F2") : "—")
+                                        </span>
+                                    }
+                                </td>
+                            }
+                        }
                     }
-                    </tbody>
 
-                    <!-- ═══════════════════════════════════════════════════════
-                         TBODY KPI — intégré dans la même table, même colonnes
-                         Colonne 1 = label KPI (sticky)
-                         Colonnes 2..N+1 = valeur par conseiller individuel
-                         Colonne N+2 = total agrégé (Total ETP)
-                         Colonnes N+3, N+4 = vides (Couverture / Concordance)
-                    ═══════════════════════════════════════════════════════ -->
-                    <tbody>
-                        <!-- Séparateur visuel entre data et KPI -->
-                        <tr style="background:#0D2035">
-                            <td style="padding:3px 12px;font-size:9px;font-weight:700;color:rgba(255,255,255,0.45);letter-spacing:1px;text-transform:uppercase">
-                                Indicateurs KPI
-                            </td>
-                            @for (int _i = 0; _i < VisibleSlotColumnCount + 4; _i++)
+                    <!-- ── Colonne Aide à la répartition ── -->
+                    <td style="text-align:center;padding:4px 3px;background:#F4F5F6">
+                        @if (!row.IsTotal)
+                        {
+                            @if (!coverageDiff.HasValue)
                             {
-                                <td style="background:#0D2035"></td>
+                                <span style="color:#BDBDBD;font-size:11px">—</span>
                             }
-                        </tr>
-
-                        <!-- ── Evolution des effectifs ───────────────────────── -->
-                        @{ var kpiEvoTotal = (double)_slots.Sum(s => GetEvolutionForSlot(s)); }
-                        <tr style="background:#1C3D62">
-                            <td class="ca-dim-sticky-col" style="background:#1C3D62;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
-                                Evolution des effectifs
-                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Définition calcul à ajouter</div>
-                            </td>
-                            @foreach (var profil in profils)
+                            else
                             {
-                                if (_collapsedProfils.Contains(profil))
+                                var diff  = coverageDiff.Value;
+                                var absDiff = Math.Abs(diff);
+                                var (diffFg, diffBg, diffTooltip, diffIcon) = diff switch
                                 {
-                                    var evo = GetEvolutionForProfil(profil);
-                                    <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;@DiffColor(evo, positifBon:true)">@FormatDiff(evo)</td>
-                                }
-                                else
-                                {
-                                    foreach (var slot in SlotsForProfil(profil))
-                                    {
-                                        var evo = GetEvolutionForSlot(slot);
-                                        <td style="text-align:center;padding:6px 3px;font-size:11px;@DiffColor(evo, positifBon:true);@(!slot.IsCible ? "opacity:0.35" : "")">@FormatDiff(evo)</td>
-                                    }
-                                }
+                                    _ when absDiff < 0.01 =>
+                                        ("#2E7D32", "#E8F5E9", "Couverture complète", Icons.Material.Filled.CheckCircle),
+                                    _ when diff < 0 =>
+                                        ("#C62828", "#FFEBEE", $"Sous-couverture : {diff:F2} ETP manquant", Icons.Material.Filled.ArrowDropDown),
+                                    _ =>
+                                        ("#E65100", "#FFF3E0", $"Sur-répartition : +{diff:F2} ETP au-delà de la charge", Icons.Material.Filled.ArrowDropUp)
+                                };
+                                <MudTooltip Text="@diffTooltip">
+                                    <div style="display:flex;flex-direction:column;align-items:center;gap:0;
+                                                background:@diffBg;border-radius:5px;padding:2px 4px;min-width:48px">
+                                        <MudIcon Icon="@diffIcon" Style="@($"font-size:14px;color:{diffFg};line-height:1")" />
+                                        <span style="font-size:10px;font-weight:700;color:@diffFg;line-height:1.2">
+                                            @(absDiff < 0.01 ? "OK" : (diff > 0 ? "+" : "") + diff.ToString("F2"))
+                                        </span>
+                                    </div>
+                                </MudTooltip>
                             }
-                            <td style="background:#1C3D62"></td>
-                            <td style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;background:#182F4A;@DiffColor(kpiEvoTotal, positifBon:true)">@FormatDiff(kpiEvoTotal)</td>
-                            <td style="background:#1C3D62"></td>
-                            <td style="background:#1C3D62"></td>
-                        </tr>
-
-                        <!-- ── Remplissage des portefeuilles (taux réel, ▼ cible / ▲ existant) ── -->
-                        @{
-                            var kpiRmpCibTotal = GetRemplissageTotal();
-                            var kpiRmpExiTotal = GetRemplissageExistantTotal();
                         }
-                        <tr style="background:#1A3558">
-                            <td class="ca-dim-sticky-col" style="background:#1A3558;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
-                                Taux de remplissage des portefeuilles (ETP réparti ÷ capacité du conseiller)
-                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">▼ Cible &nbsp;/&nbsp; ▲ Existant</div>
-                            </td>
-                            @foreach (var profil in profils)
-                            {
-                                if (_collapsedProfils.Contains(profil))
-                                {
-                                    var rmpCib = GetRemplissageForProfil(profil);
-                                    var rmpExi = GetRemplissageExistantForProfil(profil);
-                                    <td style="text-align:center;padding:3px;font-style:italic">
-                                        <div style="font-size:11px;@RemplissageColor(rmpCib)">@(rmpCib.HasValue ? $"{rmpCib.Value:F0}%" : "—")</div>
-                                        <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                        <div style="font-size:9px;@RemplissageColor(rmpExi)">@(rmpExi.HasValue ? $"{rmpExi.Value:F0}%" : "—")</div>
-                                    </td>
-                                }
-                                else
-                                {
-                                    foreach (var slot in SlotsForProfil(profil))
-                                    {
-                                        var rmpCib = GetRemplissageForSlot(slot);
-                                        var rmpExi = GetRemplissageExistantForSlot(slot);
-                                        <td style="text-align:center;padding:3px;@(!slot.IsCible ? "opacity:0.35" : "")">
-                                            <div style="font-size:11px;@RemplissageColor(rmpCib)">@(rmpCib.HasValue ? $"{rmpCib.Value:F0}%" : "—")</div>
-                                            <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                            <div style="font-size:9px;@RemplissageColor(rmpExi)">@(rmpExi.HasValue ? $"{rmpExi.Value:F0}%" : "—")</div>
-                                        </td>
-                                    }
-                                }
+                    </td>
+
+                    <!-- ── Colonne 1 : Charge Totale ETP par segment (ajustée) ── -->
+                    <td style="text-align:center;padding:6px 4px;background:#EEF3FA">
+                        @if (row.IsTotal)
+                        {
+                            <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+                                <span style="font-weight:700;font-size:12px;color:#1A4E6B">
+                                    @(rowCible.HasValue ? rowCible.Value.ToString("F2") : "—")
+                                </span>
+                                <div style="border-top:1.5px solid #C5CAD0;width:55%;margin:1px 0"></div>
+                                <span style="font-size:10px;color:#E65100;font-style:italic">
+                                    @(rowExist.HasValue ? rowExist.Value.ToString("F2") : "—")
+                                </span>
+                            </div>
+                        }
+                        else
+                        {
+                            @{
+                                var chargeAffichee = GetChargeTotaleAffichee(row);
                             }
-                            <td style="background:#1A3558"></td>
-                            <td style="text-align:center;padding:3px;background:#162840">
-                                <div style="font-size:12px;@RemplissageColor(kpiRmpCibTotal)">@(kpiRmpCibTotal.HasValue ? $"{kpiRmpCibTotal.Value:F0}%" : "—")</div>
+                            <span style="font-weight:700;font-size:13px;color:#1A4E6B">
+                                @(chargeAffichee.HasValue && chargeAffichee.Value > 0 ? chargeAffichee.Value.ToString("F2") : "—")
+                            </span>
+                        }
+                    </td>
+
+                    <!-- ── Colonne 2 : Charge ETP à transférer (saisie manuelle) ── -->
+                    <td style="text-align:center;padding:4px 3px;background:#FFF7EE">
+                        @if (!row.IsTotal)
+                        {
+                            var segT = row.Segment;
+                            var valTrans = _chargeATransferer.GetValueOrDefault(segT);
+                            <MudNumericField T="double?"
+                                             Value="@valTrans"
+                                             ValueChanged="@(v => { _chargeATransferer[segT] = v; StateHasChanged(); })"
+                                             Format="F2" Step="0.25" Min="0"
+                                             HideSpinButtons="true"
+                                             Variant="Variant.Text"
+                                             Margin="Margin.Dense"
+                                             Class="ca-dim-etp-input"
+                                             InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#7A4A1E" />
+                        }
+                        else
+                        {
+                            var totalTrans = GetTotalATransferer();
+                            <span style="font-weight:700;font-size:12px;color:#7A4A1E">
+                                @(totalTrans > 0 ? totalTrans.ToString("F2") : "—")
+                            </span>
+                        }
+                    </td>
+
+                    <!-- ── Colonne 3 : Charge ETP à ajouter (saisie manuelle) ── -->
+                    <td style="text-align:center;padding:4px 3px;background:#EEF7EE">
+                        @if (!row.IsTotal)
+                        {
+                            var segA = row.Segment;
+                            var valAjout = _chargeAAjouter.GetValueOrDefault(segA);
+                            <MudNumericField T="double?"
+                                             Value="@valAjout"
+                                             ValueChanged="@(v => { _chargeAAjouter[segA] = v; StateHasChanged(); })"
+                                             Format="F2" Step="0.25" Min="0"
+                                             HideSpinButtons="true"
+                                             Variant="Variant.Text"
+                                             Margin="Margin.Dense"
+                                             Class="ca-dim-etp-input"
+                                             InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#1B5E20" />
+                        }
+                        else
+                        {
+                            var totalAjout = GetTotalAAjouter();
+                            <span style="font-weight:700;font-size:12px;color:#1B5E20">
+                                @(totalAjout > 0 ? totalAjout.ToString("F2") : "—")
+                            </span>
+                        }
+                    </td>
+
+                    <!-- ── Colonne Concordance ── -->
+                    <td style="text-align:center;padding:4px 3px;background:#EEF3FA">
+                        @if (!row.IsTotal && concordance.pct.HasValue)
+                        {
+                            var pct = concordance.pct.Value;
+                            var (concBg, concFg) = pct switch
+                            {
+                                _ when pct >= 99.9 => ("#E8F5E9", "#2E7D32"),
+                                _ when pct >= 80   => ("#FFF3E0", "#E65100"),
+                                _                  => ("#FFEBEE", "#C62828")
+                            };
+                            <MudTooltip Text="@concordance.tooltip">
+                                <div style="background:@concBg;border-radius:5px;padding:2px 6px;min-width:48px">
+                                    <span style="font-size:12px;font-weight:700;color:@concFg">
+                                        @pct.ToString("F0")%
+                                    </span>
+                                </div>
+                            </MudTooltip>
+                        }
+                        else if (!row.IsTotal)
+                        {
+                            <span style="color:#BDBDBD;font-size:11px">—</span>
+                        }
+                    </td>
+
+                    <!-- ── Colonne Taux de rotation par segment ── -->
+                    <td style="text-align:center;padding:4px 3px;background:#EEF3FA">
+                        @{
+                            var rotRow = GetTauxRotationForRow(row);
+                        }
+                        @if (!row.IsTotal && rotRow.HasValue)
+                        {
+                            var rotColor = rotRow.Value switch
+                            {
+                                > 0 => "#2E7D32",
+                                < 0 => "#C62828",
+                                _   => "#6C7A89"
+                            };
+                            <span style="font-size:12px;font-weight:700;color:@rotColor">
+                                @(rotRow.Value >= 0 ? "+" : "")@rotRow.Value.ToString("F0")%
+                            </span>
+                        }
+                        else if (!row.IsTotal)
+                        {
+                            <span style="color:#BDBDBD;font-size:11px">—</span>
+                        }
+                    </td>
+
+                </tr>
+            }
+            </tbody>
+
+            <!-- ═══════════════════════════════════════════════════════
+                 TBODY KPI — adapté avec +2 colonnes (transférer + ajouter)
+            ═══════════════════════════════════════════════════════ -->
+            <tbody>
+                <!-- Séparateur -->
+                <tr style="background:#0D2035">
+                    <td style="padding:3px 12px;font-size:9px;font-weight:700;color:rgba(255,255,255,0.45);letter-spacing:1px;text-transform:uppercase">
+                        Indicateurs KPI
+                    </td>
+                    @for (int _i = 0; _i < VisibleSlotColumnCount + 6; _i++)
+                    {
+                        <td style="background:#0D2035"></td>
+                    }
+                </tr>
+
+                <!-- ── Evolution des effectifs ── -->
+                @{ var kpiEvoTotal = (double)_slots.Sum(s => GetEvolutionForSlot(s)); }
+                <tr style="background:#1C3D62">
+                    <td class="ca-dim-sticky-col" style="background:#1C3D62;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
+                        Evolution des effectifs
+                        <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Définition calcul à ajouter</div>
+                    </td>
+                    @foreach (var profil in profils)
+                    {
+                        if (_collapsedProfils.Contains(profil))
+                        {
+                            var evo = GetEvolutionForProfil(profil);
+                            <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;@DiffColor(evo, positifBon:true)">@FormatDiff(evo)</td>
+                        }
+                        else
+                        {
+                            foreach (var slot in SlotsForProfil(profil))
+                            {
+                                var evo = GetEvolutionForSlot(slot);
+                                <td style="text-align:center;padding:6px 3px;font-size:11px;@DiffColor(evo, positifBon:true);@(!slot.IsCible ? "opacity:0.35" : "")">@FormatDiff(evo)</td>
+                            }
+                        }
+                    }
+                    <td style="background:#1C3D62"></td>
+                    <td style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;background:#182F4A;@DiffColor(kpiEvoTotal, positifBon:true)">@FormatDiff(kpiEvoTotal)</td>
+                    <td style="background:#1C3D62"></td>
+                    <td style="background:#1C3D62"></td>
+                    <td style="background:#1C3D62"></td>
+                    <td style="background:#1C3D62"></td>
+                </tr>
+
+                <!-- ── Remplissage des portefeuilles ── -->
+                @{
+                    var kpiRmpCibTotal = GetRemplissageTotal();
+                    var kpiRmpExiTotal = GetRemplissageExistantTotal();
+                }
+                <tr style="background:#1A3558">
+                    <td class="ca-dim-sticky-col" style="background:#1A3558;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
+                        Taux de remplissage des portefeuilles (ETP réparti ÷ capacité du conseiller)
+                        <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">▼ Cible &nbsp;/&nbsp; ▲ Existant</div>
+                    </td>
+                    @foreach (var profil in profils)
+                    {
+                        if (_collapsedProfils.Contains(profil))
+                        {
+                            var rmpCib = GetRemplissageForProfil(profil);
+                            var rmpExi = GetRemplissageExistantForProfil(profil);
+                            <td style="text-align:center;padding:3px;font-style:italic">
+                                <div style="font-size:11px;@RemplissageColor(rmpCib)">@(rmpCib.HasValue ? $"{rmpCib.Value:F0}%" : "—")</div>
                                 <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                <div style="font-size:9px;@RemplissageColor(kpiRmpExiTotal)">@(kpiRmpExiTotal.HasValue ? $"{kpiRmpExiTotal.Value:F0}%" : "—")</div>
+                                <div style="font-size:9px;@RemplissageColor(rmpExi)">@(rmpExi.HasValue ? $"{rmpExi.Value:F0}%" : "—")</div>
                             </td>
-                            <td style="background:#1A3558"></td>
-                            <td style="background:#1A3558"></td>
-                        </tr>
-
-                        <!-- ── Concordance du portefeuille par conseiller (▼ cible / ▲ existant) ── -->
-                        @{
-                            // Total global cible : concordance sur l'ensemble des slots actifs
-                            var allCibleConc   = _slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
-                            var allDesigneConc = _slots.Where(s => s.IsCible)
-                                .Sum(s => rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, s.Profil) > 0)
-                                              .Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0));
-                            double? kpiConcCibTotal = allCibleConc > 0 ? allDesigneConc / allCibleConc * 100.0 : null;
-
-                            // Total global existant (pour comparaison)
-                            var allExistConc   = _slots.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
-                            var allDesigneExistConc = _slots
-                                .Sum(s => rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, s.Profil) > 0)
-                                              .Sum(r => r.EtpParProfil.GetValueOrDefault(s.Id) ?? 0));
-                            double? kpiConcExiTotal = allExistConc > 0 ? allDesigneExistConc / allExistConc * 100.0 : null;
                         }
-                        <tr style="background:#1F446A">
-                            <td class="ca-dim-sticky-col" style="background:#1F446A;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
-                                Taux de concordance par conseiller ("pureté" des portefeuilles)
-                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">▼ Cible &nbsp;/&nbsp; ▲ Existant</div>
-                            </td>
-                            @foreach (var profil in profils)
+                        else
+                        {
+                            foreach (var slot in SlotsForProfil(profil))
                             {
-                                if (_collapsedProfils.Contains(profil))
-                                {
-                                    var (concPctCib, concColorCib) = GetConcordanceForProfil(profil);
-                                    var (concPctExi, concColorExi) = GetConcordanceExistantForProfil(profil);
-                                    <td style="text-align:center;padding:3px;font-style:italic">
-                                        <div style="font-size:11px;@concColorCib">@(concPctCib.HasValue ? $"{concPctCib.Value:F0}%" : "—")</div>
-                                        <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                        <div style="font-size:9px;@concColorExi">@(concPctExi.HasValue ? $"{concPctExi.Value:F0}%" : "—")</div>
-                                    </td>
-                                }
-                                else
-                                {
-                                    foreach (var slot in SlotsForProfil(profil))
-                                    {
-                                        var (concPctCib, concColorCib) = GetConcordanceForSlot(slot);
-                                        var (concPctExi, concColorExi) = GetConcordanceExistantForSlot(slot);
-                                        <td style="text-align:center;padding:3px;@(!slot.IsCible ? "opacity:0.35" : "")">
-                                            <div style="font-size:11px;@concColorCib">@(concPctCib.HasValue ? $"{concPctCib.Value:F0}%" : "—")</div>
-                                            <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                            <div style="font-size:9px;@concColorExi">@(concPctExi.HasValue ? $"{concPctExi.Value:F0}%" : "—")</div>
-                                        </td>
-                                    }
-                                }
+                                var rmpCib = GetRemplissageForSlot(slot);
+                                var rmpExi = GetRemplissageExistantForSlot(slot);
+                                <td style="text-align:center;padding:3px;@(!slot.IsCible ? "opacity:0.35" : "")">
+                                    <div style="font-size:11px;@RemplissageColor(rmpCib)">@(rmpCib.HasValue ? $"{rmpCib.Value:F0}%" : "—")</div>
+                                    <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
+                                    <div style="font-size:9px;@RemplissageColor(rmpExi)">@(rmpExi.HasValue ? $"{rmpExi.Value:F0}%" : "—")</div>
+                                </td>
                             }
-                            <td style="background:#1F446A"></td>
-                            <td style="text-align:center;padding:3px;background:#193252">
-                                <div style="font-size:12px;@ConcordanceColor(kpiConcCibTotal)">@(kpiConcCibTotal.HasValue ? $"{kpiConcCibTotal.Value:F0}%" : "—")</div>
+                        }
+                    }
+                    <td style="background:#1A3558"></td>
+                    <td style="text-align:center;padding:3px;background:#162840">
+                        <div style="font-size:12px;@RemplissageColor(kpiRmpCibTotal)">@(kpiRmpCibTotal.HasValue ? $"{kpiRmpCibTotal.Value:F0}%" : "—")</div>
+                        <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
+                        <div style="font-size:9px;@RemplissageColor(kpiRmpExiTotal)">@(kpiRmpExiTotal.HasValue ? $"{kpiRmpExiTotal.Value:F0}%" : "—")</div>
+                    </td>
+                    <td style="background:#1A3558"></td>
+                    <td style="background:#1A3558"></td>
+                    <td style="background:#1A3558"></td>
+                    <td style="background:#1A3558"></td>
+                </tr>
+
+                <!-- ── Concordance ── -->
+                @{
+                    var allCibleConc   = _slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
+                    var allDesigneConc = _slots.Where(s => s.IsCible)
+                        .Sum(s => rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, s.Profil) > 0)
+                                      .Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0));
+                    double? kpiConcCibTotal = allCibleConc > 0 ? allDesigneConc / allCibleConc * 100.0 : null;
+
+                    var allExistConc   = _slots.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
+                    var allDesigneExistConc = _slots
+                        .Sum(s => rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, s.Profil) > 0)
+                                      .Sum(r => r.EtpParProfil.GetValueOrDefault(s.Id) ?? 0));
+                    double? kpiConcExiTotal = allExistConc > 0 ? allDesigneExistConc / allExistConc * 100.0 : null;
+                }
+                <tr style="background:#1F446A">
+                    <td class="ca-dim-sticky-col" style="background:#1F446A;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
+                        Taux de concordance par conseiller ("pureté" des portefeuilles)
+                        <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">▼ Cible &nbsp;/&nbsp; ▲ Existant</div>
+                    </td>
+                    @foreach (var profil in profils)
+                    {
+                        if (_collapsedProfils.Contains(profil))
+                        {
+                            var (concPctCib, concColorCib) = GetConcordanceForProfil(profil);
+                            var (concPctExi, concColorExi) = GetConcordanceExistantForProfil(profil);
+                            <td style="text-align:center;padding:3px;font-style:italic">
+                                <div style="font-size:11px;@concColorCib">@(concPctCib.HasValue ? $"{concPctCib.Value:F0}%" : "—")</div>
                                 <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                <div style="font-size:9px;@ConcordanceColor(kpiConcExiTotal)">@(kpiConcExiTotal.HasValue ? $"{kpiConcExiTotal.Value:F0}%" : "—")</div>
+                                <div style="font-size:9px;@concColorExi">@(concPctExi.HasValue ? $"{concPctExi.Value:F0}%" : "—")</div>
                             </td>
-                            <td style="background:#1F446A"></td>
-                            <td style="background:#1F446A"></td>
-                        </tr>
-
-                        <!-- ── Taux de rotation ──────────────────────────────── -->
-                        @{
-                            var rotAllCible = Math.Round(_slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2);
-                            var rotAllExist = Math.Round(_slots.Where(s => s.IsCible).Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0), 2);
-                            var rotDiff     = Math.Round(rotAllCible - rotAllExist, 2);
-                            double? kpiRotTotal = rotAllCible > 0 ? rotDiff / rotAllCible * 100.0 : null;
                         }
-                        <tr style="background:#224A72">
-                            <td class="ca-dim-sticky-col" style="background:#224A72;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
-                                Taux de rotation des clients par portefeuille (entrée et sortie)
-                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Définition calcul à ajouter</div>
-                            </td>
-                            @foreach (var profil in profils)
+                        else
+                        {
+                            foreach (var slot in SlotsForProfil(profil))
                             {
-                                if (_collapsedProfils.Contains(profil))
-                                {
-                                    var rot = GetTauxRotationForProfil(profil);
-                                    <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;@DiffColor(rot, positifBon:true)">
-                                        @(rot.HasValue ? $"{rot.Value:+0.0;-0.0;0.0}%" : "—")
-                                    </td>
-                                }
-                                else
-                                {
-                                    foreach (var slot in SlotsForProfil(profil))
-                                    {
-                                        var rot = GetTauxRotation(slot);
-                                        <td style="text-align:center;padding:6px 3px;font-size:11px;@DiffColor(rot, positifBon:true);@(!slot.IsCible ? "opacity:0.35" : "")">
-                                            @(rot.HasValue ? $"{rot.Value:+0.0;-0.0;0.0}%" : "—")
-                                        </td>
-                                    }
-                                }
+                                var (concPctCib, concColorCib) = GetConcordanceForSlot(slot);
+                                var (concPctExi, concColorExi) = GetConcordanceExistantForSlot(slot);
+                                <td style="text-align:center;padding:3px;@(!slot.IsCible ? "opacity:0.35" : "")">
+                                    <div style="font-size:11px;@concColorCib">@(concPctCib.HasValue ? $"{concPctCib.Value:F0}%" : "—")</div>
+                                    <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
+                                    <div style="font-size:9px;@concColorExi">@(concPctExi.HasValue ? $"{concPctExi.Value:F0}%" : "—")</div>
+                                </td>
                             }
-                            <td style="background:#224A72"></td>
-                            <td style="text-align:center;padding:6px 4px;font-size:12px;font-weight:700;background:#1B3959;@DiffColor(kpiRotTotal, positifBon:true)">
-                                @(kpiRotTotal.HasValue ? $"{kpiRotTotal.Value:+0.0;-0.0;0.0}%" : "—")
-                            </td>
-                            <td style="background:#224A72"></td>
-                            <td style="background:#224A72"></td>
-                        </tr>
-
-                        <!-- ── Taux d'entrée ─────────────────────────────────── -->
-                        @{
-                            var entAllCible = Math.Round(_slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2);
-                            var entDiff     = GetTauxEntreeTotal();
-                            double? kpiEntTotal = entAllCible > 0 ? entDiff : null;
                         }
-                        <tr style="background:#24507A">
-                            <td class="ca-dim-sticky-col" style="background:#24507A;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
-                                Part de nouveaux clients dans le portefeuille cible (vs existant)
-                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Définition calcul à ajouter</div>
-                            </td>
-                            @foreach (var profil in profils)
-                            {
-                                if (_collapsedProfils.Contains(profil))
-                                {
-                                    var ent = GetTauxEntreeForProfil(profil);
-                                    <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;color:white">
-                                        @(ent.HasValue ? ent.Value.ToString("F2") : "—")
-                                    </td>
-                                }
-                                else
-                                {
-                                    foreach (var slot in SlotsForProfil(profil))
-                                    {
-                                        var ent = GetTauxEntreeSlot(slot);
-                                        <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
-                                            @(ent.HasValue ? ent.Value.ToString("F2") : "—")
-                                        </td>
-                                    }
-                                }
-                            }
-                            <td style="background:#24507A"></td>
-                            <td style="text-align:center;padding:6px 4px;font-size:12px;font-weight:700;color:white;background:#1C3C5E">
-                                @(kpiEntTotal.HasValue ? kpiEntTotal.Value.ToString("F2") : "—")
-                            </td>
-                            <td style="background:#24507A"></td>
-                            <td style="background:#24507A"></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </MudPaper>
-    }
+                    }
+                    <td style="background:#1F446A"></td>
+                    <td style="text-align:center;padding:3px;background:#193252">
+                        <div style="font-size:12px;@ConcordanceColor(kpiConcCibTotal)">@(kpiConcCibTotal.HasValue ? $"{kpiConcCibTotal.Value:F0}%" : "—")</div>
+                        <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
+                        <div style="font-size:9px;@ConcordanceColor(kpiConcExiTotal)">@(kpiConcExiTotal.HasValue ? $"{kpiConcExiTotal.Value:F0}%" : "—")</div>
+                    </td>
+                    <td style="background:#1F446A"></td>
+                    <td style="background:#1F446A"></td>
+                    <td style="background:#1F446A"></td>
+                    <td style="background:#1F446A"></td>
+                </tr>
 
-    <div class="ca-footer">© 2026 Crédit Agricole Nord de France — Plateforme de simulation de dimensionnement des portefeuilles</div>
-</div>
+                <!-- ── Taux de rotation ── -->
+                @{
+                    var rotAllCible = Math.Round(_slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2);
+                    var rotAllExist = Math.Round(_slots.Where(s => s.IsCible).Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0), 2);
+                    var rotDiff     = Math.Round(rotAllCible - rotAllExist, 2);
+                    double? kpiRotTotal = rotAllCible > 0 ? rotDiff / rotAllCible * 100.0 : null;
+                }
+                <tr style="background:#224A72">
+                    <td class="ca-dim-sticky-col" style="background:#224A72;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
+                        Taux de rotation des clients par portefeuille (entrée et sortie)
+                        <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Définition calcul à ajouter</div>
+                    </td>
+                    @foreach (var profil in profils)
+                    {
+                        if (_collapsedProfils.Contains(profil))
+                        {
+                            var rot = GetTauxRotationForProfil(profil);
+                            <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;@DiffColor(rot, positifBon:true)">
+                                @(rot.HasValue ? $"{rot.Value:+0.0;-0.0;0.0}%" : "—")
+                            </td>
+                        }
+                        else
+                        {
+                            foreach (var slot in SlotsForProfil(profil))
+                            {
+                                var rot = GetTauxRotation(slot);
+                                <td style="text-align:center;padding:6px 3px;font-size:11px;@DiffColor(rot, positifBon:true);@(!slot.IsCible ? "opacity:0.35" : "")">
+                                    @(rot.HasValue ? $"{rot.Value:+0.0;-0.0;0.0}%" : "—")
+                                </td>
+                            }
+                        }
+                    }
+                    <td style="background:#224A72"></td>
+                    <td style="text-align:center;padding:6px 4px;font-size:12px;font-weight:700;background:#1B3959;@DiffColor(kpiRotTotal, positifBon:true)">
+                        @(kpiRotTotal.HasValue ? $"{kpiRotTotal.Value:+0.0;-0.0;0.0}%" : "—")
+                    </td>
+                    <td style="background:#224A72"></td>
+                    <td style="background:#224A72"></td>
+                    <td style="background:#224A72"></td>
+                    <td style="background:#224A72"></td>
+                </tr>
+
+                <!-- ── Taux d'entrée ── -->
+                @{
+                    var entAllCible = Math.Round(_slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2);
+                    var entDiff     = GetTauxEntreeTotal();
+                    double? kpiEntTotal = entAllCible > 0 ? entDiff : null;
+                }
+                <tr style="background:#24507A">
+                    <td class="ca-dim-sticky-col" style="background:#24507A;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
+                        Part de nouveaux clients dans le portefeuille cible (vs existant)
+                        <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">Définition calcul à ajouter</div>
+                    </td>
+                    @foreach (var profil in profils)
+                    {
+                        if (_collapsedProfils.Contains(profil))
+                        {
+                            var ent = GetTauxEntreeForProfil(profil);
+                            <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;color:white">
+                                @(ent.HasValue ? ent.Value.ToString("F2") : "—")
+                            </td>
+                        }
+                        else
+                        {
+                            foreach (var slot in SlotsForProfil(profil))
+                            {
+                                var ent = GetTauxEntreeSlot(slot);
+                                <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
+                                    @(ent.HasValue ? ent.Value.ToString("F2") : "—")
+                                </td>
+                            }
+                        }
+                    }
+                    <td style="background:#24507A"></td>
+                    <td style="text-align:center;padding:6px 4px;font-size:12px;font-weight:700;color:white;background:#1C3C5E">
+                        @(kpiEntTotal.HasValue ? kpiEntTotal.Value.ToString("F2") : "—")
+                    </td>
+                    <td style="background:#24507A"></td>
+                    <td style="background:#24507A"></td>
+                    <td style="background:#24507A"></td>
+                    <td style="background:#24507A"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</MudPaper>
