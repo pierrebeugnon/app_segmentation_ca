@@ -1,1 +1,1 @@
-<DashboardRepartitionSegment Repartition="@_repartition" />
+private List<SegmentRepartition> _repartition = new();
