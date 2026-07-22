@@ -23,7 +23,7 @@
     ═══════════════════════════════════════════════════════ -->
     <div class="dash-header">
         <div>
-            <div class="dash-title">Pilotage du dimensionnement</div>
+            <div class="dash-title">Tableau de bord - dimensionnement des portefeuilles</div>
             <div class="dash-subtitle">Vue d'ensemble du réseau CA Nord de France</div>
         </div>
     </div>
@@ -87,11 +87,10 @@
 
         <!-- KPI 1 — Nombre de Clients Commerciaux -->
         <div class="dash-kpi-card">
-            <div class="dash-kpi-label">Nombre de Clients Commerciaux</div>
+            <div class="dash-kpi-label">Nombre de total de clients</div>
             <div class="dash-kpi-value dash-kpi-neutral">
                 @FormatCompact(_kpis.ClientsCommerciaux)
             </div>
-            <div class="dash-kpi-hint">Référence de dimensionnement</div>
         </div>
 
         <!-- KPI 2 — Nombre de conseillers (2 colonnes verticales) -->
@@ -128,38 +127,34 @@
 
         <!-- KPI 3 — Taux de couverture -->
         <div class="dash-kpi-card">
-            <div class="dash-kpi-label">Taux de couverture</div>
+            <div class="dash-kpi-label">Taux de remplissage des portefeuilles</div>
             <div class="dash-kpi-value @GetKpiClass(_kpis.TauxCouverture, 100, 90)">
                 @_kpis.TauxCouverture.ToString("F0")<span class="dash-kpi-unit">%</span>
             </div>
-            <div class="dash-kpi-hint">Effectif réel vs besoin théorique</div>
         </div>
 
         <!-- KPI 4 — Taux de rotation portefeuille -->
         <div class="dash-kpi-card">
-            <div class="dash-kpi-label">Taux de rotation portefeuille</div>
+            <div class="dash-kpi-label">Ecart effectif cible vs charge totale (ETP)</div>
             <div class="dash-kpi-value @GetKpiClass(_kpis.TauxRotationPortefeuille, 10, 20)">
                 @_kpis.TauxRotationPortefeuille.ToString("F0")<span class="dash-kpi-unit">%</span>
             </div>
-            <div class="dash-kpi-hint">Entrées + sorties portefeuille</div>
         </div>
 
         <!-- KPI 5 — Concordance moyenne -->
         <div class="dash-kpi-card">
-            <div class="dash-kpi-label">Concordance moyenne</div>
+            <div class="dash-kpi-label">Taux de concordance</div>
             <div class="dash-kpi-value @GetKpiClass(_kpis.Concordance, 80, 60)">
                 @_kpis.Concordance.ToString("F0")<span class="dash-kpi-unit">%</span>
             </div>
-            <div class="dash-kpi-hint">Alignement avec les règles R&H</div>
         </div>
 
         <!-- KPI 6 — Taux de pureté des portefeuilles -->
         <div class="dash-kpi-card">
-            <div class="dash-kpi-label">Taux de pureté</div>
+            <div class="dash-kpi-label">Taux de rotation des clients</div>
             <div class="dash-kpi-value @GetKpiClass(_kpis.TauxPurete, 80, 60)">
                 @_kpis.TauxPurete.ToString("F0")<span class="dash-kpi-unit">%</span>
             </div>
-            <div class="dash-kpi-hint">Clients sur le profil prioritaire R&H</div>
         </div>
 
     </div>
@@ -210,13 +205,13 @@
             <!-- En-tête de colonnes -->
             <div class="dash-hm-header">
                 <div class="dash-hm-col-nom">Agence</div>
-                <div class="dash-hm-col-volume">Clients gérés</div>
+                <div class="dash-hm-col-volume">Nombre de clients</div>
                 <div class="dash-hm-col-consei">Cons. existants</div>
                 <div class="dash-hm-col-consei">Cons. cibles</div>
-                <div class="dash-hm-col-etp">ETP requis</div>
-                <div class="dash-hm-col-couv">Taux de couverture</div>
+                <div class="dash-hm-col-etp">Charge ETP totale cible</div>
+                <div class="dash-hm-col-couv">Taux de remplissage des portefeuilles</div>
                 <div class="dash-hm-col-conc">Taux de concordance</div>
-                <div class="dash-hm-col-rot">Taux de rotation</div>
+                <div class="dash-hm-col-rot">Taux de rotation des clients</div>
                 <div class="dash-hm-col-pur">Taux de pureté</div>
             </div>
 
