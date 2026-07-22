@@ -1,15 +1,104 @@
+<!-- ── Colonne 2 : Charge à transférer à la BP (HDG Premium uniquement) ── -->
 @if (_showChargesManuelles)
 {
-    <th class="ca-dim-th-profil" style="background:#7A4A1E;color:white">
-        Charge à transférer à la BP
-        <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">HDG Premium uniquement</div>
-    </th>
-    <th class="ca-dim-th-profil" style="background:#4A80B5;color:white">
-        Charge reçue de la BP
-        <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">Tout sauf HDG Premium</div>
-    </th>
-    <th class="ca-dim-th-profil" style="background:#6B4A80;color:white">
-        Charge à transférer en pf mutualisé
-        <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">GP Standard uniquement</div>
-    </th>
+    <td style="text-align:center;padding:4px 3px;background:#F5EAD9">
+        @if (!row.IsTotal)
+        {
+            if (IsHdgPremium(row.Segment))
+            {
+                var segT = row.Segment;
+                var valTransBP = _chargeATransfererBP.GetValueOrDefault(segT);
+                <MudNumericField T="double?"
+                                 Value="@valTransBP"
+                                 ValueChanged="@(v => { _chargeATransfererBP[segT] = v; StateHasChanged(); })"
+                                 Format="F2" Step="0.25" Min="0"
+                                 HideSpinButtons="true"
+                                 Variant="Variant.Text"
+                                 Margin="Margin.Dense"
+                                 Class="ca-dim-etp-input"
+                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#7A4A1E" />
+            }
+            else
+            {
+                <span style="color:#BDBDBD;font-size:11px">—</span>
+            }
+        }
+        else
+        {
+            var totalTransBP = GetTotalATransfererBP();
+            <span style="font-weight:700;font-size:12px;color:#7A4A1E">
+                @(totalTransBP > 0 ? totalTransBP.ToString("F2") : "—")
+            </span>
+        }
+    </td>
+}
+
+<!-- ── Colonne 3 : Charge reçue de la BP (tout sauf HDG Premium) ── -->
+@if (_showChargesManuelles)
+{
+    <td style="text-align:center;padding:4px 3px;background:#E3EFF9">
+        @if (!row.IsTotal)
+        {
+            if (!IsHdgPremium(row.Segment) && IsSegmentActionnable(row.Segment))
+            {
+                var segR = row.Segment;
+                var valRecueBP = _chargeRecueBP.GetValueOrDefault(segR);
+                <MudNumericField T="double?"
+                                 Value="@valRecueBP"
+                                 ValueChanged="@(v => { _chargeRecueBP[segR] = v; StateHasChanged(); })"
+                                 Format="F2" Step="0.25" Min="0"
+                                 HideSpinButtons="true"
+                                 Variant="Variant.Text"
+                                 Margin="Margin.Dense"
+                                 Class="ca-dim-etp-input"
+                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#1A4E6B" />
+            }
+            else
+            {
+                <span style="color:#BDBDBD;font-size:11px">—</span>
+            }
+        }
+        else
+        {
+            var totalRecueBP = GetTotalRecueBP();
+            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
+                @(totalRecueBP > 0 ? totalRecueBP.ToString("F2") : "—")
+            </span>
+        }
+    </td>
+}
+
+<!-- ── Colonne 4 : Charge à transférer en pf mutualisé (GP Standard uniquement) ── -->
+@if (_showChargesManuelles)
+{
+    <td style="text-align:center;padding:4px 3px;background:#EDE4F4">
+        @if (!row.IsTotal)
+        {
+            if (IsGpStandard(row.Segment))
+            {
+                var segM = row.Segment;
+                var valTransMut = _chargeATransfererMutualise.GetValueOrDefault(segM);
+                <MudNumericField T="double?"
+                                 Value="@valTransMut"
+                                 ValueChanged="@(v => { _chargeATransfererMutualise[segM] = v; StateHasChanged(); })"
+                                 Format="F2" Step="0.25" Min="0"
+                                 HideSpinButtons="true"
+                                 Variant="Variant.Text"
+                                 Margin="Margin.Dense"
+                                 Class="ca-dim-etp-input"
+                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#6B4A80" />
+            }
+            else
+            {
+                <span style="color:#BDBDBD;font-size:11px">—</span>
+            }
+        }
+        else
+        {
+            var totalTransMut = GetTotalATransfererMutualise();
+            <span style="font-weight:700;font-size:12px;color:#6B4A80">
+                @(totalTransMut > 0 ? totalTransMut.ToString("F2") : "—")
+            </span>
+        }
+    </td>
 }
