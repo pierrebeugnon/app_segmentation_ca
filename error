@@ -1,10 +1,18 @@
-<div class="dash-kpi-compact">
-    <div class="dash-kpi-line dash-kpi-line-existant">
-        <span class="dash-kpi-line-value">@_kpis.ConseillersExistants</span>
-        <span class="dash-kpi-line-label">Existant</span>
-    </div>
-    <div class="dash-kpi-line dash-kpi-line-cible">
-        <span class="dash-kpi-line-value">@_kpis.ConseillersCibles</span>
-        <span class="dash-kpi-line-label">Cible</span>
-    </div>
-</div>
+
+public class LigneMetierRepartition
+{
+    public string LigneMetier { get; set; } = "";
+    public int NbClients { get; set; }
+
+    // Conseillers
+    public int ConseillersExistants { get; set; }
+    public int ConseillersCibles { get; set; }
+
+    // Taille théorique portefeuille = Nb clients / Nb conseillers
+    public double TaillePortefeuilleExistant { get; set; }
+    public double TaillePortefeuilleCible { get; set; }
+
+    // Delta calculés (existant − cible)
+    public int DeltaConseillers => ConseillersExistants - ConseillersCibles;
+    public double DeltaTaillePortefeuille => TaillePortefeuilleExistant - TaillePortefeuilleCible;
+}
