@@ -1,52 +1,32 @@
 
-// ═══════════════════════════════════════════════════════════
-//   DISTRIBUTION GÉOGRAPHIQUE PAR SEGMENT
-//   Retourne un dictionnaire : Segment → Région → NbClients
-// ═══════════════════════════════════════════════════════════
-public (Dictionary<string, Dictionary<string, int>> Distribution, List<string> Regions)
-    ComputeDistributionGeographique(List<SegmentationDistributiveData> data)
-{
-    if (data == null || !data.Any())
-        return (new(), new());
-
-    var regions = data
-        .Select(x => x.LibRegion ?? "")
-        .Where(r => !string.IsNullOrWhiteSpace(r))
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .OrderBy(r => r)
-        .ToList();
-
-    var segmentsDef = new (string Nom, Func<SegmentationDistributiveData, int> Get)[]
-    {
-        ("HDG Premium Potentiel", x => x.HDGPremiumPotentiel),
-        ("HDG Premium Standard",  x => x.HDGPremiumStandard),
-        ("HDG Potentiel",         x => x.HDGPotentiel),
-        ("HDG Senior Epargnant",  x => x.HDGSeniorEpargnant),
-        ("HDG Standard",          x => x.HDGStandard),
-        ("CI Potentiel",          x => x.CIPotentiel),
-        ("CI Standard",           x => x.CIStandard),
-        ("GP Potentiel",          x => x.GPPotentiel),
-        ("GP Standard",           x => x.GPStandard)
-    };
-
-    var distribution = new Dictionary<string, Dictionary<string, int>>();
-
-    foreach (var seg in segmentsDef)
-    {
-        var byRegion = new Dictionary<string, int>();
-
-        foreach (var region in regions)
-        {
-            var nb = data
-                .Where(x => string.Equals(x.LibRegion, region, StringComparison.OrdinalIgnoreCase))
-                .Sum(x => seg.Get(x));
-
-            byRegion[region] = nb;
-        }
-
-        // On garde même si vide (utile pour la ligne dans le tableau)
-        distribution[seg.Nom] = byRegion;
-    }
-
-    return (distribution, regions);
+.dash-hm-header,
+.dash-hm-row {
+    display: grid;
+    grid-template-columns: 2fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr;
+    align-items: center;
+    padding: 9px 24px;
+    gap: 16px;
 }
+
+
+
+
+
+
+
+.dash-rc-lm-row td {
+    padding: 8.3px 6px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+
+
+
+
+.dash-rc-profil-row td {
+    padding: 8.3px 6px;
+    text-align: center;
+    font-size: 11px;
+}s
