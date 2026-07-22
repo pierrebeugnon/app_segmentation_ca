@@ -1,905 +1,633 @@
-@page "/dashboard"
-@inject SegmentationStateService StateService
-@inject DashboardService DashboardService
-@inject HttpClient Http
-@using Segmentation.Client.Services
-@using Segmentation.Shared.Models
-@using System.Net.Http.Json
-@using Segmentation.Client.Components.Dashboard
-
-<PageTitle>Pilotage — CA Segmentation</PageTitle>
-
-<div class="dash-page">
-
-    @if (_isLoading)
-    {
-        <div class="dash-loader">
-            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-        </div>
-    }
-
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 1 — En-tête épuré
-    ═══════════════════════════════════════════════════════ -->
-    <div class="dash-header">
-        <div>
-            <div class="dash-title">Pilotage du dimensionnement</div>
-            <div class="dash-subtitle">Vue d'ensemble du réseau CA Nord de France</div>
-        </div>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 1B — Filtres cascadés
-    ═══════════════════════════════════════════════════════ -->
-    <MudPaper Elevation="0" Class="dash-filters">
-        <div class="dash-filters-inner">
-            <span class="dash-filter-label">FILTRER PAR</span>
-
-            <MudSelect T="string" Label="Région" Dense="true" Margin="Margin.Dense"
-                       Variant="Variant.Outlined" Style="min-width:180px"
-                       Value="@filtreRegion" ValueChanged="OnRegionChanged"
-                       Clearable="true">
-                @foreach (var r in allRegions)
-                {
-                    <MudSelectItem Value="@r">@r</MudSelectItem>
-                }
-            </MudSelect>
-
-            <MudSelect T="string" Label="Secteur" Dense="true" Margin="Margin.Dense"
-                       Variant="Variant.Outlined" Style="min-width:200px"
-                       Value="@filtreSecteur" ValueChanged="OnSecteurChanged"
-                       Clearable="true">
-                @foreach (var s in allSecteurs)
-                {
-                    <MudSelectItem Value="@s">@s</MudSelectItem>
-                }
-            </MudSelect>
-
-            <MudSelect T="string" Label="Agence" Dense="true" Margin="Margin.Dense"
-                       Variant="Variant.Outlined" Style="min-width:220px"
-                       Value="@filtreAgence" ValueChanged="OnAgenceChanged"
-                       Clearable="true">
-                @foreach (var a in allAgences)
-                {
-                    <MudSelectItem Value="@a">@a</MudSelectItem>
-                }
-            </MudSelect>
-
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
-                       StartIcon="@Icons.Material.Filled.Check"
-                       OnClick="ApplyFilters"
-                       Disabled="@(!HasPendingFilterChanges || _isLoading)">
-                Valider
-            </MudButton>
-
-            @if (!string.IsNullOrEmpty(filtreRegion) || !string.IsNullOrEmpty(filtreSecteur) || !string.IsNullOrEmpty(filtreAgence))
-            {
-                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary"
-                           OnClick="ClearFilters">Effacer</MudButton>
-            }
-        </div>
-    </MudPaper>
-
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 2 — 6 KPI HÉROS
-    ═══════════════════════════════════════════════════════ -->
-    <div class="dash-kpi-grid">
-
-        <!-- KPI 1 — Nombre de Clients Commerciaux -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-label">Nombre de Clients Commerciaux</div>
-            <div class="dash-kpi-value dash-kpi-neutral">
-                @FormatCompact(_kpis.ClientsCommerciaux)
-            </div>
-            <div class="dash-kpi-hint">Référence de dimensionnement</div>
-        </div>
-
-        <!-- KPI 2 — Nombre de conseillers (2 colonnes verticales) -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-label">Nombre de conseillers</div>
-
-            @{
-                var deltaConseillers =
-                _kpis.ConseillersExistants -
-                _kpis.ConseillersCibles;
-
-                var ratioConseillers =
-                _kpis.ConseillersCibles > 0
-                ? (double)_kpis.ConseillersExistants /
-                _kpis.ConseillersCibles * 100
-                : 0;
-            }
-
-            <div class="dash-kpi-cols">
-                <div class="dash-kpi-col dash-kpi-line-existant">
-                    <div class="dash-kpi-col-value">@_kpis.ConseillersExistants</div>
-                    <div class="dash-kpi-col-label">Existant</div>
-                </div>
-                <div class="dash-kpi-col dash-kpi-line-cible">
-                    <div class="dash-kpi-col-value">@_kpis.ConseillersCibles</div>
-                    <div class="dash-kpi-col-label">Cible</div>
-                </div>
-            </div>
-
-            <div class="dash-kpi-delta @(deltaConseillers >= 0 ? "dash-delta-good" : "dash-delta-critical")">
-                @(deltaConseillers >= 0 ? "+" : "")@deltaConseillers vs cible (@ratioConseillers.ToString("F0")%)
-            </div>
-        </div>
-
-        <!-- KPI 3 — Taux de couverture -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-label">Taux de couverture</div>
-            <div class="dash-kpi-value @GetKpiClass(_kpis.TauxCouverture, 100, 90)">
-                @_kpis.TauxCouverture.ToString("F0")<span class="dash-kpi-unit">%</span>
-            </div>
-            <div class="dash-kpi-hint">Effectif réel vs besoin théorique</div>
-        </div>
-
-        <!-- KPI 4 — Taux de rotation portefeuille -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-label">Taux de rotation portefeuille</div>
-            <div class="dash-kpi-value @GetKpiClass(_kpis.TauxRotationPortefeuille, 10, 20)">
-                @_kpis.TauxRotationPortefeuille.ToString("F0")<span class="dash-kpi-unit">%</span>
-            </div>
-            <div class="dash-kpi-hint">Entrées + sorties portefeuille</div>
-        </div>
-
-        <!-- KPI 5 — Concordance moyenne -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-label">Concordance moyenne</div>
-            <div class="dash-kpi-value @GetKpiClass(_kpis.Concordance, 80, 60)">
-                @_kpis.Concordance.ToString("F0")<span class="dash-kpi-unit">%</span>
-            </div>
-            <div class="dash-kpi-hint">Alignement avec les règles R&H</div>
-        </div>
-
-        <!-- KPI 6 — Taux de pureté des portefeuilles -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-label">Taux de pureté</div>
-            <div class="dash-kpi-value @GetKpiClass(_kpis.TauxPurete, 80, 60)">
-                @_kpis.TauxPurete.ToString("F0")<span class="dash-kpi-unit">%</span>
-            </div>
-            <div class="dash-kpi-hint">Clients sur le profil prioritaire R&H</div>
-        </div>
-
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 3 — Grille 2 colonnes
-    ═══════════════════════════════════════════════════════ -->
-    <div class="dash-bottom-grid">
-
-        <div class="dash-bottom-left">
-            <DashboardRepartitionSegment
-                Repartition="@_repartition"
-                Dimension="@_dimensionAffichage"
-                DimensionChanged="OnDimensionChanged" />
-
-            <DashboardDistributionGeographique
-                Distribution="@_distributionGeo"
-                Colonnes="@_regionsGeo"
-                Dimension="@_dimensionAffichage"
-                DimensionChanged="OnDimensionChanged" />
-        </div>
-
-        <DashboardRepartitionConseillers
-            Repartition="@_repartitionConseillers"
-            Dimension="@_dimensionAffichage"
-            DimensionChanged="OnDimensionChanged" />
-
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 4 — VUE DÉTAILLÉE PAR AGENCE
-    ═══════════════════════════════════════════════════════ -->
-    <!-- ZONE 4 — VUE DÉTAILLÉE PAR AGENCE -->
-    <MudPaper Elevation="0" Class="dash-heatmap">
-
-        <div class="dash-section-title dash-heatmap-title">
-            <span>Vue détaillée par agence</span>
-            <span class="dash-section-hint">@_heatmap.Count @GetHeatmapUnit()</span>
-        </div>
-        @if (!_heatmap.Any())
-        {
-            <div class="dash-placeholder">Aucune donnée à afficher</div>
-        }
-        else
-        {
-            var maxClients = _heatmap.Max(x => x.ClientsGeres);
-
-            <!-- En-tête de colonnes -->
-            <div class="dash-hm-header">
-                <div class="dash-hm-col-nom">Agence</div>
-                <div class="dash-hm-col-volume">Clients gérés</div>
-                <div class="dash-hm-col-consei">Cons. existants</div>
-                <div class="dash-hm-col-consei">Cons. cibles</div>
-                <div class="dash-hm-col-etp">ETP requis</div>
-                <div class="dash-hm-col-couv">Taux de couverture</div>
-                <div class="dash-hm-col-conc">Taux de concordance</div>
-                <div class="dash-hm-col-rot">Taux de rotation</div>
-                <div class="dash-hm-col-rot">Taux de pureté</div>
-            </div>
-
-            <!-- Lignes agences -->
-            @foreach (var row in _heatmap)
-            {
-                var barWidth = maxClients > 0 ? row.ClientsGeres * 100.0 / maxClients : 0;
-                var statusColor = GetStatusColor(row);
-
-                <div class="dash-hm-row">
-                    <div class="dash-hm-col-nom">
-                        <span class="dash-hm-status-dot" style="background:@statusColor"></span>
-                        <span class="dash-hm-nom">@row.Nom</span>
-                    </div>
-
-                    <div class="dash-hm-col-volume">
-                        <div class="dash-hm-barwrap">
-                            <div class="dash-hm-bar" style="width:@(barWidth.ToString("F0"))%"></div>
-                        </div>
-                        <span class="dash-hm-barval">@FormatCompact(row.ClientsGeres)</span>
-                    </div>
-
-                    <div class="dash-hm-col-consei dash-hm-existant">@row.ConseillersActifs</div>
-                    <div class="dash-hm-col-consei dash-hm-cible">@row.ConseillersCibles</div>
-
-                    <div class="dash-hm-col-etp">@row.EtpNecessaires.ToString("F1")</div>
-
-                    <div class="dash-hm-col-couv">
-                        <span class="dash-hm-pill @GetPillClass(row.TauxCouverture, 100, 90)">
-                            @row.TauxCouverture.ToString("F0")%
-                        </span>
-                    </div>
-
-                    <div class="dash-hm-col-conc">
-                        <span class="dash-hm-pill @GetPillClass(row.Concordance, 80, 60)">
-                            @row.Concordance.ToString("F0")%
-                        </span>
-                    </div>
-
-                    <div class="dash-hm-col-rot">
-                        <span class="dash-hm-pill @GetPillClassRotation(row.TauxRotation)">
-                            @row.TauxRotation.ToString("F0")%
-                        </span>
-                    </div>
-                </div>
-            }
-
-            <!-- Ligne TOTAL -->
-            
-                var totalClientsAg = _heatmap.Sum(r => r.ClientsGeres);
-                var totalExistAg = _heatmap.Sum(r => r.ConseillersActifs);
-                var totalCibleAg = _heatmap.Sum(r => r.ConseillersCibles);
-                var totalEtpAg = _heatmap.Sum(r => r.EtpNecessaires);
-                var avgCouv = _heatmap.Any() ? _heatmap.Average(r => r.TauxCouverture) : 0;
-                var avgConc = _heatmap.Any() ? _heatmap.Average(r => r.Concordance) : 0;
-                var avgRot = _heatmap.Any() ? _heatmap.Average(r => r.TauxRotation) : 0;
-            
-
-            <div class="dash-hm-row dash-hm-total-row">
-                <div class="dash-hm-col-nom">
-                    <span class="dash-hm-total-label">TOTAL</span>
-                </div>
-
-                <div class="dash-hm-col-volume">
-                    <span class="dash-hm-barval dash-hm-total-val">@FormatCompact(totalClientsAg)</span>
-                </div>
-
-                <div class="dash-hm-col-consei dash-hm-existant">@totalExistAg</div>
-                <div class="dash-hm-col-consei dash-hm-cible">@totalCibleAg</div>
-
-                <div class="dash-hm-col-etp">@totalEtpAg.ToString("F1")</div>
-
-                <div class="dash-hm-col-couv">
-                    <span class="dash-hm-pill @GetPillClass(avgCouv, 100, 90)">
-                        @avgCouv.ToString("F0")%
-                    </span>
-                </div>
-
-                <div class="dash-hm-col-conc">
-                    <span class="dash-hm-pill @GetPillClass(avgConc, 80, 60)">
-                        @avgConc.ToString("F0")%
-                    </span>
-                </div>
-
-                <div class="dash-hm-col-rot">
-                    <span class="dash-hm-pill @GetPillClassRotation(avgRot)">
-                        @avgRot.ToString("F0")%
-                    </span>
-                </div>
-            </div>
-        }
-    </MudPaper>
-
-    <div class="dash-footer">
-        © 2026 CA Nord de France — Pilotage réseau
-    </div>
-</div>
-
-<style>
-    /* ═══════════════════════════════════════════════════════
-       Design épuré — pas de bordures, whitespace, typography-driven
-    ═══════════════════════════════════════════════════════ */
-    .dash-page {
-        padding: 24px 32px;
-        background: #F5F7FA;
-        min-height: 100vh;
-        font-family: 'Calibri', sans-serif;
-    }
-
-    .dash-loader {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(255,255,255,0.75);
-        z-index: 9999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    /* ── En-tête ────────────────────────────────── */
-    .dash-header {
-        margin-bottom: 20px;
-    }
-
-    .dash-title {
-        font-size: 28px;
-        font-weight: 700;
-        color: #1A4E6B;
-        letter-spacing: -0.3px;
-    }
-
-    .dash-subtitle {
-        font-size: 13px;
-        color: #6C7A89;
-        margin-top: 2px;
-    }
-
-    /* ── Filtres ────────────────────────────────── */
-    .dash-filters {
-        background: white;
-        border-radius: 10px;
-        padding: 14px 18px;
-        margin-bottom: 24px;
-    }
-
-    .dash-filters-inner {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        flex-wrap: wrap;
-    }
-
-    .dash-filter-label {
-        font-size: 10px;
-        font-weight: 700;
-        color: #8A97A8;
-        letter-spacing: 2px;
-    }
-
-    /* ── KPI Grid — 6 colonnes ────────────────────── */
-    .dash-kpi-grid {
-        display: grid;
-        grid-template-columns: repeat(6, 1fr);
-        gap: 16px;
-        margin-bottom: 28px;
-    }
-
-    .dash-kpi-card {
-        background: white;
-        border-radius: 12px;
-        padding: 22px 24px;
-        transition: transform 0.15s ease;
-    }
-
-        .dash-kpi-card:hover {
-            transform: translateY(-2px);
-        }
-
-    .dash-kpi-label {
-        font-size: 11px;
-        font-weight: 600;
-        color: #8A97A8;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-        margin-bottom: 8px;
-    }
-
-    .dash-kpi-value {
-        font-size: 42px;
-        font-weight: 700;
-        line-height: 1;
-        letter-spacing: -1px;
-    }
-
-    .dash-kpi-unit {
-        font-size: 20px;
-        font-weight: 500;
-        color: #B0BAC5;
-        margin-left: 2px;
-    }
-
-    .dash-kpi-hint {
-        font-size: 11px;
-        color: #A0AAB8;
-        margin-top: 10px;
-        font-style: italic;
-    }
-
-    .dash-kpi-good     { color: #1B5E20; }
-    .dash-kpi-warn     { color: #E65100; }
-    .dash-kpi-critical { color: #C62828; }
-    .dash-kpi-neutral  { color: #1A4E6B; }
-
-    /* ── KPI en 2 colonnes verticales (Existant | Cible) ── */
-    .dash-kpi-cols {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        margin-top: 4px;
-    }
-
-    .dash-kpi-col {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-    }
-
-    .dash-kpi-col-value {
-        font-size: 32px;
-        font-weight: 700;
-        line-height: 1;
-        letter-spacing: -0.5px;
-    }
-
-    .dash-kpi-col-label {
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        margin-top: 6px;
-    }
-
-    .dash-kpi-line-existant .dash-kpi-col-value,
-    .dash-kpi-line-existant .dash-kpi-col-label {
-        color: #E65100;
-    }
-
-    .dash-kpi-line-cible .dash-kpi-col-value,
-    .dash-kpi-line-cible .dash-kpi-col-label {
-        color: #1A4E6B;
-    }
-
-    .dash-kpi-delta {
-        margin-top: 10px;
-        font-size: 12px;
-        font-weight: 700;
-        text-align: center;
-    }
-
-    .dash-delta-good     { color: #1B5E20; }
-    .dash-delta-critical { color: #C62828; }
-
-    /* ── Sections ────────────────────────────────── */
-    .dash-section-title {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        margin-bottom: 12px;
-        margin-top: 8px;
-    }
-
-    .dash-section-title span:first-child {
-        font-size: 15px;
-        font-weight: 700;
-        color: #1A4E6B;
-    }
-
-    .dash-section-hint {
-        font-size: 11px;
-        color: #8A97A8;
-        font-style: italic;
-    }
-
-    /* ═══════════════════════════════════════════════════════
-       HEATMAP AGENCES — 8 colonnes
-    ═══════════════════════════════════════════════════════ */
-    .dash-heatmap {
-        padding: 0;
-        overflow: hidden;
-        margin-bottom: 24px;
-    }
-
-    .dash-hm-header,
-    .dash-hm-row {
-        display: grid;
-        grid-template-columns: 2fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr;
-        align-items: center;
-        padding: 9px 24px;
-        gap: 16px;
-    }
-
-    .dash-hm-header {
-        font-size: 10px;
-        font-weight: 700;
-        color: #8A97A8;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-        border-bottom: 1px solid #EEF1F5;
-        background: #FAFBFC;
-    }
-
-    .dash-hm-row {
-        font-size: 13px;
-        color: #2C3E50;
-        border-bottom: 1px solid #F5F7FA;
-        transition: background 0.12s ease;
-    }
-
-        .dash-hm-row:last-child {
-            border-bottom: none;
-        }
-
-        .dash-hm-row:hover {
-            background: #FAFBFC;
-        }
-
-    .dash-hm-col-nom {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-weight: 600;
-        color: #1A4E6B;
-    }
-
-    .dash-hm-status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-
-    .dash-hm-nom {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .dash-hm-col-volume {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .dash-hm-barwrap {
-        flex: 1;
-        height: 6px;
-        background: #EEF3F7;
-        border-radius: 3px;
-        overflow: hidden;
-        max-width: 140px;
-    }
-
-    .dash-hm-bar {
-        height: 100%;
-        background: linear-gradient(90deg, #4A80B5 0%, #1A4E6B 100%);
-        border-radius: 3px;
-        transition: width 0.3s ease;
-    }
-
-    .dash-hm-barval {
-        font-size: 12px;
-        color: #6C7A89;
-        font-weight: 600;
-        min-width: 40px;
-        text-align: right;
-    }
-
-    .dash-hm-col-consei,
-    .dash-hm-col-etp {
-        text-align: center;
-        font-weight: 600;
-        color: #1A4E6B;
-    }
-
-    .dash-hm-existant {
-        color: #E65100 !important;
-        font-weight: 700;
-    }
-
-    .dash-hm-cible {
-        color: #1A4E6B !important;
-        font-weight: 700;
-    }
-
-    .dash-hm-col-couv,
-    .dash-hm-col-conc,
-    .dash-hm-col-rot {
-        text-align: center;
-    }
-
-    .dash-hm-pill {
-        display: inline-block;
-        padding: 3px 10px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: 700;
-        min-width: 42px;
-        text-align: center;
-    }
-
-    .dash-hm-pill-good     { background: #E8F5E9; color: #1B5E20; }
-    .dash-hm-pill-warn     { background: #FFF3E0; color: #E65100; }
-    .dash-hm-pill-critical { background: #FFEBEE; color: #C62828; }
-
-    /* ── Ligne TOTAL heatmap ── */
-    .dash-hm-total-row {
-        background: #DFE7F0 !important;
-        border-top: 2px solid #1A4E6B !important;
-        border-bottom: none !important;
-    }
-
-    .dash-hm-total-row:hover {
-        background: #D5DEE8 !important;
-    }
-
-    .dash-hm-total-label {
-        color: #1A4E6B;
-        font-weight: 700;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        font-size: 12px;
-    }
-
-    .dash-hm-total-val {
-        color: #1A4E6B !important;
-        font-weight: 700 !important;
-        font-size: 14px !important;
-    }
-
-    .dash-hm-total-row .dash-hm-col-etp {
-        font-size: 14px;
-    }
-
-    /* ═══════════════════════════════════════════════════════
-       Grille 2 colonnes (Répartitions + Distribution)
-    ═══════════════════════════════════════════════════════ */
-    .dash-bottom-grid {
-        display: grid;
-        grid-template-columns: 3fr 2fr;
-        gap: 16px;
-        margin-bottom: 24px;
-        align-items: start;
-    }
-
-    .dash-bottom-left {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
-
-    .dash-placeholder {
-        color: #B0BAC5;
-        text-align: center;
-        padding: 40px;
-        font-style: italic;
-        font-size: 13px;
-    }
-
-    .dash-footer {
-        text-align: center;
-        color: #A0AAB8;
-        font-size: 11px;
-        padding: 20px 0 10px;
-    }
-</style>
-
-@code {
-
-    // ── État ────────────────────────────────────────
-    private bool _isLoading = false;
-    private DashboardKpis _kpis = new();
-    private List<TerritoireRow> _heatmap = new();
-    private List<SegmentationDistributiveData> _data = new();
-    private List<SegmentationDistributiveData> _dataFiltree = new();
-    private List<SegmentRepartition> _repartition = new();
-    private List<LigneMetierRepartition> _repartitionConseillers = new();
-
-    // ── Distribution géographique ───────────────────
-    private Dictionary<string, Dictionary<string, int>> _distributionGeo = new();
-    private List<string> _regionsGeo = new();
-
-    // ── Dimension d'affichage partagée par les 3 blocs du bas ──
-    private string _dimensionAffichage = "Region";
-
-    // ── Filtres ────────────────────────────────────
-    private string? filtreRegion, filtreSecteur, filtreAgence;
-    private string? filtreRegionApplique, filtreSecteurApplique, filtreAgenceApplique;
-
-    private List<string> allRegions = new();
-    private List<string> allSecteurs = new();
-    private List<string> allAgences = new();
-
-    private bool HasPendingFilterChanges =>
-        filtreRegion  != filtreRegionApplique ||
-        filtreSecteur != filtreSecteurApplique ||
-        filtreAgence  != filtreAgenceApplique;
-
-    // ── Lifecycle ──────────────────────────────────
-    protected override async Task OnInitializedAsync()
-    {
-        _isLoading = true;
-        try
-        {
-            _data = await Http.GetFromJsonAsync<List<SegmentationDistributiveData>>(
-                "api/SegmentationDistributive") ?? new();
-
-            _dataFiltree = _data.ToList();
-
-            BuildFilterOptions();
-            RecomputeAll();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Erreur Dashboard : {ex.Message}");
-        }
-        finally
-        {
-            _isLoading = false;
-        }
-    }
-
-    // ── Recalcul global ────────────────────────────
-    private void RecomputeAll()
-    {
-        _kpis = DashboardService.ComputeGlobalKpis(_dataFiltree, StateService.Regles);
-
-        _heatmap = DashboardService.ComputeHeatmapAgences(
-            _dataFiltree, StateService.Regles);
-
-        _repartition = DashboardService.ComputeRepartitionParSegment(_dataFiltree);
-
-        _repartitionConseillers = DashboardService.ComputeRepartitionConseillers(
-            _dataFiltree, StateService.Regles);
-
-        var geoResult = DashboardService.ComputeDistributionGeographique(
-            _dataFiltree, _dimensionAffichage);
-        _distributionGeo = geoResult.Distribution;
-        _regionsGeo = geoResult.Colonnes;
-    }
-
-    // ── Changement de dimension pour la distribution géo ──
-    private void OnDimensionChanged(string dim)
-    {
-        _dimensionAffichage = dim;
-
-        var geoResult = DashboardService.ComputeDistributionGeographique(
-            _dataFiltree, _dimensionAffichage);
-        _distributionGeo = geoResult.Distribution;
-        _regionsGeo = geoResult.Colonnes;
-
-        StateHasChanged();
-    }
-
-    // ── Handlers de filtres ────────────────────────
-    private void OnRegionChanged(string? r)
-    {
-        filtreRegion = r;
-        filtreSecteur = null;
-        filtreAgence = null;
-        BuildFilterOptions();
-    }
-
-    private void OnSecteurChanged(string? s)
-    {
-        filtreSecteur = s;
-        filtreAgence = null;
-        BuildFilterOptions();
-    }
-
-    private void OnAgenceChanged(string? a)
-    {
-        filtreAgence = a;
-    }
-
-    private async Task ApplyFilters()
-    {
-        _isLoading = true;
-        StateHasChanged();
-        await Task.Delay(1);
-
-        try
-        {
-            _dataFiltree = _data
-                .Where(x => string.IsNullOrEmpty(filtreRegion)  || x.LibRegion  == filtreRegion)
-                .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
-                .Where(x => string.IsNullOrEmpty(filtreAgence)  || x.LibAgence  == filtreAgence)
-                .ToList();
-
-            filtreRegionApplique  = filtreRegion;
-            filtreSecteurApplique = filtreSecteur;
-            filtreAgenceApplique  = filtreAgence;
-
-            BuildFilterOptions();
-            RecomputeAll();
-        }
-        finally
-        {
-            _isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task ClearFilters()
-    {
-        filtreRegion = filtreSecteur = filtreAgence = null;
-        await ApplyFilters();
-    }
-
-    private void BuildFilterOptions()
-    {
-        allRegions = _data.Select(x => x.LibRegion)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
-
-        allSecteurs = _data
-            .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-            .Select(x => x.LibSecteur)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
-
-        allAgences = _data
-            .Where(x => string.IsNullOrEmpty(filtreRegion)  || x.LibRegion  == filtreRegion)
-            .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
-            .Select(x => x.LibAgence)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
-    }
-
-    // ── Helpers UI KPIs ────────────────────────────
-    private string GetKpiClass(double value, double greenThreshold, double orangeThreshold)
-    {
-        if (value >= greenThreshold)  return "dash-kpi-good";
-        if (value >= orangeThreshold) return "dash-kpi-warn";
-        return "dash-kpi-critical";
-    }
-
-    private string FormatCompact(int value)
-    {
-        if (value >= 1_000_000) return $"{value / 1_000_000.0:F1}M";
-        if (value >= 1_000)     return $"{value / 1_000.0:F0}K";
-        return value.ToString("N0");
-    }
-
-    // ── Helpers heatmap agences ────────────────────
-    private string GetHeatmapUnit() =>
-        _heatmap.Count > 1 ? "agences" : "agence";
-
-    private string GetPillClass(double value, double greenThreshold, double orangeThreshold)
-    {
-        if (value >= greenThreshold)  return "dash-hm-pill-good";
-        if (value >= orangeThreshold) return "dash-hm-pill-warn";
-        return "dash-hm-pill-critical";
-    }
-
-    /// <summary>
-    /// Code couleur du taux de rotation : logique inversée (bas = bon).
-    /// ≤10% vert · ≤20% orange · >20% rouge
-    /// </summary>
-    private string GetPillClassRotation(double value)
-    {
-        if (value <= 10) return "dash-hm-pill-good";
-        if (value <= 20) return "dash-hm-pill-warn";
-        return "dash-hm-pill-critical";
-    }
-
-    private string GetStatusColor(TerritoireRow row)
-    {
-        if (row.Concordance >= 80 && row.TauxCouverture >= 100) return "#1B5E20";
-        if (row.Concordance >= 60 && row.TauxCouverture >= 90)  return "#E65100";
-        return "#C62828";
-    }
+using Segmentation.Client.Models;
+using Segmentation.Shared.Models;
+
+namespace Segmentation.Client.Services
+{
+	/// <summary>
+	/// Service de calcul du dashboard de pilotage.
+	/// Consomme SegmentationDistributive + Règles pour produire les KPIs.
+	/// 100% calculé à la volée — pas de persistance.
+	/// </summary>
+	public class DashboardService
+	{
+		private readonly EtpConversionService _etpService;
+
+		public DashboardService(EtpConversionService etpService)
+		{
+			_etpService = etpService;
+		}
+
+		// ═══════════════════════════════════════════════════════════
+		//   KPIs GLOBAUX
+		// ═══════════════════════════════════════════════════════════
+		public DashboardKpis ComputeGlobalKpis(
+			List<SegmentationDistributiveData> data,
+			ReglesHypothesesModel? regles)
+		{
+			if (data == null || !data.Any())
+				return new DashboardKpis();
+
+			// 1. Conseillers existants (matricules distincts en poste)
+			var conseillersExistants = data
+				.Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
+				.Select(x => x.MatriculeConseiller)
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.Count();
+
+			// 2. Clients commerciaux (somme de tous les segments)
+			var clientsCommerciaux =
+				data.Sum(x => x.HDGPremiumPotentiel + x.HDGPremiumStandard
+							+ x.HDGPotentiel + x.HDGSeniorEpargnant + x.HDGStandard
+							+ x.CIPotentiel + x.CIStandard
+							+ x.GPPotentiel + x.GPStandard
+							+ x.NonSegmente + x.NonClasse);
+
+			// 3. ETP nécessaires (somme des charges théoriques par segment)
+			var etpNecessaires = ComputeTotalEtpBesoin(data);
+
+			// 4. Cible théorique de conseillers = arrondi de l'ETP nécessaire
+			var conseillersCibles = (int)Math.Round(etpNecessaires);
+
+			// 5. Taux de couverture (référence = cible théorique)
+			var tauxCouverture = conseillersCibles > 0
+				? (double)conseillersExistants / conseillersCibles * 100.0
+				: 0;
+
+			// 6. Concordance moyenne
+			var concordance = ComputeConcordanceMoyenne(data, regles);
+
+			// 7. Taux de rotation portefeuille (placeholder V1)
+			var tauxRotationPortefeuille = 12.0;
+
+			// 8. Taux de pureté des portefeuilles (existant / cible)
+			var tauxPurete = ComputeTauxPurete(data, regles);
+
+			return new DashboardKpis
+			{
+				ConseillersExistants = conseillersExistants,
+				ConseillersCibles = conseillersCibles,
+				ClientsCommerciaux = clientsCommerciaux,
+				EtpNecessaires = Math.Round(etpNecessaires, 1),
+				TauxCouverture = Math.Round(tauxCouverture, 0),
+				Concordance = Math.Round(concordance, 0),
+				TauxRotationPortefeuille = tauxRotationPortefeuille,
+				TauxPurete = Math.Round(tauxPurete, 0)
+			};
+		}
+
+		// ═══════════════════════════════════════════════════════════
+		//   HEATMAP TERRITORIALE (adaptative — legacy)
+		// ═══════════════════════════════════════════════════════════
+		public List<TerritoireRow> ComputeHeatmap(
+			List<SegmentationDistributiveData> data,
+			ReglesHypothesesModel? regles,
+			string? filtreRegion,
+			string? filtreSecteur)
+		{
+			if (data == null || !data.Any())
+				return new List<TerritoireRow>();
+
+			IEnumerable<IGrouping<string, SegmentationDistributiveData>> groupes;
+
+			if (!string.IsNullOrWhiteSpace(filtreSecteur))
+			{
+				groupes = data.GroupBy(x => x.LibAgence ?? "");
+			}
+			else if (!string.IsNullOrWhiteSpace(filtreRegion))
+			{
+				groupes = data.GroupBy(x => x.LibSecteur ?? "");
+			}
+			else
+			{
+				groupes = data.GroupBy(x => x.LibRegion ?? "");
+			}
+
+			return groupes
+				.Where(g => !string.IsNullOrWhiteSpace(g.Key))
+				.Select(g =>
+				{
+					var gData = g.ToList();
+					var kpis = ComputeGlobalKpis(gData, regles);
+
+					return new TerritoireRow
+					{
+						Nom = g.Key,
+						ClientsGeres = kpis.ClientsCommerciaux,
+						ConseillersActifs = kpis.ConseillersExistants,
+						ConseillersCibles = kpis.ConseillersCibles,
+						EtpNecessaires = kpis.EtpNecessaires,
+						TauxCouverture = kpis.TauxCouverture,
+						Concordance = kpis.Concordance,
+						TauxRotation = kpis.TauxRotationPortefeuille
+					};
+				})
+				.OrderByDescending(x => x.ClientsGeres)
+				.ToList();
+		}
+
+		// ═══════════════════════════════════════════════════════════
+		//   HEATMAP AGENCES — Vue détaillée
+		// ═══════════════════════════════════════════════════════════
+		public List<TerritoireRow> ComputeHeatmapAgences(
+			List<SegmentationDistributiveData> data,
+			ReglesHypothesesModel? regles)
+		{
+			if (data == null || !data.Any())
+				return new List<TerritoireRow>();
+
+			return data
+				.Where(x => !string.IsNullOrWhiteSpace(x.LibAgence))
+				.GroupBy(x => new { x.LibAgence, x.LibSecteur, x.LibRegion })
+				.Select(g =>
+				{
+					var gData = g.ToList();
+					var kpis = ComputeGlobalKpis(gData, regles);
+
+					return new TerritoireRow
+					{
+						Nom = g.Key.LibAgence,
+						Secteur = g.Key.LibSecteur,
+						Region = g.Key.LibRegion,
+						ClientsGeres = kpis.ClientsCommerciaux,
+						ConseillersActifs = kpis.ConseillersExistants,
+						ConseillersCibles = kpis.ConseillersCibles,
+						EtpNecessaires = kpis.EtpNecessaires,
+						TauxCouverture = kpis.TauxCouverture,
+						Concordance = kpis.Concordance,
+						TauxRotation = kpis.TauxRotationPortefeuille
+					};
+				})
+				.OrderByDescending(x => x.ClientsGeres)
+				.ToList();
+		}
+
+		// ═══════════════════════════════════════════════════════════
+		//   RÉPARTITION PAR SEGMENT
+		//   Ordre métier respecté (BP → HDG → CI → GP)
+		// ═══════════════════════════════════════════════════════════
+		public List<SegmentRepartition> ComputeRepartitionParSegment(
+			List<SegmentationDistributiveData> data)
+		{
+			if (data == null || !data.Any())
+				return new List<SegmentRepartition>();
+
+			var segmentsDef = new (string Nom, Func<SegmentationDistributiveData, int> Get)[]
+			{
+				("HDG Premium Potentiel", x => x.HDGPremiumPotentiel),
+				("HDG Premium Standard",  x => x.HDGPremiumStandard),
+				("HDG Potentiel",         x => x.HDGPotentiel),
+				("HDG Senior Epargnant",  x => x.HDGSeniorEpargnant),
+				("HDG Standard",          x => x.HDGStandard),
+				("CI Potentiel",          x => x.CIPotentiel),
+				("CI Standard",           x => x.CIStandard),
+				("GP Potentiel",          x => x.GPPotentiel),
+				("GP Standard",           x => x.GPStandard)
+			};
+
+			var totalClients = segmentsDef.Sum(s => data.Sum(x => s.Get(x)));
+			if (totalClients == 0) return new List<SegmentRepartition>();
+
+			// Ordre naturel du segmentsDef conservé (hiérarchie métier)
+			return segmentsDef
+				.Select(s =>
+				{
+					var nbClients = data.Sum(x => s.Get(x));
+
+					var chargeEtp = _etpService.GetChargeTotaleEtpForSegment(data, s.Nom) ?? 0;
+
+					var conseillersConcernes = data
+						.Where(x => s.Get(x) > 0)
+						.Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
+						.Select(x => x.MatriculeConseiller)
+						.Distinct(StringComparer.OrdinalIgnoreCase)
+						.Count();
+
+					return new SegmentRepartition
+					{
+						Segment = s.Nom,
+						NbClients = nbClients,
+						Pourcentage = Math.Round((double)nbClients / totalClients * 100, 1),
+						ChargeEtp = Math.Round(chargeEtp, 1),
+						ConseillersConcernes = conseillersConcernes
+					};
+				})
+				.Where(s => s.NbClients > 0)
+				.ToList();
+		}
+
+		// ═══════════════════════════════════════════════════════════
+		//   DISTRIBUTION GÉOGRAPHIQUE PAR SEGMENT
+		//   Segment × Dimension (Region / Secteur / Agence)
+		//   Ordre métier respecté (idem répartition par segment)
+		// ═══════════════════════════════════════════════════════════
+		public (Dictionary<string, Dictionary<string, int>> Distribution, List<string> Colonnes)
+			ComputeDistributionGeographique(
+				List<SegmentationDistributiveData> data,
+				string dimension = "Region")
+		{
+			if (data == null || !data.Any())
+				return (new(), new());
+
+			Func<SegmentationDistributiveData, string?> selector = dimension switch
+			{
+				"Secteur" => x => x.LibSecteur,
+				"Agence" => x => x.LibAgence,
+				_ => x => x.LibRegion
+			};
+
+			var colonnes = data
+				.Select(selector)
+				.Where(v => !string.IsNullOrWhiteSpace(v))
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.OrderBy(v => v)
+				.ToList()!;
+
+			var segmentsDef = new (string Nom, Func<SegmentationDistributiveData, int> Get)[]
+			{
+				("HDG Premium Potentiel", x => x.HDGPremiumPotentiel),
+				("HDG Premium Standard",  x => x.HDGPremiumStandard),
+				("HDG Potentiel",         x => x.HDGPotentiel),
+				("HDG Senior Epargnant",  x => x.HDGSeniorEpargnant),
+				("HDG Standard",          x => x.HDGStandard),
+				("CI Potentiel",          x => x.CIPotentiel),
+				("CI Standard",           x => x.CIStandard),
+				("GP Potentiel",          x => x.GPPotentiel),
+				("GP Standard",           x => x.GPStandard)
+			};
+
+			var distribution = new Dictionary<string, Dictionary<string, int>>();
+
+			foreach (var seg in segmentsDef)
+			{
+				var byCol = new Dictionary<string, int>();
+
+				foreach (var col in colonnes!)
+				{
+					var nb = data
+						.Where(x => string.Equals(selector(x), col, StringComparison.OrdinalIgnoreCase))
+						.Sum(x => seg.Get(x));
+
+					byCol[col] = nb;
+				}
+
+				distribution[seg.Nom] = byCol;
+			}
+
+			return (distribution, colonnes);
+		}
+
+		// ═══════════════════════════════════════════════════════════
+		//   TOP/FLOP AGENCES — Par concordance croissante (flop = alerte)
+		// ═══════════════════════════════════════════════════════════
+		public List<TerritoireRow> ComputeAgencesEnAlerte(
+			List<SegmentationDistributiveData> data,
+			ReglesHypothesesModel? regles,
+			int top = 5)
+		{
+			if (data == null || !data.Any())
+				return new List<TerritoireRow>();
+
+			return data
+				.GroupBy(x => new { x.LibAgence, x.LibSecteur, x.LibRegion })
+				.Where(g => !string.IsNullOrWhiteSpace(g.Key.LibAgence))
+				.Select(g =>
+				{
+					var gData = g.ToList();
+					var kpis = ComputeGlobalKpis(gData, regles);
+
+					return new TerritoireRow
+					{
+						Nom = g.Key.LibAgence,
+						Secteur = g.Key.LibSecteur,
+						Region = g.Key.LibRegion,
+						ClientsGeres = kpis.ClientsCommerciaux,
+						ConseillersActifs = kpis.ConseillersExistants,
+						ConseillersCibles = kpis.ConseillersCibles,
+						EtpNecessaires = kpis.EtpNecessaires,
+						TauxCouverture = kpis.TauxCouverture,
+						Concordance = kpis.Concordance,
+						TauxRotation = kpis.TauxRotationPortefeuille
+					};
+				})
+				.OrderBy(x => x.Concordance)
+				.Take(top)
+				.ToList();
+		}
+
+		// ═══════════════════════════════════════════════════════════
+		//   RÉPARTITION CONSEILLERS × TAILLE THÉORIQUE PORTEFEUILLE
+		//   Par ligne métier (Banque Privée / Retail) + détail profils
+		// ═══════════════════════════════════════════════════════════
+		public List<LigneMetierRepartition> ComputeRepartitionConseillers(
+			List<SegmentationDistributiveData> data,
+			ReglesHypothesesModel? regles)
+		{
+			if (data == null || !data.Any())
+				return new List<LigneMetierRepartition>();
+
+			var segmentsBP = new[] { "HDG Premium Potentiel", "HDG Premium Standard" };
+			var segmentsRetail = new[]
+			{
+				"HDG Potentiel", "HDG Senior Epargnant", "HDG Standard",
+				"CI Potentiel", "CI Standard",
+				"GP Potentiel", "GP Standard"
+			};
+
+			var profilsBP = regles?.ConseillersProfils
+				.Where(p => string.Equals(p.LigneMetier, "banque privée", StringComparison.OrdinalIgnoreCase))
+				.Select(p => p.Profil?.Trim() ?? "")
+				.Where(p => !string.IsNullOrWhiteSpace(p))
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.ToList()
+				?? new List<string>();
+
+			var profilsRetail = regles?.ConseillersProfils
+				.Where(p => string.Equals(p.LigneMetier, "retail", StringComparison.OrdinalIgnoreCase))
+				.Select(p => p.Profil?.Trim() ?? "")
+				.Where(p => !string.IsNullOrWhiteSpace(p))
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.ToList()
+				?? new List<string>();
+
+			int CountExistantByProfil(string profil) =>
+				data.Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
+					.Where(x => string.Equals(x.TypeConseiller?.Trim(), profil, StringComparison.OrdinalIgnoreCase))
+					.Select(x => x.MatriculeConseiller)
+					.Distinct(StringComparer.OrdinalIgnoreCase)
+					.Count();
+
+			var existantsBPByProfil = profilsBP
+				.ToDictionary(p => p, p => CountExistantByProfil(p), StringComparer.OrdinalIgnoreCase);
+
+			var existantsRetailByProfil = profilsRetail
+				.ToDictionary(p => p, p => CountExistantByProfil(p), StringComparer.OrdinalIgnoreCase);
+
+			var conseillersExistantsBP = existantsBPByProfil.Values.Sum();
+			var conseillersExistantsRetail = existantsRetailByProfil.Values.Sum();
+
+			var clientsBP = data.Sum(x => x.HDGPremiumPotentiel + x.HDGPremiumStandard);
+			var clientsRetail = data.Sum(x =>
+				x.HDGPotentiel + x.HDGSeniorEpargnant + x.HDGStandard
+				+ x.CIPotentiel + x.CIStandard
+				+ x.GPPotentiel + x.GPStandard);
+
+			var etpBesoinBP = segmentsBP
+				.Select(seg => _etpService.GetChargeTotaleEtpForSegment(data, seg) ?? 0)
+				.Sum();
+
+			var etpBesoinRetail = segmentsRetail
+				.Select(seg => _etpService.GetChargeTotaleEtpForSegment(data, seg) ?? 0)
+				.Sum();
+
+			var conseillersCiblesBP = (int)Math.Round(etpBesoinBP);
+			var conseillersCiblesRetail = (int)Math.Round(etpBesoinRetail);
+
+			var taillePfExistBP = conseillersExistantsBP > 0
+				? (double)clientsBP / conseillersExistantsBP : 0;
+			var taillePfCibleBP = conseillersCiblesBP > 0
+				? (double)clientsBP / conseillersCiblesBP : 0;
+
+			var taillePfExistRetail = conseillersExistantsRetail > 0
+				? (double)clientsRetail / conseillersExistantsRetail : 0;
+			var taillePfCibleRetail = conseillersCiblesRetail > 0
+				? (double)clientsRetail / conseillersCiblesRetail : 0;
+
+			List<ProfilConseillerRepartition> BuildProfilDetail(
+				List<string> profils,
+				Dictionary<string, int> existantsByProfil,
+				int totalExistant,
+				int totalCible)
+			{
+				return profils
+					.OrderBy(p => p)
+					.Select(p =>
+					{
+						var existant = existantsByProfil.GetValueOrDefault(p);
+
+						var cible = totalExistant > 0
+							? (int)Math.Round((double)existant * totalCible / totalExistant)
+							: (profils.Count > 0 ? totalCible / profils.Count : 0);
+
+						return new ProfilConseillerRepartition
+						{
+							Profil = p,
+							ConseillersExistants = existant,
+							ConseillersCibles = cible
+						};
+					})
+					.ToList();
+			}
+
+			return new List<LigneMetierRepartition>
+			{
+				new()
+				{
+					LigneMetier = "Banque Privée",
+					NbClients = clientsBP,
+					ConseillersExistants = conseillersExistantsBP,
+					ConseillersCibles = conseillersCiblesBP,
+					TaillePortefeuilleExistant = Math.Round(taillePfExistBP, 0),
+					TaillePortefeuilleCible = Math.Round(taillePfCibleBP, 0),
+					Profils = BuildProfilDetail(
+						profilsBP, existantsBPByProfil,
+						conseillersExistantsBP, conseillersCiblesBP)
+				},
+				new()
+				{
+					LigneMetier = "Retail",
+					NbClients = clientsRetail,
+					ConseillersExistants = conseillersExistantsRetail,
+					ConseillersCibles = conseillersCiblesRetail,
+					TaillePortefeuilleExistant = Math.Round(taillePfExistRetail, 0),
+					TaillePortefeuilleCible = Math.Round(taillePfCibleRetail, 0),
+					Profils = BuildProfilDetail(
+						profilsRetail, existantsRetailByProfil,
+						conseillersExistantsRetail, conseillersCiblesRetail)
+				}
+			};
+		}
+
+		// ═══════════════════════════════════════════════════════════
+		//   HELPERS PRIVÉS
+		// ═══════════════════════════════════════════════════════════
+
+		private double ComputeTotalEtpBesoin(List<SegmentationDistributiveData> data)
+		{
+			var segments = new[]
+			{
+				"HDG Premium Potentiel", "HDG Premium Standard",
+				"HDG Potentiel", "HDG Senior Epargnant", "HDG Standard",
+				"CI Potentiel", "CI Standard",
+				"GP Potentiel", "GP Standard"
+			};
+
+			var totalEtp = 0.0;
+			foreach (var seg in segments)
+			{
+				var charge = _etpService.GetChargeTotaleEtpForSegment(data, seg);
+				if (charge.HasValue) totalEtp += charge.Value;
+			}
+
+			return totalEtp;
+		}
+
+		private double ComputeConcordanceMoyenne(
+			List<SegmentationDistributiveData> data,
+			ReglesHypothesesModel? regles)
+		{
+			if (regles == null || data == null || !data.Any())
+				return 0;
+
+			var totalConseillers = data
+				.Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
+				.Select(x => x.MatriculeConseiller)
+				.Distinct()
+				.Count();
+
+			if (totalConseillers == 0) return 0;
+
+			var typesPrio = regles.ReglesAffectationSegments
+				.Where(r => !string.IsNullOrWhiteSpace(r.ConseillerPrioritaire))
+				.Select(r => r.ConseillerPrioritaire!.Trim())
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+			var conseillersConcordants = data
+				.Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
+				.Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
+				.Where(x => typesPrio.Contains(x.TypeConseiller.Trim()))
+				.Select(x => x.MatriculeConseiller)
+				.Distinct()
+				.Count();
+
+			return (double)conseillersConcordants / totalConseillers * 100.0;
+		}
+
+		/// <summary>
+		/// Taux de pureté des portefeuilles = % de clients gérés
+		/// par le profil de conseiller "prioritaire" désigné en R&H
+		/// pour leur segment distributif.
+		/// </summary>
+		private double ComputeTauxPurete(
+			List<SegmentationDistributiveData> data,
+			ReglesHypothesesModel? regles)
+		{
+			if (regles == null || data == null || !data.Any())
+				return 0;
+
+			var segmentsDef = new (string Nom, Func<SegmentationDistributiveData, int> Get)[]
+			{
+				("HDG Premium Potentiel", x => x.HDGPremiumPotentiel),
+				("HDG Premium Standard",  x => x.HDGPremiumStandard),
+				("HDG Potentiel",         x => x.HDGPotentiel),
+				("HDG Senior Epargnant",  x => x.HDGSeniorEpargnant),
+				("HDG Standard",          x => x.HDGStandard),
+				("CI Potentiel",          x => x.CIPotentiel),
+				("CI Standard",           x => x.CIStandard),
+				("GP Potentiel",          x => x.GPPotentiel),
+				("GP Standard",           x => x.GPStandard)
+			};
+
+			var totalClients = 0;
+			var clientsPurs = 0;
+
+			foreach (var seg in segmentsDef)
+			{
+				var regle = regles.ReglesAffectationSegments
+					.FirstOrDefault(r => string.Equals(
+						r.Segment?.Trim(), seg.Nom, StringComparison.OrdinalIgnoreCase));
+
+				var profilPrio = regle?.ConseillerPrioritaire?.Trim();
+				if (string.IsNullOrWhiteSpace(profilPrio)) continue;
+
+				var nbSegment = data.Sum(x => seg.Get(x));
+				var nbSurPrio = data
+					.Where(x => string.Equals(
+						x.TypeConseiller?.Trim(), profilPrio, StringComparison.OrdinalIgnoreCase))
+					.Sum(x => seg.Get(x));
+
+				totalClients += nbSegment;
+				clientsPurs += nbSurPrio;
+			}
+
+			return totalClients > 0 ? (double)clientsPurs / totalClients * 100.0 : 0;
+		}
+	}
+
+	// ═══════════════════════════════════════════════════════════════
+	//   Modèles de retour
+	// ═══════════════════════════════════════════════════════════════
+	public class DashboardKpis
+	{
+		// ── Conseillers ────────────────────────────
+		public int ConseillersExistants { get; set; }
+		public int ConseillersCibles { get; set; }
+
+		// ── Clients ────────────────────────────────
+		public int ClientsCommerciaux { get; set; }
+
+		// ── Indicateurs de performance ─────────────
+		public double EtpNecessaires { get; set; }
+		public double TauxCouverture { get; set; }
+		public double Concordance { get; set; }
+		public double TauxRotationPortefeuille { get; set; }
+		public double TauxPurete { get; set; }
+	}
+
+	public class TerritoireRow
+	{
+		public string Nom { get; set; } = "";
+		public string? Secteur { get; set; }
+		public string? Region { get; set; }
+
+		public int ClientsGeres { get; set; }
+
+		// Conseillers
+		public int ConseillersActifs { get; set; }        // = existants
+		public int ConseillersCibles { get; set; }
+
+		public double EtpNecessaires { get; set; }
+
+		// Indicateurs de performance
+		public double TauxCouverture { get; set; }
+		public double Concordance { get; set; }
+		public double TauxRotation { get; set; }
+
+		public int DeltaConseillers => ConseillersActifs - ConseillersCibles;
+	}
+
+	public class SegmentRepartition
+	{
+		public string Segment { get; set; } = "";
+		public int NbClients { get; set; }
+		public double Pourcentage { get; set; }
+
+		public double ChargeEtp { get; set; }
+		public int ConseillersConcernes { get; set; }
+	}
+
+	public class LigneMetierRepartition
+	{
+		public string LigneMetier { get; set; } = "";
+		public int NbClients { get; set; }
+
+		public int ConseillersExistants { get; set; }
+		public int ConseillersCibles { get; set; }
+
+		public double TaillePortefeuilleExistant { get; set; }
+		public double TaillePortefeuilleCible { get; set; }
+
+		public List<ProfilConseillerRepartition> Profils { get; set; } = new();
+
+		public int DeltaConseillers => ConseillersExistants - ConseillersCibles;
+		public double DeltaTaillePortefeuille => TaillePortefeuilleExistant - TaillePortefeuilleCible;
+	}
+
+	public class ProfilConseillerRepartition
+	{
+		public string Profil { get; set; } = "";
+		public int ConseillersExistants { get; set; }
+		public int ConseillersCibles { get; set; }
+		public int DeltaConseillers => ConseillersExistants - ConseillersCibles;
+	}
 }
