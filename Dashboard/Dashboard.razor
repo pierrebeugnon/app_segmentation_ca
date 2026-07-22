@@ -94,7 +94,7 @@
             <div class="dash-kpi-hint">Référence de dimensionnement</div>
         </div>
 
-        <!-- KPI 2 — Nombre de conseillers (Existant / Cible sur 2 lignes compactes) -->
+        <!-- KPI 2 — Nombre de conseillers -->
         <div class="dash-kpi-card">
             <div class="dash-kpi-label">Nombre de conseillers</div>
 
@@ -157,8 +157,6 @@
 
     <!-- ═══════════════════════════════════════════════════════
          ZONE 3 — HEATMAP TERRITORIALE
-         Nouvelles colonnes : Cons. existants / Cons. cibles / Rotation
-         Colonne Statut supprimée
     ═══════════════════════════════════════════════════════ -->
     <div class="dash-section-title">
         <span>Vision territoriale</span>
@@ -233,12 +231,20 @@
     </MudPaper>
 
     <!-- ═══════════════════════════════════════════════════════
-         ZONE 4 + 5 — Répartition + Répartition Conseillers
+         ZONE 4 + 5 — Grille 2 colonnes
+         Colonne gauche : Répartition segment + Distribution géo empilés
+         Colonne droite : Répartition conseillers (haute)
     ═══════════════════════════════════════════════════════ -->
     <div class="dash-bottom-grid">
 
-        <DashboardRepartitionSegment Repartition="@_repartition" />
+        <!-- Colonne gauche : 2 blocs empilés -->
+        <div class="dash-bottom-left">
+            <DashboardRepartitionSegment Repartition="@_repartition" />
+            <DashboardDistributionGeographique Distribution="@_distributionGeo"
+                                                Regions="@_regionsGeo" />
+        </div>
 
+        <!-- Colonne droite : Conseillers × Taille portefeuille -->
         <DashboardRepartitionConseillers Repartition="@_repartitionConseillers" />
 
     </div>
@@ -435,7 +441,6 @@
 
     /* ═══════════════════════════════════════════════════════
        HEATMAP TERRITORIALE — 8 colonnes
-       Nom | Volume | Existants | Cibles | ETP | Couv | Conc | Rotation
     ═══════════════════════════════════════════════════════ */
     .dash-heatmap {
         padding: 0;
@@ -469,13 +474,13 @@
         transition: background 0.12s ease;
     }
 
-    .dash-hm-row:last-child {
-        border-bottom: none;
-    }
+        .dash-hm-row:last-child {
+            border-bottom: none;
+        }
 
-    .dash-hm-row:hover {
-        background: #FAFBFC;
-    }
+        .dash-hm-row:hover {
+            background: #FAFBFC;
+        }
 
     .dash-hm-col-nom {
         display: flex;
@@ -535,7 +540,6 @@
         color: #1A4E6B;
     }
 
-    /* Charte Portefeuille : Existants en orange, Cibles en bleu */
     .dash-hm-existant {
         color: #E65100 !important;
         font-weight: 700;
@@ -566,19 +570,22 @@
     .dash-hm-pill-warn     { background: #FFF3E0; color: #E65100; }
     .dash-hm-pill-critical { background: #FFEBEE; color: #C62828; }
 
-    /* ── Zone 4 + 5 ────────────────── */
+    /* ═══════════════════════════════════════════════════════
+       ZONE 4 + 5 — Grille 2 colonnes avec bloc gauche empilé
+    ═══════════════════════════════════════════════════════ */
     .dash-bottom-grid {
         display: grid;
         grid-template-columns: 3fr 2fr;
         gap: 16px;
         margin-bottom: 24px;
+        align-items: start;
     }
 
-    .dash-repartition, .dash-alerte {
-        background: white;
-        border-radius: 12px;
-        padding: 20px 24px;
-        min-height: 300px;
+    /* Colonne gauche : 2 blocs empilés verticalement */
+    .dash-bottom-left {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
     }
 
     .dash-placeholder {
@@ -607,6 +614,10 @@
     private List<SegmentationDistributiveData> _dataFiltree = new();
     private List<SegmentRepartition> _repartition = new();
     private List<LigneMetierRepartition> _repartitionConseillers = new();
+
+    // ── Distribution géographique ───────────────────
+    private Dictionary<string, Dictionary<string, int>> _distributionGeo = new();
+    private List<string> _regionsGeo = new();
 
     // ── Filtres ────────────────────────────────────
     private string? filtreRegion, filtreSecteur, filtreAgence;
@@ -660,6 +671,11 @@
 
         _repartitionConseillers = DashboardService.ComputeRepartitionConseillers(
             _dataFiltree, StateService.Regles);
+
+        // Distribution géographique
+        var geoResult = DashboardService.ComputeDistributionGeographique(_dataFiltree);
+        _distributionGeo = geoResult.Distribution;
+        _regionsGeo = geoResult.Regions;
     }
 
     // ── Handlers de filtres ────────────────────────
