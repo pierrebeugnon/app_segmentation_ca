@@ -1,9 +1,64 @@
-[Parameter] public string Dimension { get; set; } = "Region";
-[Parameter] public EventCallback<string> DimensionChanged { get; set; }
+/* ═══════════════════════════════════════════════════════
+   Design tokens CA NDF
+═══════════════════════════════════════════════════════ */
+:root {
+    --ca-navy-dark:   #0A2540;
+    --ca-navy:        #1A4E6B;
+    --ca-blue:        #4A80B5;
+    --ca-blue-light:  #5CA6D9;
 
-private async Task Switch(string dim)
-{
-    if (dim == Dimension) return;
-    Dimension = dim;
-    await DimensionChanged.InvokeAsync(dim);
+    --ca-orange:      #E65100;
+    --ca-green:       #1B5E20;
+    --ca-red:         #C62828;
+
+    --ca-text:        #2C3E50;
+    --ca-text-muted:  #6C7A89;
+    --ca-text-soft:   #8A97A8;
+
+    --ca-bg:          #F5F7FA;
+    --ca-bg-alt:      #FAFBFC;
+    --ca-border:      #EEF1F5;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Composants partagés du Dashboard
+═══════════════════════════════════════════════════════ */
+
+/* ── Tag switcher (utilisé dans les 3 composants dashboard) ── */
+.dash-dim-tags {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.dash-dim-tag {
+    background: #F0F3F7;
+    color: #6C7A89;
+    border: none;
+    padding: 4px 12px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.dash-dim-tag:hover {
+    background: #E1E7EF;
+}
+
+.dash-dim-tag.active {
+    background: #1A4E6B;
+    color: white;
+}
+
+/* ── Placeholder générique ── */
+.dash-placeholder {
+    color: #B0BAC5;
+    text-align: center;
+    padding: 40px;
+    font-style: italic;
+    font-size: 13px;
 }
