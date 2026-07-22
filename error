@@ -1,56 +1,9 @@
-public (Dictionary<string, Dictionary<string, int>> Distribution, List<string> Colonnes)
-    ComputeDistributionGeographique(
-        List<SegmentationDistributiveData> data,
-        string dimension = "Region")
-{
-    if (data == null || !data.Any())
-        return (new(), new());
 
-    // Sélection de l'accesseur selon la dimension
-    Func<SegmentationDistributiveData, string?> selector = dimension switch
-    {
-        "Secteur" => x => x.LibSecteur,
-        "Agence"  => x => x.LibAgence,
-        _         => x => x.LibRegion
-    };
-
-    var colonnes = data
-        .Select(selector)
-        .Where(v => !string.IsNullOrWhiteSpace(v))
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .OrderBy(v => v)
-        .ToList()!;
-
-    var segmentsDef = new (string Nom, Func<SegmentationDistributiveData, int> Get)[]
-    {
-        ("HDG Premium Potentiel", x => x.HDGPremiumPotentiel),
-        ("HDG Premium Standard",  x => x.HDGPremiumStandard),
-        ("HDG Potentiel",         x => x.HDGPotentiel),
-        ("HDG Senior Epargnant",  x => x.HDGSeniorEpargnant),
-        ("HDG Standard",          x => x.HDGStandard),
-        ("CI Potentiel",          x => x.CIPotentiel),
-        ("CI Standard",           x => x.CIStandard),
-        ("GP Potentiel",          x => x.GPPotentiel),
-        ("GP Standard",           x => x.GPStandard)
-    };
-
-    var distribution = new Dictionary<string, Dictionary<string, int>>();
-
-    foreach (var seg in segmentsDef)
-    {
-        var byCol = new Dictionary<string, int>();
-
-        foreach (var col in colonnes!)
-        {
-            var nb = data
-                .Where(x => string.Equals(selector(x), col, StringComparison.OrdinalIgnoreCase))
-                .Sum(x => seg.Get(x));
-
-            byCol[col] = nb;
-        }
-
-        distribution[seg.Nom] = byCol;
-    }
-
-    return (distribution, colonnes);
-}
+<div class="dash-dim-tags">
+    <button class="dash-dim-tag @(Dimension == "Region" ? "active" : "")"
+            @onclick="@(() => Switch("Region"))">Région</button>
+    <button class="dash-dim-tag @(Dimension == "Secteur" ? "active" : "")"
+            @onclick="@(() => Switch("Secteur"))">Secteur</button>
+    <button class="dash-dim-tag @(Dimension == "Agence" ? "active" : "")"
+            @onclick="@(() => Switch("Agence"))">Agence</button>
+</div>
