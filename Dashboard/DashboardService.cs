@@ -59,6 +59,10 @@ namespace Segmentation.Client.Services
             // 7. Taux de rotation portefeuille (placeholder V1)
             var tauxRotationPortefeuille = 12.0;
 
+            // 8. Taux de pureté des portefeuilles (existant / cible)
+            //    = % de clients gérés par le profil "prioritaire" désigné en R&H
+            var tauxPurete = ComputeTauxPurete(data, regles);
+
             return new DashboardKpis
             {
                 ConseillersExistants     = conseillersExistants,
@@ -67,16 +71,15 @@ namespace Segmentation.Client.Services
                 EtpNecessaires           = Math.Round(etpNecessaires, 1),
                 TauxCouverture           = Math.Round(tauxCouverture, 0),
                 Concordance              = Math.Round(concordance, 0),
-                TauxRotationPortefeuille = tauxRotationPortefeuille
+                TauxRotationPortefeuille = tauxRotationPortefeuille,
+                TauxPurete               = Math.Round(tauxPurete, 0)
             };
         }
 
         // ═══════════════════════════════════════════════════════════
-        //   HEATMAP TERRITORIALE
-        //   Adaptative selon le niveau filtré :
-        //   - Aucun filtre → grille par région
-        //   - Filtre région → grille par secteur
-        //   - Filtre secteur → grille par agence
+        //   HEATMAP TERRITORIALE (adaptative — legacy)
+        //   Utilisée si on veut afficher région/secteur/agence
+        //   selon les filtres appliqués.
         // ═══════════════════════════════════════════════════════════
         public List<TerritoireRow> ComputeHeatmap(
             List<SegmentationDistributiveData> data,
@@ -126,8 +129,45 @@ namespace Segmentation.Client.Services
         }
 
         // ═══════════════════════════════════════════════════════════
-        //   RÉPARTITION PAR SEGMENT
-        //   Enrichi avec : ChargeEtp + ConseillersConcernes
+        //   HEATMAP AGENCES — Vue détaillée (nouveau)
+        //   Toujours au niveau agence, quels que soient les filtres.
+        //   Les filtres Région/Secteur zooment le périmètre affiché.
+        // ═══════════════════════════════════════════════════════════
+        public List<TerritoireRow> ComputeHeatmapAgences(
+            List<SegmentationDistributiveData> data,
+            ReglesHypothesesModel? regles)
+        {
+            if (data == null || !data.Any())
+                return new List<TerritoireRow>();
+
+            return data
+                .Where(x => !string.IsNullOrWhiteSpace(x.LibAgence))
+                .GroupBy(x => new { x.LibAgence, x.LibSecteur, x.LibRegion })
+                .Select(g =>
+                {
+                    var gData = g.ToList();
+                    var kpis = ComputeGlobalKpis(gData, regles);
+
+                    return new TerritoireRow
+                    {
+                        Nom               = g.Key.LibAgence,
+                        Secteur           = g.Key.LibSecteur,
+                        Region            = g.Key.LibRegion,
+                        ClientsGeres      = kpis.ClientsCommerciaux,
+                        ConseillersActifs = kpis.ConseillersExistants,
+                        ConseillersCibles = kpis.ConseillersCibles,
+                        EtpNecessaires    = kpis.EtpNecessaires,
+                        TauxCouverture    = kpis.TauxCouverture,
+                        Concordance       = kpis.Concordance,
+                        TauxRotation      = kpis.TauxRotationPortefeuille
+                    };
+                })
+                .OrderByDescending(x => x.ClientsGeres)
+                .ToList();
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        //   RÉPARTITION PAR SEGMENT (enrichie : ETP + Conseillers)
         // ═══════════════════════════════════════════════════════════
         public List<SegmentRepartition> ComputeRepartitionParSegment(
             List<SegmentationDistributiveData> data)
@@ -156,10 +196,8 @@ namespace Segmentation.Client.Services
                 {
                     var nbClients = data.Sum(x => s.Get(x));
 
-                    // Charge ETP totale du segment
                     var chargeEtp = _etpService.GetChargeTotaleEtpForSegment(data, s.Nom) ?? 0;
 
-                    // Nb de conseillers ayant au moins 1 client du segment (matricules distincts)
                     var conseillersConcernes = data
                         .Where(x => s.Get(x) > 0)
                         .Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
@@ -183,20 +221,29 @@ namespace Segmentation.Client.Services
 
         // ═══════════════════════════════════════════════════════════
         //   DISTRIBUTION GÉOGRAPHIQUE PAR SEGMENT
-        //   Retourne : Segment → Région → NbClients + liste des régions
+        //   Segment × Dimension (Region / Secteur / Agence)
         // ═══════════════════════════════════════════════════════════
-        public (Dictionary<string, Dictionary<string, int>> Distribution, List<string> Regions)
-            ComputeDistributionGeographique(List<SegmentationDistributiveData> data)
+        public (Dictionary<string, Dictionary<string, int>> Distribution, List<string> Colonnes)
+            ComputeDistributionGeographique(
+                List<SegmentationDistributiveData> data,
+                string dimension = "Region")
         {
             if (data == null || !data.Any())
                 return (new(), new());
 
-            var regions = data
-                .Select(x => x.LibRegion ?? "")
-                .Where(r => !string.IsNullOrWhiteSpace(r))
+            Func<SegmentationDistributiveData, string?> selector = dimension switch
+            {
+                "Secteur" => x => x.LibSecteur,
+                "Agence"  => x => x.LibAgence,
+                _         => x => x.LibRegion
+            };
+
+            var colonnes = data
+                .Select(selector)
+                .Where(v => !string.IsNullOrWhiteSpace(v))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(r => r)
-                .ToList();
+                .OrderBy(v => v)
+                .ToList()!;
 
             var segmentsDef = new (string Nom, Func<SegmentationDistributiveData, int> Get)[]
             {
@@ -215,21 +262,21 @@ namespace Segmentation.Client.Services
 
             foreach (var seg in segmentsDef)
             {
-                var byRegion = new Dictionary<string, int>();
+                var byCol = new Dictionary<string, int>();
 
-                foreach (var region in regions)
+                foreach (var col in colonnes!)
                 {
                     var nb = data
-                        .Where(x => string.Equals(x.LibRegion, region, StringComparison.OrdinalIgnoreCase))
+                        .Where(x => string.Equals(selector(x), col, StringComparison.OrdinalIgnoreCase))
                         .Sum(x => seg.Get(x));
 
-                    byRegion[region] = nb;
+                    byCol[col] = nb;
                 }
 
-                distribution[seg.Nom] = byRegion;
+                distribution[seg.Nom] = byCol;
             }
 
-            return (distribution, regions);
+            return (distribution, colonnes);
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -458,6 +505,56 @@ namespace Segmentation.Client.Services
 
             return (double)conseillersConcordants / totalConseillers * 100.0;
         }
+
+        /// <summary>
+        /// Taux de pureté des portefeuilles = % de clients gérés
+        /// par le profil de conseiller "prioritaire" désigné en R&H
+        /// pour leur segment distributif.
+        /// </summary>
+        private double ComputeTauxPurete(
+            List<SegmentationDistributiveData> data,
+            ReglesHypothesesModel? regles)
+        {
+            if (regles == null || data == null || !data.Any())
+                return 0;
+
+            var segmentsDef = new (string Nom, Func<SegmentationDistributiveData, int> Get)[]
+            {
+                ("HDG Premium Potentiel", x => x.HDGPremiumPotentiel),
+                ("HDG Premium Standard",  x => x.HDGPremiumStandard),
+                ("HDG Potentiel",         x => x.HDGPotentiel),
+                ("HDG Senior Epargnant",  x => x.HDGSeniorEpargnant),
+                ("HDG Standard",          x => x.HDGStandard),
+                ("CI Potentiel",          x => x.CIPotentiel),
+                ("CI Standard",           x => x.CIStandard),
+                ("GP Potentiel",          x => x.GPPotentiel),
+                ("GP Standard",           x => x.GPStandard)
+            };
+
+            var totalClients = 0;
+            var clientsPurs  = 0;
+
+            foreach (var seg in segmentsDef)
+            {
+                var regle = regles.ReglesAffectationSegments
+                    .FirstOrDefault(r => string.Equals(
+                        r.Segment?.Trim(), seg.Nom, StringComparison.OrdinalIgnoreCase));
+
+                var profilPrio = regle?.ConseillerPrioritaire?.Trim();
+                if (string.IsNullOrWhiteSpace(profilPrio)) continue;
+
+                var nbSegment = data.Sum(x => seg.Get(x));
+                var nbSurPrio = data
+                    .Where(x => string.Equals(
+                        x.TypeConseiller?.Trim(), profilPrio, StringComparison.OrdinalIgnoreCase))
+                    .Sum(x => seg.Get(x));
+
+                totalClients += nbSegment;
+                clientsPurs  += nbSurPrio;
+            }
+
+            return totalClients > 0 ? (double)clientsPurs / totalClients * 100.0 : 0;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -477,6 +574,7 @@ namespace Segmentation.Client.Services
         public double TauxCouverture { get; set; }
         public double Concordance { get; set; }
         public double TauxRotationPortefeuille { get; set; }
+        public double TauxPurete { get; set; }
     }
 
     public class TerritoireRow
@@ -507,7 +605,6 @@ namespace Segmentation.Client.Services
         public int NbClients { get; set; }
         public double Pourcentage { get; set; }
 
-        // ── Enrichissement ───────────────────────────
         public double ChargeEtp { get; set; }
         public int ConseillersConcernes { get; set; }
     }
