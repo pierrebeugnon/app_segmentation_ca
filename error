@@ -1,7 +1,37 @@
-// Charges manuelles par segment (avec règles métier)
-// - "À transférer à la BP"           → HDG Premium uniquement
-// - "Reçue de la BP"                 → Tout sauf HDG Premium
-// - "À transférer en pf mutualisé"   → GP Standard uniquement
-private Dictionary<string, double?> _chargeATransfererBP        = new(StringComparer.OrdinalIgnoreCase);
-private Dictionary<string, double?> _chargeRecueBP              = new(StringComparer.OrdinalIgnoreCase);
-private Dictionary<string, double?> _chargeATransfererMutualise = new(StringComparer.OrdinalIgnoreCase);
+/// <summary>
+/// Charge Totale ETP par segment ajustée :
+/// (originale − à transférer BP) + (reçue BP − à transférer mutualisé)
+/// </summary>
+private double? GetChargeTotaleAffichee(DimMatrixRow row)
+{
+    if (row.IsTotal) return null;
+
+    var original = GetRowExistantTotal(row) ?? 0;
+    var transBP  = _chargeATransfererBP.GetValueOrDefault(row.Segment)        ?? 0;
+    var recueBP  = _chargeRecueBP.GetValueOrDefault(row.Segment)              ?? 0;
+    var transMut = _chargeATransfererMutualise.GetValueOrDefault(row.Segment) ?? 0;
+
+    return (original - transBP) + (recueBP - transMut);
+}
+
+private double GetTotalATransfererBP() =>
+    _chargeATransfererBP.Values.Where(v => v.HasValue).Sum(v => v!.Value);
+
+private double GetTotalRecueBP() =>
+    _chargeRecueBP.Values.Where(v => v.HasValue).Sum(v => v!.Value);
+
+private double GetTotalATransfererMutualise() =>
+    _chargeATransfererMutualise.Values.Where(v => v.HasValue).Sum(v => v!.Value);
+
+// ── Helpers de règles métier par segment ───────────────────────
+private static bool IsHdgPremium(string? segment) =>
+    !string.IsNullOrWhiteSpace(segment) &&
+    segment.Contains("Premium", StringComparison.OrdinalIgnoreCase);
+
+private static bool IsGpStandard(string? segment) =>
+    string.Equals(segment?.Trim(), "GP Standard", StringComparison.OrdinalIgnoreCase);
+
+private static bool IsSegmentActionnable(string? segment) =>
+    !string.IsNullOrWhiteSpace(segment) &&
+    !string.Equals(segment.Trim(), "Non segmenté", StringComparison.OrdinalIgnoreCase) &&
+    !string.Equals(segment.Trim(), "Non classé", StringComparison.OrdinalIgnoreCase);
