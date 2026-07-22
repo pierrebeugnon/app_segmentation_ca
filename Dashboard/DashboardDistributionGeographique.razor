@@ -1,12 +1,23 @@
 @using Segmentation.Client.Services
 
 <MudPaper Elevation="0" Class="dash-dg-card">
+
     <div class="dash-section-title">
         <span>Distribution géographique par segment</span>
-        <span class="dash-section-hint">@Regions.Count régions</span>
+        <span class="dash-section-hint">Vue par @LabelDim() — @Colonnes.Count colonnes</span>
     </div>
 
-    @if (Distribution == null || !Distribution.Any() || !Regions.Any())
+    <!-- ── Tag switcher ── -->
+    <div class="dash-dim-tags">
+        <button class="dash-dim-tag @(Dimension == "Region" ? "active" : "")"
+                @onclick="@(() => Switch("Region"))">Région</button>
+        <button class="dash-dim-tag @(Dimension == "Secteur" ? "active" : "")"
+                @onclick="@(() => Switch("Secteur"))">Secteur</button>
+        <button class="dash-dim-tag @(Dimension == "Agence" ? "active" : "")"
+                @onclick="@(() => Switch("Agence"))">Agence</button>
+    </div>
+
+    @if (Distribution == null || !Distribution.Any() || !Colonnes.Any())
     {
         <div class="dash-placeholder">Aucune donnée disponible</div>
     }
@@ -17,9 +28,9 @@
                 <thead>
                     <tr>
                         <th class="dash-dg-col-segment">Segment</th>
-                        @foreach (var r in Regions)
+                        @foreach (var c in Colonnes)
                         {
-                            <th class="dash-dg-col-region" title="@r">@Abrege(r)</th>
+                            <th class="dash-dg-col-region" title="@c">@Abrege(c)</th>
                         }
                         <th class="dash-dg-col-total">Total</th>
                     </tr>
@@ -31,12 +42,10 @@
                         var maxVal = row.Value.Values.DefaultIfEmpty(0).Max();
 
                         <tr>
-                            <td class="dash-dg-col-segment dash-dg-seg-label">
-                                @row.Key
-                            </td>
-                            @foreach (var r in Regions)
+                            <td class="dash-dg-col-segment dash-dg-seg-label">@row.Key</td>
+                            @foreach (var c in Colonnes)
                             {
-                                var val = row.Value.GetValueOrDefault(r, 0);
+                                var val = row.Value.GetValueOrDefault(c, 0);
                                 var intensity = maxVal > 0 ? val * 100.0 / maxVal : 0;
                                 <td class="dash-dg-cell" style="@GetCellStyle(intensity)">
                                     @(val > 0 ? FormatCompact(val) : "—")
@@ -77,6 +86,36 @@
         font-style: italic;
     }
 
+    /* ── Tag switcher ── */
+    .dash-dim-tags {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 12px;
+    }
+
+    .dash-dim-tag {
+        background: #F0F3F7;
+        color: #6C7A89;
+        border: none;
+        padding: 4px 12px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .dash-dim-tag:hover {
+        background: #E1E7EF;
+    }
+
+    .dash-dim-tag.active {
+        background: #1A4E6B;
+        color: white;
+    }
+
     .dash-dg-tablewrap {
         overflow-x: auto;
     }
@@ -105,8 +144,9 @@
     }
 
     .dash-dg-col-total {
-        color: #1A4E6B !important;
         background: #F7FBFE;
+        font-weight: 700;
+        color: #1A4E6B !important;
     }
 
     .dash-dg-table tbody tr {
@@ -119,7 +159,7 @@
     }
 
     .dash-dg-table tbody td {
-        padding: 5px 4px;
+        padding: 9px 4px;
         font-size: 11px;
         text-align: center;
         color: #2C3E50;
@@ -141,11 +181,6 @@
         border-radius: 3px;
     }
 
-    .dash-dg-col-total {
-        font-weight: 700;
-        color: #1A4E6B;
-    }
-
     .dash-dg-card .dash-placeholder {
         color: #B0BAC5;
         text-align: center;
@@ -156,23 +191,28 @@
 </style>
 
 @code {
-    /// <summary>
-    /// Distribution : Segment → Région → NbClients
-    /// </summary>
-    [Parameter]
-    public Dictionary<string, Dictionary<string, int>>? Distribution { get; set; }
+    [Parameter] public Dictionary<string, Dictionary<string, int>>? Distribution { get; set; }
+    [Parameter] public List<string> Colonnes { get; set; } = new();
+    [Parameter] public string Dimension { get; set; } = "Region";
+    [Parameter] public EventCallback<string> DimensionChanged { get; set; }
 
-    [Parameter]
-    public List<string> Regions { get; set; } = new();
+    private async Task Switch(string dim)
+    {
+        if (dim == Dimension) return;
+        Dimension = dim;
+        await DimensionChanged.InvokeAsync(dim);
+    }
 
-    /// <summary>
-    /// Style de fond bleu selon l'intensité (heatmap).
-    /// </summary>
+    private string LabelDim() => Dimension switch
+    {
+        "Secteur" => "secteur",
+        "Agence"  => "agence",
+        _         => "région"
+    };
+
     private string GetCellStyle(double intensity)
     {
         if (intensity <= 0) return "color:#C5CBD3";
-
-        // Dégradé bleu : 0 (blanc) → 100 (bleu foncé)
         var opacity = intensity / 100.0 * 0.7;
         return $"background:rgba(74,128,181,{opacity.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)});color:{(intensity > 50 ? "#0A2540" : "#1A4E6B")}";
     }
