@@ -2,6 +2,11 @@
 
 <MudPaper Elevation="0" Class="dash-repartition">
 
+    <div class="dash-section-title">
+        <span>Volume clients par segment distributif</span>
+        <span class="dash-section-hint">Par ligne métier</span>
+    </div>
+
     <div class="dash-dim-tags">
         <button class="dash-dim-tag @(Dimension == "Region" ? "active" : "")"
                 @onclick="@(() => Switch("Region"))">
@@ -37,6 +42,7 @@
                 <div>Cons.</div>
             </div>
 
+            <!-- Lignes segments -->
             @foreach (var seg in Repartition)
             {
                 var barWidth = maxRep > 0 ? seg.NbClients * 100.0 / maxRep : 0;
@@ -55,6 +61,22 @@
                     <div class="dash-rep-cons">@seg.ConseillersConcernes</div>
                 </div>
             }
+
+            <!-- Ligne TOTAL -->
+            @{
+                var totalClients = Repartition.Sum(s => s.NbClients);
+                var totalEtp = Repartition.Sum(s => s.ChargeEtp);
+                var totalCons = Repartition.Sum(s => s.ConseillersConcernes);
+            }
+
+            <div class="dash-rep-row dash-rep-total">
+                <div class="dash-rep-label">Total</div>
+                <div></div>
+                <div class="dash-rep-val">@FormatCompact(totalClients)</div>
+                <div class="dash-rep-pct">100%</div>
+                <div class="dash-rep-etp">@totalEtp.ToString("F1")</div>
+                <div class="dash-rep-cons">@totalCons</div>
+            </div>
         </div>
     }
 </MudPaper>
@@ -67,24 +89,24 @@
         min-height: 300px;
     }
 
-        .dash-repartition .dash-section-title {
-            display: flex;
-            align-items: baseline;
-            justify-content: space-between;
-            margin-bottom: 16px;
-        }
+    .dash-repartition .dash-section-title {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
 
-            .dash-repartition .dash-section-title span:first-child {
-                font-size: 15px;
-                font-weight: 700;
-                color: #1A4E6B;
-            }
+    .dash-repartition .dash-section-title span:first-child {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1A4E6B;
+    }
 
-        .dash-repartition .dash-section-hint {
-            font-size: 11px;
-            color: #8A97A8;
-            font-style: italic;
-        }
+    .dash-repartition .dash-section-hint {
+        font-size: 11px;
+        color: #8A97A8;
+        font-style: italic;
+    }
 
     .dash-rep-list {
         display: flex;
@@ -113,14 +135,14 @@
         transition: all 0.15s ease;
     }
 
-        .dash-dim-tag:hover {
-            background: #E1E7EF;
-        }
+    .dash-dim-tag:hover {
+        background: #E1E7EF;
+    }
 
-        .dash-dim-tag.active {
-            background: #1A4E6B;
-            color: white;
-        }
+    .dash-dim-tag.active {
+        background: #1A4E6B;
+        color: white;
+    }
 
     .dash-rep-header,
     .dash-rep-row {
@@ -140,12 +162,12 @@
         border-bottom: 1px solid #EEF1F5;
     }
 
-        .dash-rep-header div:nth-child(3),
-        .dash-rep-header div:nth-child(4),
-        .dash-rep-header div:nth-child(5),
-        .dash-rep-header div:nth-child(6) {
-            text-align: right;
-        }
+    .dash-rep-header div:nth-child(3),
+    .dash-rep-header div:nth-child(4),
+    .dash-rep-header div:nth-child(5),
+    .dash-rep-header div:nth-child(6) {
+        text-align: right;
+    }
 
     .dash-rep-label {
         font-size: 12px;
@@ -178,20 +200,34 @@
         font-weight: 700;
     }
 
-    .dash-rep-val {
+    .dash-rep-val  { color: #1A4E6B; }
+    .dash-rep-pct  { color: #8A97A8; }
+    .dash-rep-etp  { color: #E65100; }
+    .dash-rep-cons { color: #1A4E6B; }
+
+    /* ── Ligne TOTAL ── */
+    .dash-rep-total {
+        border-top: 2px solid #1A4E6B;
+        background: #F7FBFE;
+        border-radius: 4px;
+        padding: 8px 6px;
+        margin-top: 4px;
+    }
+
+    .dash-rep-total .dash-rep-label {
+        font-weight: 700;
         color: #1A4E6B;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 11px;
     }
 
-    .dash-rep-pct {
-        color: #8A97A8;
-    }
-
-    .dash-rep-etp {
-        color: #E65100;
-    }
-
-    .dash-rep-cons {
-        color: #1A4E6B;
+    .dash-rep-total .dash-rep-val,
+    .dash-rep-total .dash-rep-pct,
+    .dash-rep-total .dash-rep-etp,
+    .dash-rep-total .dash-rep-cons {
+        font-size: 13px;
+        font-weight: 700;
     }
 
     .dash-repartition .dash-placeholder {
@@ -233,7 +269,7 @@
     private string FormatCompact(int value)
     {
         if (value >= 1_000_000) return $"{value / 1_000_000.0:F1}M";
-        if (value >= 1_000) return $"{value / 1_000.0:F0}K";
+        if (value >= 1_000)     return $"{value / 1_000.0:F0}K";
         return value.ToString("N0");
     }
 }
