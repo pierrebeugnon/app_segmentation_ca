@@ -1,0 +1,100 @@
+/* ═══════════════════════════════════════════════════════
+   Distribution géographique par segment (heatmap tableau)
+═══════════════════════════════════════════════════════ */
+.dash-dg-card {
+    background: white;
+    border-radius: 12px;
+    padding: 14px 18px;
+}
+
+.dash-dg-card .dash-section-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.dash-dg-card .dash-section-title span:first-child {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1A4E6B;
+}
+
+.dash-dg-card .dash-section-hint {
+    font-size: 11px;
+    color: #8A97A8;
+    font-style: italic;
+}
+
+.dash-dg-tablewrap {
+    overflow-x: auto;
+}
+
+.dash-dg-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Calibri', sans-serif;
+}
+
+.dash-dg-table th {
+    font-size: 9px;
+    font-weight: 700;
+    color: #8A97A8;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    padding: 6px 4px;
+    border-bottom: 1px solid #EEF1F5;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.dash-dg-col-segment {
+    text-align: left !important;
+    padding-left: 4px !important;
+}
+
+.dash-dg-col-total {
+    background: #F7FBFE;
+    font-weight: 700;
+    color: #1A4E6B !important;
+}
+
+.dash-dg-table tbody tr {
+    border-bottom: 1px solid #F5F7FA;
+    transition: background 0.12s ease;
+}
+
+.dash-dg-table tbody tr:hover {
+    background: #FAFBFC;
+}
+
+.dash-dg-table tbody td {
+    padding: 9px 4px;
+    font-size: 11px;
+    text-align: center;
+    color: #2C3E50;
+}
+
+.dash-dg-seg-label {
+    text-align: left !important;
+    font-weight: 600;
+    color: #1A4E6B;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 140px;
+}
+
+.dash-dg-cell {
+    font-weight: 600;
+    border-radius: 3px;
+}
+
+.dash-dg-card .dash-placeholder {
+    color: #B0BAC5;
+    text-align: center;
+    padding: 30px;
+    font-style: italic;
+    font-size: 12px;
+}
