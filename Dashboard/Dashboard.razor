@@ -94,7 +94,7 @@
             <div class="dash-kpi-hint">Référence de dimensionnement</div>
         </div>
 
-        <!-- KPI 2 — Nombre de conseillers (format 2 colonnes verticales) -->
+        <!-- KPI 2 — Nombre de conseillers (2 colonnes verticales) -->
         <div class="dash-kpi-card">
             <div class="dash-kpi-label">Nombre de conseillers</div>
 
@@ -165,7 +165,7 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════
-         ZONE 3 — Grille 2 colonnes (Répartitions + Distribution)
+         ZONE 3 — Grille 2 colonnes
     ═══════════════════════════════════════════════════════ -->
     <div class="dash-bottom-grid">
 
@@ -218,7 +218,7 @@
                 <div class="dash-hm-col-rot">Rotation</div>
             </div>
 
-            <!-- Lignes -->
+            <!-- Lignes agences -->
             @foreach (var row in _heatmap)
             {
                 var barWidth = maxClients > 0 ? row.ClientsGeres * 100.0 / maxClients : 0;
@@ -261,6 +261,50 @@
                     </div>
                 </div>
             }
+
+            <!-- Ligne TOTAL -->
+            @{
+                var totalClientsAg = _heatmap.Sum(r => r.ClientsGeres);
+                var totalExistAg = _heatmap.Sum(r => r.ConseillersActifs);
+                var totalCibleAg = _heatmap.Sum(r => r.ConseillersCibles);
+                var totalEtpAg = _heatmap.Sum(r => r.EtpNecessaires);
+                var avgCouv = _heatmap.Any() ? _heatmap.Average(r => r.TauxCouverture) : 0;
+                var avgConc = _heatmap.Any() ? _heatmap.Average(r => r.Concordance) : 0;
+                var avgRot = _heatmap.Any() ? _heatmap.Average(r => r.TauxRotation) : 0;
+            }
+
+            <div class="dash-hm-row dash-hm-total-row">
+                <div class="dash-hm-col-nom">
+                    <span class="dash-hm-total-label">TOTAL</span>
+                </div>
+
+                <div class="dash-hm-col-volume">
+                    <span class="dash-hm-barval dash-hm-total-val">@FormatCompact(totalClientsAg)</span>
+                </div>
+
+                <div class="dash-hm-col-consei dash-hm-existant">@totalExistAg</div>
+                <div class="dash-hm-col-consei dash-hm-cible">@totalCibleAg</div>
+
+                <div class="dash-hm-col-etp">@totalEtpAg.ToString("F1")</div>
+
+                <div class="dash-hm-col-couv">
+                    <span class="dash-hm-pill @GetPillClass(avgCouv, 100, 90)">
+                        @avgCouv.ToString("F0")%
+                    </span>
+                </div>
+
+                <div class="dash-hm-col-conc">
+                    <span class="dash-hm-pill @GetPillClass(avgConc, 80, 60)">
+                        @avgConc.ToString("F0")%
+                    </span>
+                </div>
+
+                <div class="dash-hm-col-rot">
+                    <span class="dash-hm-pill @GetPillClassRotation(avgRot)">
+                        @avgRot.ToString("F0")%
+                    </span>
+                </div>
+            </div>
         }
     </MudPaper>
 
@@ -417,7 +461,6 @@
         margin-top: 6px;
     }
 
-    /* Couleurs charte Portefeuille */
     .dash-kpi-line-existant .dash-kpi-col-value,
     .dash-kpi-line-existant .dash-kpi-col-label {
         color: #E65100;
@@ -590,6 +633,35 @@
     .dash-hm-pill-warn     { background: #FFF3E0; color: #E65100; }
     .dash-hm-pill-critical { background: #FFEBEE; color: #C62828; }
 
+    /* ── Ligne TOTAL heatmap ── */
+    .dash-hm-total-row {
+        background: #DFE7F0 !important;
+        border-top: 2px solid #1A4E6B !important;
+        border-bottom: none !important;
+    }
+
+    .dash-hm-total-row:hover {
+        background: #D5DEE8 !important;
+    }
+
+    .dash-hm-total-label {
+        color: #1A4E6B;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        font-size: 12px;
+    }
+
+    .dash-hm-total-val {
+        color: #1A4E6B !important;
+        font-weight: 700 !important;
+        font-size: 14px !important;
+    }
+
+    .dash-hm-total-row .dash-hm-col-etp {
+        font-size: 14px;
+    }
+
     /* ═══════════════════════════════════════════════════════
        Grille 2 colonnes (Répartitions + Distribution)
     ═══════════════════════════════════════════════════════ */
@@ -683,7 +755,6 @@
     {
         _kpis = DashboardService.ComputeGlobalKpis(_dataFiltree, StateService.Regles);
 
-        // Vue détaillée par agence — toujours au niveau agence
         _heatmap = DashboardService.ComputeHeatmapAgences(
             _dataFiltree, StateService.Regles);
 
