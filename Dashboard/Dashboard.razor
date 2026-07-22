@@ -94,7 +94,7 @@
             <div class="dash-kpi-hint">Référence de dimensionnement</div>
         </div>
 
-        <!-- KPI 2 — Nombre de conseillers (format tableau Nombre / Terminologie) -->
+        <!-- KPI 2 — Nombre de conseillers (format 2 colonnes verticales) -->
         <div class="dash-kpi-card">
             <div class="dash-kpi-label">Nombre de conseillers</div>
 
@@ -110,18 +110,14 @@
                 : 0;
             }
 
-            <div class="dash-kpi-table">
-                <div class="dash-kpi-table-head">
-                    <span>Nombre</span>
-                    <span>Terminologie</span>
+            <div class="dash-kpi-cols">
+                <div class="dash-kpi-col dash-kpi-line-existant">
+                    <div class="dash-kpi-col-value">@_kpis.ConseillersExistants</div>
+                    <div class="dash-kpi-col-label">Existant</div>
                 </div>
-                <div class="dash-kpi-table-row dash-kpi-line-existant">
-                    <span class="dash-kpi-table-value">@_kpis.ConseillersExistants</span>
-                    <span class="dash-kpi-table-label">Existant</span>
-                </div>
-                <div class="dash-kpi-table-row dash-kpi-line-cible">
-                    <span class="dash-kpi-table-value">@_kpis.ConseillersCibles</span>
-                    <span class="dash-kpi-table-label">Cible</span>
+                <div class="dash-kpi-col dash-kpi-line-cible">
+                    <div class="dash-kpi-col-value">@_kpis.ConseillersCibles</div>
+                    <div class="dash-kpi-col-label">Cible</div>
                 </div>
             </div>
 
@@ -195,8 +191,6 @@
 
     <!-- ═══════════════════════════════════════════════════════
          ZONE 4 — VUE DÉTAILLÉE PAR AGENCE
-         Heatmap toujours au niveau agence.
-         Le filtre Région/Secteur zoome sur un sous-ensemble.
     ═══════════════════════════════════════════════════════ -->
     <div class="dash-section-title">
         <span>Vue détaillée par agence</span>
@@ -393,52 +387,44 @@
     .dash-kpi-critical { color: #C62828; }
     .dash-kpi-neutral  { color: #1A4E6B; }
 
-    /* ── KPI en format tableau (Nombre / Terminologie) ── */
-    .dash-kpi-table {
+    /* ── KPI en 2 colonnes verticales (Existant | Cible) ── */
+    .dash-kpi-cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
         margin-top: 4px;
     }
 
-    .dash-kpi-table-head {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        font-size: 9px;
-        font-weight: 700;
-        color: #8A97A8;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        padding-bottom: 4px;
-        border-bottom: 1px solid #EEF1F5;
-        margin-bottom: 4px;
+    .dash-kpi-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
     }
 
-    .dash-kpi-table-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        align-items: baseline;
-        padding: 3px 0;
-    }
-
-    .dash-kpi-table-value {
-        font-size: 24px;
+    .dash-kpi-col-value {
+        font-size: 32px;
         font-weight: 700;
         line-height: 1;
         letter-spacing: -0.5px;
     }
 
-    .dash-kpi-table-label {
-        font-size: 12px;
+    .dash-kpi-col-label {
+        font-size: 11px;
         font-weight: 600;
-        letter-spacing: 0.3px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        margin-top: 6px;
     }
 
-    /* Couleurs charte Portefeuille sur les 2 lignes du tableau */
-    .dash-kpi-line-existant .dash-kpi-table-value,
-    .dash-kpi-line-existant .dash-kpi-table-label {
+    /* Couleurs charte Portefeuille */
+    .dash-kpi-line-existant .dash-kpi-col-value,
+    .dash-kpi-line-existant .dash-kpi-col-label {
         color: #E65100;
     }
 
-    .dash-kpi-line-cible .dash-kpi-table-value,
-    .dash-kpi-line-cible .dash-kpi-table-label {
+    .dash-kpi-line-cible .dash-kpi-col-value,
+    .dash-kpi-line-cible .dash-kpi-col-label {
         color: #1A4E6B;
     }
 
@@ -446,6 +432,7 @@
         margin-top: 10px;
         font-size: 12px;
         font-weight: 700;
+        text-align: center;
     }
 
     .dash-delta-good     { color: #1B5E20; }
