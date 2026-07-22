@@ -192,12 +192,13 @@
     <!-- ═══════════════════════════════════════════════════════
          ZONE 4 — VUE DÉTAILLÉE PAR AGENCE
     ═══════════════════════════════════════════════════════ -->
-    <div class="dash-section-title">
-        <span>Vue détaillée par agence</span>
-        <span class="dash-section-hint">@_heatmap.Count @GetHeatmapUnit()</span>
-    </div>
-
     <MudPaper Elevation="0" Class="dash-heatmap">
+
+        <div class="dash-section-title dash-heatmap-title">
+            <span>Vue détaillée par agence</span>
+            <span class="dash-section-hint">@_heatmap.Count @GetHeatmapUnit()</span>
+        </div>
+
         @if (!_heatmap.Any())
         {
             <div class="dash-placeholder">Aucune donnée à afficher</div>
@@ -216,7 +217,7 @@
                 <div class="dash-hm-col-couv">Taux de couverture</div>
                 <div class="dash-hm-col-conc">Taux de concordance</div>
                 <div class="dash-hm-col-rot">Taux de rotation</div>
-                <div class="dash-hm-col-rot">Taux de pureté</div>
+                <div class="dash-hm-col-pur">Taux de pureté</div>
             </div>
 
             <!-- Lignes agences -->
@@ -260,19 +261,24 @@
                             @row.TauxRotation.ToString("F0")%
                         </span>
                     </div>
+
+                    <div class="dash-hm-col-pur">
+                        <span class="dash-hm-pill @GetPillClass(row.TauxPurete, 80, 60)">
+                            @row.TauxPurete.ToString("F0")%
+                        </span>
+                    </div>
                 </div>
             }
 
             <!-- Ligne TOTAL -->
-            
-                var totalClientsAg = _heatmap.Sum(r => r.ClientsGeres);
-                var totalExistAg = _heatmap.Sum(r => r.ConseillersActifs);
-                var totalCibleAg = _heatmap.Sum(r => r.ConseillersCibles);
-                var totalEtpAg = _heatmap.Sum(r => r.EtpNecessaires);
-                var avgCouv = _heatmap.Any() ? _heatmap.Average(r => r.TauxCouverture) : 0;
-                var avgConc = _heatmap.Any() ? _heatmap.Average(r => r.Concordance) : 0;
-                var avgRot = _heatmap.Any() ? _heatmap.Average(r => r.TauxRotation) : 0;
-            
+            var totalClientsAg = _heatmap.Sum(r => r.ClientsGeres);
+            var totalExistAg = _heatmap.Sum(r => r.ConseillersActifs);
+            var totalCibleAg = _heatmap.Sum(r => r.ConseillersCibles);
+            var totalEtpAg = _heatmap.Sum(r => r.EtpNecessaires);
+            var avgCouv = _heatmap.Any() ? _heatmap.Average(r => r.TauxCouverture) : 0;
+            var avgConc = _heatmap.Any() ? _heatmap.Average(r => r.Concordance) : 0;
+            var avgRot = _heatmap.Any() ? _heatmap.Average(r => r.TauxRotation) : 0;
+            var avgPurete = _heatmap.Any() ? _heatmap.Average(r => r.TauxPurete) : 0;
 
             <div class="dash-hm-row dash-hm-total-row">
                 <div class="dash-hm-col-nom">
@@ -303,6 +309,12 @@
                 <div class="dash-hm-col-rot">
                     <span class="dash-hm-pill @GetPillClassRotation(avgRot)">
                         @avgRot.ToString("F0")%
+                    </span>
+                </div>
+
+                <div class="dash-hm-col-pur">
+                    <span class="dash-hm-pill @GetPillClass(avgPurete, 80, 60)">
+                        @avgPurete.ToString("F0")%
                     </span>
                 </div>
             </div>
@@ -504,20 +516,26 @@
     }
 
     /* ═══════════════════════════════════════════════════════
-       HEATMAP AGENCES — 8 colonnes
+       HEATMAP AGENCES — 9 colonnes (avec Taux de pureté)
+       Titre à l'intérieur du bloc avec padding
     ═══════════════════════════════════════════════════════ */
     .dash-heatmap {
-        padding: 0;
+        padding: 20px 24px 0 24px;
         overflow: hidden;
         margin-bottom: 24px;
+    }
+
+    .dash-heatmap-title {
+        margin: 0 0 16px 0 !important;
+        padding: 0;
     }
 
     .dash-hm-header,
     .dash-hm-row {
         display: grid;
-        grid-template-columns: 2fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr;
+        grid-template-columns: 2fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
         align-items: center;
-        padding: 9px 24px;
+        padding: 9px 0;
         gap: 16px;
     }
 
@@ -529,6 +547,10 @@
         text-transform: uppercase;
         border-bottom: 1px solid #EEF1F5;
         background: #FAFBFC;
+        padding-left: 24px !important;
+        padding-right: 24px !important;
+        margin-left: -24px;
+        margin-right: -24px;
     }
 
     .dash-hm-row {
@@ -616,7 +638,8 @@
 
     .dash-hm-col-couv,
     .dash-hm-col-conc,
-    .dash-hm-col-rot {
+    .dash-hm-col-rot,
+    .dash-hm-col-pur {
         text-align: center;
     }
 
@@ -639,6 +662,10 @@
         background: #DFE7F0 !important;
         border-top: 2px solid #1A4E6B !important;
         border-bottom: none !important;
+        padding-left: 24px !important;
+        padding-right: 24px !important;
+        margin-left: -24px;
+        margin-right: -24px;
     }
 
     .dash-hm-total-row:hover {
