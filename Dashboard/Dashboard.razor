@@ -81,7 +81,7 @@
     </MudPaper>
 
     <!-- ═══════════════════════════════════════════════════════
-         ZONE 2 — 5 KPI HÉROS
+         ZONE 2 — 6 KPI HÉROS
     ═══════════════════════════════════════════════════════ -->
     <div class="dash-kpi-grid">
 
@@ -94,7 +94,7 @@
             <div class="dash-kpi-hint">Référence de dimensionnement</div>
         </div>
 
-        <!-- KPI 2 — Nombre de conseillers -->
+        <!-- KPI 2 — Nombre de conseillers (format tableau Nombre / Terminologie) -->
         <div class="dash-kpi-card">
             <div class="dash-kpi-label">Nombre de conseillers</div>
 
@@ -110,14 +110,18 @@
                 : 0;
             }
 
-            <div class="dash-kpi-compact">
-                <div class="dash-kpi-line dash-kpi-line-existant">
-                    <span class="dash-kpi-line-value">@_kpis.ConseillersExistants</span>
-                    <span class="dash-kpi-line-label">Existant</span>
+            <div class="dash-kpi-table">
+                <div class="dash-kpi-table-head">
+                    <span>Nombre</span>
+                    <span>Terminologie</span>
                 </div>
-                <div class="dash-kpi-line dash-kpi-line-cible">
-                    <span class="dash-kpi-line-value">@_kpis.ConseillersCibles</span>
-                    <span class="dash-kpi-line-label">Cible</span>
+                <div class="dash-kpi-table-row dash-kpi-line-existant">
+                    <span class="dash-kpi-table-value">@_kpis.ConseillersExistants</span>
+                    <span class="dash-kpi-table-label">Existant</span>
+                </div>
+                <div class="dash-kpi-table-row dash-kpi-line-cible">
+                    <span class="dash-kpi-table-value">@_kpis.ConseillersCibles</span>
+                    <span class="dash-kpi-table-label">Cible</span>
                 </div>
             </div>
 
@@ -153,12 +157,19 @@
             <div class="dash-kpi-hint">Alignement avec les règles R&H</div>
         </div>
 
+        <!-- KPI 6 — Taux de pureté des portefeuilles -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-label">Taux de pureté</div>
+            <div class="dash-kpi-value @GetKpiClass(_kpis.TauxPurete, 80, 60)">
+                @_kpis.TauxPurete.ToString("F0")<span class="dash-kpi-unit">%</span>
+            </div>
+            <div class="dash-kpi-hint">Clients sur le profil prioritaire R&H</div>
+        </div>
+
     </div>
 
     <!-- ═══════════════════════════════════════════════════════
          ZONE 3 — Grille 2 colonnes (Répartitions + Distribution)
-         Colonne gauche : Répartition segment + Distribution géographique
-         Colonne droite : Répartition conseillers
     ═══════════════════════════════════════════════════════ -->
     <div class="dash-bottom-grid">
 
@@ -183,11 +194,13 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════
-         ZONE 4 — VISION TERRITORIALE (heatmap déplacée en bas)
+         ZONE 4 — VUE DÉTAILLÉE PAR AGENCE
+         Heatmap toujours au niveau agence.
+         Le filtre Région/Secteur zoome sur un sous-ensemble.
     ═══════════════════════════════════════════════════════ -->
     <div class="dash-section-title">
-        <span>Vision territoriale</span>
-        <span class="dash-section-hint">@GetHeatmapLevel() — @_heatmap.Count @GetHeatmapUnit()</span>
+        <span>Vue détaillée par agence</span>
+        <span class="dash-section-hint">@_heatmap.Count @GetHeatmapUnit()</span>
     </div>
 
     <MudPaper Elevation="0" Class="dash-heatmap">
@@ -201,7 +214,7 @@
 
             <!-- En-tête de colonnes -->
             <div class="dash-hm-header">
-                <div class="dash-hm-col-nom">@GetHeatmapColLabel()</div>
+                <div class="dash-hm-col-nom">Agence</div>
                 <div class="dash-hm-col-volume">Clients gérés</div>
                 <div class="dash-hm-col-consei">Cons. existants</div>
                 <div class="dash-hm-col-consei">Cons. cibles</div>
@@ -326,10 +339,10 @@
         letter-spacing: 2px;
     }
 
-    /* ── KPI Grid — 5 colonnes ────────────────────── */
+    /* ── KPI Grid — 6 colonnes ────────────────────── */
     .dash-kpi-grid {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(6, 1fr);
         gap: 16px;
         margin-bottom: 28px;
     }
@@ -380,41 +393,52 @@
     .dash-kpi-critical { color: #C62828; }
     .dash-kpi-neutral  { color: #1A4E6B; }
 
-    /* ── KPI compact ── */
-    .dash-kpi-compact {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        margin-top: 2px;
+    /* ── KPI en format tableau (Nombre / Terminologie) ── */
+    .dash-kpi-table {
+        margin-top: 4px;
     }
 
-    .dash-kpi-line {
-        display: flex;
+    .dash-kpi-table-head {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        font-size: 9px;
+        font-weight: 700;
+        color: #8A97A8;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #EEF1F5;
+        margin-bottom: 4px;
+    }
+
+    .dash-kpi-table-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         align-items: baseline;
-        justify-content: space-between;
-        padding: 2px 0;
+        padding: 3px 0;
     }
 
-    .dash-kpi-line-label {
-        font-size: 12px;
-        font-weight: 600;
-        letter-spacing: 0.3px;
-    }
-
-    .dash-kpi-line-value {
-        font-size: 28px;
+    .dash-kpi-table-value {
+        font-size: 24px;
         font-weight: 700;
         line-height: 1;
         letter-spacing: -0.5px;
     }
 
-    .dash-kpi-line-existant .dash-kpi-line-label,
-    .dash-kpi-line-existant .dash-kpi-line-value {
+    .dash-kpi-table-label {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    }
+
+    /* Couleurs charte Portefeuille sur les 2 lignes du tableau */
+    .dash-kpi-line-existant .dash-kpi-table-value,
+    .dash-kpi-line-existant .dash-kpi-table-label {
         color: #E65100;
     }
 
-    .dash-kpi-line-cible .dash-kpi-line-label,
-    .dash-kpi-line-cible .dash-kpi-line-value {
+    .dash-kpi-line-cible .dash-kpi-table-value,
+    .dash-kpi-line-cible .dash-kpi-table-label {
         color: #1A4E6B;
     }
 
@@ -449,7 +473,7 @@
     }
 
     /* ═══════════════════════════════════════════════════════
-       HEATMAP TERRITORIALE — 8 colonnes
+       HEATMAP AGENCES — 8 colonnes
     ═══════════════════════════════════════════════════════ */
     .dash-heatmap {
         padding: 0;
@@ -580,7 +604,7 @@
     .dash-hm-pill-critical { background: #FFEBEE; color: #C62828; }
 
     /* ═══════════════════════════════════════════════════════
-       ZONE 3 — Grille 2 colonnes avec bloc gauche empilé
+       Grille 2 colonnes (Répartitions + Distribution)
     ═══════════════════════════════════════════════════════ */
     .dash-bottom-grid {
         display: grid;
@@ -628,7 +652,6 @@
     private List<string> _regionsGeo = new();
 
     // ── Dimension d'affichage partagée par les 3 blocs du bas ──
-    // "Region" (par défaut) · "Secteur" · "Agence"
     private string _dimensionAffichage = "Region";
 
     // ── Filtres ────────────────────────────────────
@@ -673,31 +696,26 @@
     {
         _kpis = DashboardService.ComputeGlobalKpis(_dataFiltree, StateService.Regles);
 
-        _heatmap = DashboardService.ComputeHeatmap(
-            _dataFiltree,
-            StateService.Regles,
-            filtreRegionApplique,
-            filtreSecteurApplique);
+        // Vue détaillée par agence — toujours au niveau agence
+        _heatmap = DashboardService.ComputeHeatmapAgences(
+            _dataFiltree, StateService.Regles);
 
         _repartition = DashboardService.ComputeRepartitionParSegment(_dataFiltree);
 
         _repartitionConseillers = DashboardService.ComputeRepartitionConseillers(
             _dataFiltree, StateService.Regles);
 
-        // Distribution géographique — utilise la dimension partagée
         var geoResult = DashboardService.ComputeDistributionGeographique(
             _dataFiltree, _dimensionAffichage);
         _distributionGeo = geoResult.Distribution;
         _regionsGeo = geoResult.Colonnes;
     }
 
-    // ── Changement de dimension (déclenché par n'importe quel bloc du bas) ──
+    // ── Changement de dimension pour la distribution géo ──
     private void OnDimensionChanged(string dim)
     {
         _dimensionAffichage = dim;
 
-        // Recalcule uniquement la distribution géographique
-        // (les 2 autres blocs sont juste synchronisés visuellement via le tag actif)
         var geoResult = DashboardService.ComputeDistributionGeographique(
             _dataFiltree, _dimensionAffichage);
         _distributionGeo = geoResult.Distribution;
@@ -796,27 +814,9 @@
         return value.ToString("N0");
     }
 
-    private string GetHeatmapLevel()
-    {
-        if (!string.IsNullOrWhiteSpace(filtreSecteurApplique)) return "Par agence";
-        if (!string.IsNullOrWhiteSpace(filtreRegionApplique))  return "Par secteur";
-        return "Par région";
-    }
-
-    private string GetHeatmapUnit()
-    {
-        if (!string.IsNullOrWhiteSpace(filtreSecteurApplique)) return _heatmap.Count > 1 ? "agences" : "agence";
-        if (!string.IsNullOrWhiteSpace(filtreRegionApplique))  return _heatmap.Count > 1 ? "secteurs" : "secteur";
-        return _heatmap.Count > 1 ? "régions" : "région";
-    }
-
-    // ── Helpers heatmap ────────────────────────────
-    private string GetHeatmapColLabel()
-    {
-        if (!string.IsNullOrWhiteSpace(filtreSecteurApplique)) return "Agence";
-        if (!string.IsNullOrWhiteSpace(filtreRegionApplique))  return "Secteur";
-        return "Région";
-    }
+    // ── Helpers heatmap agences ────────────────────
+    private string GetHeatmapUnit() =>
+        _heatmap.Count > 1 ? "agences" : "agence";
 
     private string GetPillClass(double value, double greenThreshold, double orangeThreshold)
     {
