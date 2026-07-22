@@ -1,32 +1,6 @@
-
-.dash-hm-header,
-.dash-hm-row {
-    display: grid;
-    grid-template-columns: 2fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr;
-    align-items: center;
-    padding: 9px 24px;
-    gap: 16px;
-}
-
-
-
-
-
-
-
-.dash-rc-lm-row td {
-    padding: 8.3px 6px;
-    text-align: center;
-    font-size: 14px;
-    font-weight: 700;
-}
-
-
-
-
-
-.dash-rc-profil-row td {
-    padding: 8.3px 6px;
-    text-align: center;
+.dash-dg-table tbody td {
+    padding: 9px 4px;
     font-size: 11px;
-}s
+    text-align: center;
+    color: #2C3E50;
+}
