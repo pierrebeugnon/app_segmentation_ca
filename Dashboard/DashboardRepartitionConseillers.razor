@@ -3,8 +3,23 @@
 <MudPaper Elevation="0" Class="dash-rc-card">
 
     <div class="dash-section-title">
-        <span>Répartition des conseillers × Taille théorique des portefeuilles</span>
-        <span class="dash-section-hint">Par ligne métier</span>
+        <span>Effectif conseiller vs portefeuilles cible par ligne métier</span>
+        <span class="dash-section-hint">Détail par profil</span>
+    </div>
+
+    <div class="dash-dim-tags">
+        <button class="dash-dim-tag @(Dimension == "Region" ? "active" : "")"
+                @onclick="@(() => Switch("Region"))">
+            Région
+        </button>
+        <button class="dash-dim-tag @(Dimension == "Secteur" ? "active" : "")"
+                @onclick="@(() => Switch("Secteur"))">
+            Secteur
+        </button>
+        <button class="dash-dim-tag @(Dimension == "Agence" ? "active" : "")"
+                @onclick="@(() => Switch("Agence"))">
+            Agence
+        </button>
     </div>
 
     @if (Repartition == null || !Repartition.Any())
@@ -16,8 +31,7 @@
         <div class="dash-rc-tablewrap">
             <table class="dash-rc-table">
                 <thead>
-
-                    <!-- Ligne 1 : groupes -->
+                    <!-- Ligne 1 : groupes de colonnes -->
                     <tr class="dash-rc-header-group">
                         <th class="dash-rc-col-metier">&nbsp;</th>
                         <th colspan="3" class="dash-rc-group-conseillers">
@@ -40,7 +54,6 @@
                         <th class="dash-rc-col-cible dash-rc-taille">Cible</th>
                         <th class="dash-rc-col-delta dash-rc-taille">Δ</th>
                     </tr>
-
                 </thead>
                 <tbody>
                     @foreach (var l in Repartition)
@@ -48,7 +61,7 @@
                         var deltaConsClass = GetDeltaClass(l.DeltaConseillers);
                         var deltaTailleClass = GetDeltaClass(l.DeltaTaillePortefeuille);
 
-                        <!-- Row en-tête LIGNE MÉTIER : agrégé, majuscule, graisse fine, background -->
+                        <!-- Row en-tête LIGNE MÉTIER (agrégé) -->
                         <tr class="dash-rc-lm-row">
                             <td class="dash-rc-col-metier dash-rc-lm-label">
                                 @l.LigneMetier.ToUpper()
@@ -92,11 +105,31 @@
                             </tr>
                         }
                     }
+
+                    <!-- Ligne TOTAL -->
+                    @{
+                        var totalExist = Repartition.Sum(l => l.ConseillersExistants);
+                        var totalCible = Repartition.Sum(l => l.ConseillersCibles);
+                        var totalDeltaCons = totalExist - totalCible;
+                        var deltaConsTotalClass = GetDeltaClass(totalDeltaCons);
+                    }
+
+                    <tr class="dash-rc-total-row">
+                        <td class="dash-rc-col-metier dash-rc-total-label">TOTAL</td>
+
+                        <td class="dash-rc-val-existant">@totalExist</td>
+                        <td class="dash-rc-val-cible">@totalCible</td>
+                        <td class="@deltaConsTotalClass">@FormatDelta(totalDeltaCons)</td>
+
+                        <!-- Taille portefeuille : non sommable (ratios différents) -->
+                        <td class="dash-rc-taille dash-rc-empty">—</td>
+                        <td class="dash-rc-taille dash-rc-empty">—</td>
+                        <td class="dash-rc-taille dash-rc-empty">—</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
     }
-
 </MudPaper>
 
 <style>
@@ -126,7 +159,37 @@
         font-style: italic;
     }
 
-    /* Tableau */
+    /* ── Tag switcher ── */
+    .dash-dim-tags {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 12px;
+    }
+
+    .dash-dim-tag {
+        background: #F0F3F7;
+        color: #6C7A89;
+        border: none;
+        padding: 4px 12px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .dash-dim-tag:hover {
+        background: #E1E7EF;
+    }
+
+    .dash-dim-tag.active {
+        background: #1A4E6B;
+        color: white;
+    }
+
+    /* ── Tableau ── */
     .dash-rc-tablewrap {
         overflow-x: auto;
     }
@@ -137,7 +200,6 @@
         font-family: 'Calibri', sans-serif;
     }
 
-    /* En-tête ligne 1 : groupes */
     .dash-rc-header-group th {
         font-size: 10px;
         font-weight: 700;
@@ -152,14 +214,12 @@
         border-bottom: 2px solid #E1E7EF;
     }
 
-    /* Bleu très léger sur le groupe taille */
     .dash-rc-group-taille {
         background: #F4F9FD;
         border-bottom: 2px solid #D4E4F0;
         border-radius: 6px 6px 0 0;
     }
 
-    /* En-tête ligne 2 : colonnes */
     .dash-rc-header-cols th {
         font-size: 10px;
         font-weight: 700;
@@ -176,19 +236,15 @@
         color: #8A97A8;
     }
 
-    /* Couleurs charte Portefeuille */
     .dash-rc-col-existant { color: #E65100; }
     .dash-rc-col-cible    { color: #1A4E6B; }
     .dash-rc-col-delta    { color: #6C7A89; }
 
-    /* Colonnes taille — bleu très léger */
     .dash-rc-taille {
         background: #F7FBFE;
     }
 
-    /* ═══════════════════════════════════════════════
-       Row en-tête LIGNE MÉTIER — uppercase, thin, background
-    ═══════════════════════════════════════════════ */
+    /* ── Row en-tête LIGNE MÉTIER ── */
     .dash-rc-lm-row {
         background: #EEF1F5;
         border-top: 1px solid #DAE0E7;
@@ -199,7 +255,6 @@
         background: #E5E9EF;
     }
 
-    /* Fond taille légèrement plus soutenu sur la row LM */
     .dash-rc-lm-row .dash-rc-taille {
         background: #EAF2FA;
     }
@@ -210,16 +265,16 @@
 
     .dash-rc-lm-label {
         font-size: 12px !important;
-        font-weight: 400 !important;          /* thin */
+        font-weight: 400 !important;
         letter-spacing: 2px;
         color: #1A4E6B;
         text-transform: uppercase;
     }
 
     .dash-rc-lm-row td {
-        padding: 12px 6px;
+        padding: 8.3px 6px;
         text-align: center;
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 700;
     }
 
@@ -228,9 +283,7 @@
         padding-left: 10px;
     }
 
-    /* ═══════════════════════════════════════════════
-       Row détail PROFIL
-    ═══════════════════════════════════════════════ */
+    /* ── Row détail PROFIL ── */
     .dash-rc-profil-row {
         background: white;
     }
@@ -248,9 +301,9 @@
     }
 
     .dash-rc-profil-row td {
-        padding: 8px 6px;
+        padding: 8.3px 6px;
         text-align: center;
-        font-size: 12px;
+        font-size: 11px;
     }
 
     .dash-rc-profil-label {
@@ -271,9 +324,35 @@
         font-style: italic;
     }
 
-    /* ═══════════════════════════════════════════════
-       Delta colors
-    ═══════════════════════════════════════════════ */
+    /* ── Ligne TOTAL ── */
+    .dash-rc-total-row {
+        background: #DFE7F0 !important;
+        border-top: 2px solid #1A4E6B !important;
+    }
+
+    .dash-rc-total-row:hover {
+        background: #D5DEE8 !important;
+    }
+
+    .dash-rc-total-row td {
+        padding: 12px 6px !important;
+        font-size: 15px !important;
+        font-weight: 700 !important;
+    }
+
+    .dash-rc-total-label {
+        text-align: left !important;
+        padding-left: 10px !important;
+        color: #1A4E6B !important;
+        letter-spacing: 2px;
+        font-size: 13px !important;
+    }
+
+    .dash-rc-total-row .dash-rc-taille {
+        background: #C7D6E5 !important;
+    }
+
+    /* ── Delta colors ── */
     .dash-delta-good     { color: #1B5E20; }
     .dash-delta-critical { color: #C62828; }
     .dash-delta-neutral  { color: #6C7A89; }
@@ -293,6 +372,16 @@
     /// </summary>
     [Parameter]
     public List<LigneMetierRepartition>? Repartition { get; set; }
+
+    [Parameter] public string Dimension { get; set; } = "Region";
+    [Parameter] public EventCallback<string> DimensionChanged { get; set; }
+
+    private async Task Switch(string dim)
+    {
+        if (dim == Dimension) return;
+        Dimension = dim;
+        await DimensionChanged.InvokeAsync(dim);
+    }
 
     private string GetDeltaClass(int delta)
     {
