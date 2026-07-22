@@ -1,0 +1,189 @@
+@using Segmentation.Client.Services
+
+<MudPaper Elevation="0" Class="dash-dg-card">
+    <div class="dash-section-title">
+        <span>Distribution géographique par segment</span>
+        <span class="dash-section-hint">@Regions.Count régions</span>
+    </div>
+
+    @if (Distribution == null || !Distribution.Any() || !Regions.Any())
+    {
+        <div class="dash-placeholder">Aucune donnée disponible</div>
+    }
+    else
+    {
+        <div class="dash-dg-tablewrap">
+            <table class="dash-dg-table">
+                <thead>
+                    <tr>
+                        <th class="dash-dg-col-segment">Segment</th>
+                        @foreach (var r in Regions)
+                        {
+                            <th class="dash-dg-col-region" title="@r">@Abrege(r)</th>
+                        }
+                        <th class="dash-dg-col-total">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Distribution)
+                    {
+                        var total = row.Value.Values.Sum();
+                        var maxVal = row.Value.Values.DefaultIfEmpty(0).Max();
+
+                        <tr>
+                            <td class="dash-dg-col-segment dash-dg-seg-label">
+                                @row.Key
+                            </td>
+                            @foreach (var r in Regions)
+                            {
+                                var val = row.Value.GetValueOrDefault(r, 0);
+                                var intensity = maxVal > 0 ? val * 100.0 / maxVal : 0;
+                                <td class="dash-dg-cell" style="@GetCellStyle(intensity)">
+                                    @(val > 0 ? FormatCompact(val) : "—")
+                                </td>
+                            }
+                            <td class="dash-dg-col-total">@FormatCompact(total)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</MudPaper>
+
+<style>
+    .dash-dg-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px 24px;
+        min-height: 300px;
+    }
+
+    .dash-dg-card .dash-section-title {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+
+    .dash-dg-card .dash-section-title span:first-child {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1A4E6B;
+    }
+
+    .dash-dg-card .dash-section-hint {
+        font-size: 11px;
+        color: #8A97A8;
+        font-style: italic;
+    }
+
+    .dash-dg-tablewrap {
+        overflow-x: auto;
+    }
+
+    .dash-dg-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Calibri', sans-serif;
+    }
+
+    .dash-dg-table th {
+        font-size: 10px;
+        font-weight: 700;
+        color: #8A97A8;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        padding: 10px 6px;
+        border-bottom: 1px solid #EEF1F5;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .dash-dg-col-segment {
+        text-align: left !important;
+        padding-left: 4px !important;
+    }
+
+    .dash-dg-col-total {
+        color: #1A4E6B !important;
+        background: #F7FBFE;
+    }
+
+    .dash-dg-table tbody tr {
+        border-bottom: 1px solid #F5F7FA;
+        transition: background 0.12s ease;
+    }
+
+    .dash-dg-table tbody tr:hover {
+        background: #FAFBFC;
+    }
+
+    .dash-dg-table tbody td {
+        padding: 8px 6px;
+        font-size: 12px;
+        text-align: center;
+        color: #2C3E50;
+    }
+
+    .dash-dg-seg-label {
+        text-align: left !important;
+        font-weight: 600;
+        color: #1A4E6B;
+    }
+
+    .dash-dg-cell {
+        font-weight: 600;
+        border-radius: 3px;
+    }
+
+    .dash-dg-col-total {
+        font-weight: 700;
+        color: #1A4E6B;
+    }
+
+    .dash-dg-card .dash-placeholder {
+        color: #B0BAC5;
+        text-align: center;
+        padding: 40px;
+        font-style: italic;
+        font-size: 13px;
+    }
+</style>
+
+@code {
+    /// <summary>
+    /// Distribution : Segment → Région → NbClients
+    /// </summary>
+    [Parameter]
+    public Dictionary<string, Dictionary<string, int>>? Distribution { get; set; }
+
+    [Parameter]
+    public List<string> Regions { get; set; } = new();
+
+    /// <summary>
+    /// Style de fond bleu selon l'intensité (heatmap).
+    /// </summary>
+    private string GetCellStyle(double intensity)
+    {
+        if (intensity <= 0) return "color:#C5CBD3";
+
+        // Dégradé bleu : 0 (blanc) → 100 (bleu foncé)
+        var opacity = intensity / 100.0 * 0.7;
+        return $"background:rgba(74,128,181,{opacity.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)});color:{(intensity > 50 ? "#0A2540" : "#1A4E6B")}";
+    }
+
+    private string Abrege(string nom)
+    {
+        if (string.IsNullOrWhiteSpace(nom)) return "";
+        if (nom.Length <= 12) return nom;
+        return nom[..12] + "…";
+    }
+
+    private string FormatCompact(int value)
+    {
+        if (value >= 1_000_000) return $"{value / 1_000_000.0:F1}M";
+        if (value >= 1_000)     return $"{value / 1_000.0:F0}K";
+        return value.ToString("N0");
+    }
+}
