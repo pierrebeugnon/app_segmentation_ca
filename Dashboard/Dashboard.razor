@@ -1,11 +1,11 @@
 @page "/dashboard"
-@page "/"
 @inject SegmentationStateService StateService
 @inject DashboardService DashboardService
 @inject HttpClient Http
 @using Segmentation.Client.Services
 @using Segmentation.Shared.Models
 @using System.Net.Http.Json
+@using Segmentation.Client.Components.Dashboard
 
 <PageTitle>Pilotage — CA Segmentation</PageTitle>
 
@@ -81,20 +81,70 @@
     </MudPaper>
 
     <!-- ═══════════════════════════════════════════════════════
-         ZONE 2 — 4 KPI HÉROS
+         ZONE 2 — 5 KPI HÉROS
     ═══════════════════════════════════════════════════════ -->
     <div class="dash-kpi-grid">
 
-        <!-- KPI 1 — Taux de couverture -->
+        <!-- KPI 1 — Nombre de Clients Commerciaux -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-label">Nombre de Clients Commerciaux</div>
+            <div class="dash-kpi-value dash-kpi-neutral">
+                @FormatCompact(_kpis.ClientsCommerciaux)
+            </div>
+            <div class="dash-kpi-hint">Référence de dimensionnement</div>
+        </div>
+
+        <!-- KPI 2 — Nombre de conseillers (Existant / Cible sur 2 lignes compactes) -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-label">Nombre de conseillers</div>
+
+            @{
+                var deltaConseillers =
+                _kpis.ConseillersExistants -
+                _kpis.ConseillersCibles;
+
+                var ratioConseillers =
+                _kpis.ConseillersCibles > 0
+                ? (double)_kpis.ConseillersExistants /
+                _kpis.ConseillersCibles * 100
+                : 0;
+            }
+
+            <div class="dash-kpi-compact">
+                <div class="dash-kpi-line dash-kpi-line-existant">
+                    <span class="dash-kpi-line-value">@_kpis.ConseillersExistants</span>
+                    <span class="dash-kpi-line-label">Existant</span>
+                </div>
+                <div class="dash-kpi-line dash-kpi-line-cible">
+                    <span class="dash-kpi-line-value">@_kpis.ConseillersCibles</span>
+                    <span class="dash-kpi-line-label">Cible</span>
+                </div>
+            </div>
+
+            <div class="dash-kpi-delta @(deltaConseillers >= 0 ? "dash-delta-good" : "dash-delta-critical")">
+                @(deltaConseillers >= 0 ? "+" : "")@deltaConseillers vs cible (@ratioConseillers.ToString("F0")%)
+            </div>
+        </div>
+
+        <!-- KPI 3 — Taux de couverture -->
         <div class="dash-kpi-card">
             <div class="dash-kpi-label">Taux de couverture</div>
             <div class="dash-kpi-value @GetKpiClass(_kpis.TauxCouverture, 100, 90)">
                 @_kpis.TauxCouverture.ToString("F0")<span class="dash-kpi-unit">%</span>
             </div>
-            <div class="dash-kpi-hint">Effectif ÷ ETP nécessaires</div>
+            <div class="dash-kpi-hint">Effectif réel vs besoin théorique</div>
         </div>
 
-        <!-- KPI 2 — Concordance -->
+        <!-- KPI 4 — Taux de rotation portefeuille -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-label">Taux de rotation portefeuille</div>
+            <div class="dash-kpi-value @GetKpiClass(_kpis.TauxRotationPortefeuille, 10, 20)">
+                @_kpis.TauxRotationPortefeuille.ToString("F0")<span class="dash-kpi-unit">%</span>
+            </div>
+            <div class="dash-kpi-hint">Entrées + sorties portefeuille</div>
+        </div>
+
+        <!-- KPI 5 — Concordance moyenne -->
         <div class="dash-kpi-card">
             <div class="dash-kpi-label">Concordance moyenne</div>
             <div class="dash-kpi-value @GetKpiClass(_kpis.Concordance, 80, 60)">
@@ -103,57 +153,93 @@
             <div class="dash-kpi-hint">Alignement avec les règles R&H</div>
         </div>
 
-        <!-- KPI 3 — Conseillers actifs -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-label">Conseillers actifs</div>
-            <div class="dash-kpi-value dash-kpi-neutral">
-                @_kpis.ConseillersActifs.ToString("N0")
-            </div>
-            <div class="dash-kpi-hint">Matricules distincts</div>
-        </div>
-
-        <!-- KPI 4 — Clients gérés -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-label">Clients gérés</div>
-            <div class="dash-kpi-value dash-kpi-neutral">
-                @FormatCompact(_kpis.ClientsGeres)
-            </div>
-            <div class="dash-kpi-hint">Tous segments confondus</div>
-        </div>
-
     </div>
 
     <!-- ═══════════════════════════════════════════════════════
          ZONE 3 — HEATMAP TERRITORIALE
+         Nouvelles colonnes : Cons. existants / Cons. cibles / Rotation
+         Colonne Statut supprimée
     ═══════════════════════════════════════════════════════ -->
     <div class="dash-section-title">
         <span>Vision territoriale</span>
-        <span class="dash-section-hint">@GetHeatmapLevel()</span>
+        <span class="dash-section-hint">@GetHeatmapLevel() — @_heatmap.Count @GetHeatmapUnit()</span>
     </div>
+
     <MudPaper Elevation="0" Class="dash-heatmap">
-        <!-- À remplir en étape 3 -->
-        <div class="dash-placeholder">Heatmap à venir (étape 3)</div>
+        @if (!_heatmap.Any())
+        {
+            <div class="dash-placeholder">Aucune donnée à afficher</div>
+        }
+        else
+        {
+            var maxClients = _heatmap.Max(x => x.ClientsGeres);
+
+            <!-- En-tête de colonnes -->
+            <div class="dash-hm-header">
+                <div class="dash-hm-col-nom">@GetHeatmapColLabel()</div>
+                <div class="dash-hm-col-volume">Clients gérés</div>
+                <div class="dash-hm-col-consei">Cons. existants</div>
+                <div class="dash-hm-col-consei">Cons. cibles</div>
+                <div class="dash-hm-col-etp">ETP requis</div>
+                <div class="dash-hm-col-couv">Couverture</div>
+                <div class="dash-hm-col-conc">Concordance</div>
+                <div class="dash-hm-col-rot">Rotation</div>
+            </div>
+
+            <!-- Lignes -->
+            @foreach (var row in _heatmap)
+            {
+                var barWidth = maxClients > 0 ? row.ClientsGeres * 100.0 / maxClients : 0;
+                var statusColor = GetStatusColor(row);
+
+                <div class="dash-hm-row">
+                    <div class="dash-hm-col-nom">
+                        <span class="dash-hm-status-dot" style="background:@statusColor"></span>
+                        <span class="dash-hm-nom">@row.Nom</span>
+                    </div>
+
+                    <div class="dash-hm-col-volume">
+                        <div class="dash-hm-barwrap">
+                            <div class="dash-hm-bar" style="width:@(barWidth.ToString("F0"))%"></div>
+                        </div>
+                        <span class="dash-hm-barval">@FormatCompact(row.ClientsGeres)</span>
+                    </div>
+
+                    <div class="dash-hm-col-consei dash-hm-existant">@row.ConseillersActifs</div>
+                    <div class="dash-hm-col-consei dash-hm-cible">@row.ConseillersCibles</div>
+
+                    <div class="dash-hm-col-etp">@row.EtpNecessaires.ToString("F1")</div>
+
+                    <div class="dash-hm-col-couv">
+                        <span class="dash-hm-pill @GetPillClass(row.TauxCouverture, 100, 90)">
+                            @row.TauxCouverture.ToString("F0")%
+                        </span>
+                    </div>
+
+                    <div class="dash-hm-col-conc">
+                        <span class="dash-hm-pill @GetPillClass(row.Concordance, 80, 60)">
+                            @row.Concordance.ToString("F0")%
+                        </span>
+                    </div>
+
+                    <div class="dash-hm-col-rot">
+                        <span class="dash-hm-pill @GetPillClassRotation(row.TauxRotation)">
+                            @row.TauxRotation.ToString("F0")%
+                        </span>
+                    </div>
+                </div>
+            }
+        }
     </MudPaper>
 
     <!-- ═══════════════════════════════════════════════════════
-         ZONE 4 + 5 — Répartition + Alerte
+         ZONE 4 + 5 — Répartition + Répartition Conseillers
     ═══════════════════════════════════════════════════════ -->
     <div class="dash-bottom-grid">
 
-        <MudPaper Elevation="0" Class="dash-repartition">
-            <div class="dash-section-title">
-                <span>Répartition ETP par segment</span>
-            </div>
-            <div class="dash-placeholder">Graphique à venir (étape 4)</div>
-        </MudPaper>
+        <DashboardRepartitionSegment Repartition="@_repartition" />
 
-        <MudPaper Elevation="0" Class="dash-alerte">
-            <div class="dash-section-title">
-                <span>Attention prioritaire</span>
-                <span class="dash-section-hint">Concordance la plus faible</span>
-            </div>
-            <div class="dash-placeholder">Top 5 à venir (étape 5)</div>
-        </MudPaper>
+        <DashboardRepartitionConseillers Repartition="@_repartitionConseillers" />
 
     </div>
 
@@ -175,22 +261,29 @@
 
     .dash-loader {
         position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
         background: rgba(255,255,255,0.75);
         z-index: 9999;
-        display: flex; align-items: center; justify-content: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     /* ── En-tête ────────────────────────────────── */
     .dash-header {
         margin-bottom: 20px;
     }
+
     .dash-title {
         font-size: 28px;
         font-weight: 700;
         color: #1A4E6B;
         letter-spacing: -0.3px;
     }
+
     .dash-subtitle {
         font-size: 13px;
         color: #6C7A89;
@@ -204,12 +297,14 @@
         padding: 14px 18px;
         margin-bottom: 24px;
     }
+
     .dash-filters-inner {
         display: flex;
         align-items: center;
         gap: 14px;
         flex-wrap: wrap;
     }
+
     .dash-filter-label {
         font-size: 10px;
         font-weight: 700;
@@ -217,22 +312,25 @@
         letter-spacing: 2px;
     }
 
-    /* ── KPI Grid ────────────────────────────────── */
+    /* ── KPI Grid — 5 colonnes ────────────────────── */
     .dash-kpi-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         gap: 16px;
         margin-bottom: 28px;
     }
+
     .dash-kpi-card {
         background: white;
         border-radius: 12px;
         padding: 22px 24px;
         transition: transform 0.15s ease;
     }
-    .dash-kpi-card:hover {
-        transform: translateY(-2px);
-    }
+
+        .dash-kpi-card:hover {
+            transform: translateY(-2px);
+        }
+
     .dash-kpi-label {
         font-size: 11px;
         font-weight: 600;
@@ -241,28 +339,79 @@
         text-transform: uppercase;
         margin-bottom: 8px;
     }
+
     .dash-kpi-value {
         font-size: 42px;
         font-weight: 700;
         line-height: 1;
         letter-spacing: -1px;
     }
+
     .dash-kpi-unit {
         font-size: 20px;
         font-weight: 500;
         color: #B0BAC5;
         margin-left: 2px;
     }
+
     .dash-kpi-hint {
         font-size: 11px;
         color: #A0AAB8;
         margin-top: 10px;
         font-style: italic;
     }
+
     .dash-kpi-good     { color: #1B5E20; }
     .dash-kpi-warn     { color: #E65100; }
     .dash-kpi-critical { color: #C62828; }
     .dash-kpi-neutral  { color: #1A4E6B; }
+
+    /* ── KPI compact : Existant + Cible sur 2 lignes ── */
+    .dash-kpi-compact {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-top: 2px;
+    }
+
+    .dash-kpi-line {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        padding: 2px 0;
+    }
+
+    .dash-kpi-line-label {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    }
+
+    .dash-kpi-line-value {
+        font-size: 28px;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: -0.5px;
+    }
+
+    .dash-kpi-line-existant .dash-kpi-line-label,
+    .dash-kpi-line-existant .dash-kpi-line-value {
+        color: #E65100;
+    }
+
+    .dash-kpi-line-cible .dash-kpi-line-label,
+    .dash-kpi-line-cible .dash-kpi-line-value {
+        color: #1A4E6B;
+    }
+
+    .dash-kpi-delta {
+        margin-top: 10px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .dash-delta-good     { color: #1B5E20; }
+    .dash-delta-critical { color: #C62828; }
 
     /* ── Sections ────────────────────────────────── */
     .dash-section-title {
@@ -271,31 +420,160 @@
         justify-content: space-between;
         margin-bottom: 12px;
     }
+
     .dash-section-title span:first-child {
         font-size: 15px;
         font-weight: 700;
         color: #1A4E6B;
     }
+
     .dash-section-hint {
         font-size: 11px;
         color: #8A97A8;
         font-style: italic;
     }
 
+    /* ═══════════════════════════════════════════════════════
+       HEATMAP TERRITORIALE — 8 colonnes
+       Nom | Volume | Existants | Cibles | ETP | Couv | Conc | Rotation
+    ═══════════════════════════════════════════════════════ */
     .dash-heatmap {
-        background: white;
-        border-radius: 12px;
-        padding: 20px 24px;
+        padding: 0;
+        overflow: hidden;
         margin-bottom: 24px;
-        min-height: 200px;
     }
 
+    .dash-hm-header,
+    .dash-hm-row {
+        display: grid;
+        grid-template-columns: 2fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr;
+        align-items: center;
+        padding: 14px 24px;
+        gap: 16px;
+    }
+
+    .dash-hm-header {
+        font-size: 10px;
+        font-weight: 700;
+        color: #8A97A8;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        border-bottom: 1px solid #EEF1F5;
+        background: #FAFBFC;
+    }
+
+    .dash-hm-row {
+        font-size: 13px;
+        color: #2C3E50;
+        border-bottom: 1px solid #F5F7FA;
+        transition: background 0.12s ease;
+    }
+
+    .dash-hm-row:last-child {
+        border-bottom: none;
+    }
+
+    .dash-hm-row:hover {
+        background: #FAFBFC;
+    }
+
+    .dash-hm-col-nom {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        color: #1A4E6B;
+    }
+
+    .dash-hm-status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .dash-hm-nom {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .dash-hm-col-volume {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .dash-hm-barwrap {
+        flex: 1;
+        height: 6px;
+        background: #EEF3F7;
+        border-radius: 3px;
+        overflow: hidden;
+        max-width: 140px;
+    }
+
+    .dash-hm-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #4A80B5 0%, #1A4E6B 100%);
+        border-radius: 3px;
+        transition: width 0.3s ease;
+    }
+
+    .dash-hm-barval {
+        font-size: 12px;
+        color: #6C7A89;
+        font-weight: 600;
+        min-width: 40px;
+        text-align: right;
+    }
+
+    .dash-hm-col-consei,
+    .dash-hm-col-etp {
+        text-align: center;
+        font-weight: 600;
+        color: #1A4E6B;
+    }
+
+    /* Charte Portefeuille : Existants en orange, Cibles en bleu */
+    .dash-hm-existant {
+        color: #E65100 !important;
+        font-weight: 700;
+    }
+
+    .dash-hm-cible {
+        color: #1A4E6B !important;
+        font-weight: 700;
+    }
+
+    .dash-hm-col-couv,
+    .dash-hm-col-conc,
+    .dash-hm-col-rot {
+        text-align: center;
+    }
+
+    .dash-hm-pill {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 700;
+        min-width: 42px;
+        text-align: center;
+    }
+
+    .dash-hm-pill-good     { background: #E8F5E9; color: #1B5E20; }
+    .dash-hm-pill-warn     { background: #FFF3E0; color: #E65100; }
+    .dash-hm-pill-critical { background: #FFEBEE; color: #C62828; }
+
+    /* ── Zone 4 + 5 ────────────────── */
     .dash-bottom-grid {
         display: grid;
         grid-template-columns: 3fr 2fr;
         gap: 16px;
         margin-bottom: 24px;
     }
+
     .dash-repartition, .dash-alerte {
         background: white;
         border-radius: 12px;
@@ -320,11 +598,15 @@
 </style>
 
 @code {
+
     // ── État ────────────────────────────────────────
     private bool _isLoading = false;
     private DashboardKpis _kpis = new();
+    private List<TerritoireRow> _heatmap = new();
     private List<SegmentationDistributiveData> _data = new();
     private List<SegmentationDistributiveData> _dataFiltree = new();
+    private List<SegmentRepartition> _repartition = new();
+    private List<LigneMetierRepartition> _repartitionConseillers = new();
 
     // ── Filtres ────────────────────────────────────
     private string? filtreRegion, filtreSecteur, filtreAgence;
@@ -367,6 +649,17 @@
     private void RecomputeAll()
     {
         _kpis = DashboardService.ComputeGlobalKpis(_dataFiltree, StateService.Regles);
+
+        _heatmap = DashboardService.ComputeHeatmap(
+            _dataFiltree,
+            StateService.Regles,
+            filtreRegionApplique,
+            filtreSecteurApplique);
+
+        _repartition = DashboardService.ComputeRepartitionParSegment(_dataFiltree);
+
+        _repartitionConseillers = DashboardService.ComputeRepartitionConseillers(
+            _dataFiltree, StateService.Regles);
     }
 
     // ── Handlers de filtres ────────────────────────
@@ -444,7 +737,7 @@
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
     }
 
-    // ── Helpers UI ─────────────────────────────────
+    // ── Helpers UI KPIs ────────────────────────────
     private string GetKpiClass(double value, double greenThreshold, double orangeThreshold)
     {
         if (value >= greenThreshold)  return "dash-kpi-good";
@@ -464,5 +757,45 @@
         if (!string.IsNullOrWhiteSpace(filtreSecteurApplique)) return "Par agence";
         if (!string.IsNullOrWhiteSpace(filtreRegionApplique))  return "Par secteur";
         return "Par région";
+    }
+
+    private string GetHeatmapUnit()
+    {
+        if (!string.IsNullOrWhiteSpace(filtreSecteurApplique)) return _heatmap.Count > 1 ? "agences" : "agence";
+        if (!string.IsNullOrWhiteSpace(filtreRegionApplique))  return _heatmap.Count > 1 ? "secteurs" : "secteur";
+        return _heatmap.Count > 1 ? "régions" : "région";
+    }
+
+    // ── Helpers heatmap ────────────────────────────
+    private string GetHeatmapColLabel()
+    {
+        if (!string.IsNullOrWhiteSpace(filtreSecteurApplique)) return "Agence";
+        if (!string.IsNullOrWhiteSpace(filtreRegionApplique))  return "Secteur";
+        return "Région";
+    }
+
+    private string GetPillClass(double value, double greenThreshold, double orangeThreshold)
+    {
+        if (value >= greenThreshold)  return "dash-hm-pill-good";
+        if (value >= orangeThreshold) return "dash-hm-pill-warn";
+        return "dash-hm-pill-critical";
+    }
+
+    /// <summary>
+    /// Code couleur du taux de rotation : logique inversée (bas = bon).
+    /// ≤10% vert · ≤20% orange · >20% rouge
+    /// </summary>
+    private string GetPillClassRotation(double value)
+    {
+        if (value <= 10) return "dash-hm-pill-good";
+        if (value <= 20) return "dash-hm-pill-warn";
+        return "dash-hm-pill-critical";
+    }
+
+    private string GetStatusColor(TerritoireRow row)
+    {
+        if (row.Concordance >= 80 && row.TauxCouverture >= 100) return "#1B5E20";
+        if (row.Concordance >= 60 && row.TauxCouverture >= 90)  return "#E65100";
+        return "#C62828";
     }
 }
