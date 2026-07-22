@@ -1,4 +1,15 @@
 @if (_showChargesManuelles)
 {
-    <div style="font-size:8px;font-weight:400;opacity:0.60;margin-top:2px">4 colonnes</div>
+    <th class="ca-dim-th-profil" style="background:#7A4A1E;color:white">
+        Charge à transférer à la BP
+        <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">HDG Premium uniquement</div>
+    </th>
+    <th class="ca-dim-th-profil" style="background:#4A80B5;color:white">
+        Charge reçue de la BP
+        <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">Tout sauf HDG Premium</div>
+    </th>
+    <th class="ca-dim-th-profil" style="background:#6B4A80;color:white">
+        Charge à transférer en pf mutualisé
+        <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">GP Standard uniquement</div>
+    </th>
 }
