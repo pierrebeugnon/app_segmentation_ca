@@ -1,31 +1,7 @@
-private void RecomputeAll()
-{
-    _kpis = DashboardService.ComputeGlobalKpis(_dataFiltree, StateService.Regles);
-
-    _heatmap = DashboardService.ComputeHeatmap(
-        _dataFiltree,
-        StateService.Regles,
-        filtreRegionApplique,
-        filtreSecteurApplique);
-
-    _repartition = DashboardService.ComputeRepartitionParSegment(_dataFiltree);
-
-    _repartitionConseillers = DashboardService.ComputeRepartitionConseillers(
-        _dataFiltree, StateService.Regles);
-}
+<DashboardRepartitionConseillers Repartition="@_repartitionConseillers" />
 
 
 
 
 
-
-
-
-
-<MudPaper Elevation="0" Class="dash-alerte">
-    <div class="dash-section-title">
-        <span>Attention prioritaire</span>
-        <span class="dash-section-hint">Concordance la plus faible</span>
-    </div>
-    <div class="dash-placeholder">Top 5 à venir (étape 5)</div>
-</MudPaper>
+<span class="dash-section-hint">Volume et poids sur base totale</span>
