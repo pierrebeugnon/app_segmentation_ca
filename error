@@ -81,18 +81,20 @@
     </MudPaper>
 
     <!-- ═══════════════════════════════════════════════════════
-         ZONE 2 — 4 KPI HÉROS
+         ZONE 2 — 5 KPI HÉROS
     ═══════════════════════════════════════════════════════ -->
     <div class="dash-kpi-grid">
 
+        <!-- KPI 1 — Taux de couverture -->
         <div class="dash-kpi-card">
             <div class="dash-kpi-label">Taux de couverture</div>
             <div class="dash-kpi-value @GetKpiClass(_kpis.TauxCouverture, 100, 90)">
                 @_kpis.TauxCouverture.ToString("F0")<span class="dash-kpi-unit">%</span>
             </div>
-            <div class="dash-kpi-hint">Effectif ÷ ETP nécessaires</div>
+            <div class="dash-kpi-hint">Effectif réel vs besoin théorique</div>
         </div>
 
+        <!-- KPI 2 — Concordance moyenne -->
         <div class="dash-kpi-card">
             <div class="dash-kpi-label">Concordance moyenne</div>
             <div class="dash-kpi-value @GetKpiClass(_kpis.Concordance, 80, 60)">
@@ -101,20 +103,59 @@
             <div class="dash-kpi-hint">Alignement avec les règles R&H</div>
         </div>
 
+        <!-- KPI 3 — Nombre de conseillers (Existant vs Cible) -->
         <div class="dash-kpi-card">
-            <div class="dash-kpi-label">Conseillers actifs</div>
-            <div class="dash-kpi-value dash-kpi-neutral">
-                @_kpis.ConseillersActifs.ToString("N0")
+            <div class="dash-kpi-label">Nombre de conseillers</div>
+
+            @{
+                var deltaConseillers =
+                    _kpis.ConseillersExistants -
+                    _kpis.ConseillersCibles;
+
+                var ratioConseillers =
+                    _kpis.ConseillersCibles > 0
+                        ? (double)_kpis.ConseillersExistants /
+                          _kpis.ConseillersCibles * 100
+                        : 0;
+            }
+
+            <div class="dash-kpi-double">
+                <div class="dash-kpi-current">
+                    @_kpis.ConseillersExistants
+                </div>
+
+                <div class="dash-kpi-separator"></div>
+
+                <div class="dash-kpi-target">
+                    @_kpis.ConseillersCibles
+                </div>
             </div>
-            <div class="dash-kpi-hint">Matricules distincts</div>
+
+            <div class="dash-kpi-delta @(deltaConseillers >= 0 ? "dash-delta-good" : "dash-delta-critical")">
+                @(deltaConseillers >= 0 ? "+" : "")@deltaConseillers vs cible
+            </div>
+
+            <div class="dash-kpi-hint">
+                @ratioConseillers.ToString("F0")% de la cible
+            </div>
         </div>
 
+        <!-- KPI 4 — Taux de rotation portefeuille -->
         <div class="dash-kpi-card">
-            <div class="dash-kpi-label">Clients gérés</div>
-            <div class="dash-kpi-value dash-kpi-neutral">
-                @FormatCompact(_kpis.ClientsGeres)
+            <div class="dash-kpi-label">Taux de rotation portefeuille</div>
+            <div class="dash-kpi-value @GetKpiClass(_kpis.TauxRotationPortefeuille, 10, 20)">
+                @_kpis.TauxRotationPortefeuille.ToString("F0")<span class="dash-kpi-unit">%</span>
             </div>
-            <div class="dash-kpi-hint">Tous segments confondus</div>
+            <div class="dash-kpi-hint">Entrées + sorties portefeuille</div>
+        </div>
+
+        <!-- KPI 5 — Nombre de Clients Commerciaux -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-label">Nombre de Clients Commerciaux</div>
+            <div class="dash-kpi-value dash-kpi-neutral">
+                @FormatCompact(_kpis.ClientsCommerciaux)
+            </div>
+            <div class="dash-kpi-hint">Référence de dimensionnement</div>
         </div>
 
     </div>
@@ -270,10 +311,10 @@
         letter-spacing: 2px;
     }
 
-    /* ── KPI Grid ────────────────────────────────── */
+    /* ── KPI Grid — 5 colonnes ────────────────────── */
     .dash-kpi-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         gap: 16px;
         margin-bottom: 28px;
     }
@@ -316,6 +357,38 @@
     .dash-kpi-warn     { color: #E65100; }
     .dash-kpi-critical { color: #C62828; }
     .dash-kpi-neutral  { color: #1A4E6B; }
+
+    /* ── KPI double valeur (Conseillers Existant / Cible) ── */
+    .dash-kpi-double {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .dash-kpi-current {
+        font-size: 34px;
+        font-weight: 700;
+        color: #1A4E6B;
+        line-height: 1;
+    }
+    .dash-kpi-separator {
+        width: 60px;
+        height: 2px;
+        background: #D7DEE7;
+        margin: 6px 0;
+    }
+    .dash-kpi-target {
+        font-size: 20px;
+        font-weight: 600;
+        color: #8A97A8;
+        line-height: 1;
+    }
+    .dash-kpi-delta {
+        margin-top: 10px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    .dash-delta-good     { color: #1B5E20; }
+    .dash-delta-critical { color: #C62828; }
 
     /* ── Sections ────────────────────────────────── */
     .dash-section-title {
