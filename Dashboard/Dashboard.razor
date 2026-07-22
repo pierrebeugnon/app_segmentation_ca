@@ -213,9 +213,10 @@
                 <div class="dash-hm-col-consei">Cons. existants</div>
                 <div class="dash-hm-col-consei">Cons. cibles</div>
                 <div class="dash-hm-col-etp">ETP requis</div>
-                <div class="dash-hm-col-couv">Couverture</div>
-                <div class="dash-hm-col-conc">Concordance</div>
-                <div class="dash-hm-col-rot">Rotation</div>
+                <div class="dash-hm-col-couv">Taux de couverture</div>
+                <div class="dash-hm-col-conc">Taux de concordance</div>
+                <div class="dash-hm-col-rot">Taux de rotation</div>
+                <div class="dash-hm-col-rot">Taux de pureté</div>
             </div>
 
             <!-- Lignes agences -->
@@ -263,7 +264,7 @@
             }
 
             <!-- Ligne TOTAL -->
-            @{
+            
                 var totalClientsAg = _heatmap.Sum(r => r.ClientsGeres);
                 var totalExistAg = _heatmap.Sum(r => r.ConseillersActifs);
                 var totalCibleAg = _heatmap.Sum(r => r.ConseillersCibles);
@@ -271,7 +272,7 @@
                 var avgCouv = _heatmap.Any() ? _heatmap.Average(r => r.TauxCouverture) : 0;
                 var avgConc = _heatmap.Any() ? _heatmap.Average(r => r.Concordance) : 0;
                 var avgRot = _heatmap.Any() ? _heatmap.Average(r => r.TauxRotation) : 0;
-            }
+            
 
             <div class="dash-hm-row dash-hm-total-row">
                 <div class="dash-hm-col-nom">
