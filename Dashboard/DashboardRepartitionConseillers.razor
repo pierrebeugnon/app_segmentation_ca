@@ -30,7 +30,7 @@
 
                     <!-- Ligne 2 : colonnes détaillées -->
                     <tr class="dash-rc-header-cols">
-                        <th class="dash-rc-col-metier">Ligne métier</th>
+                        <th class="dash-rc-col-metier">Ligne métier / Profil</th>
 
                         <th class="dash-rc-col-existant">Existant</th>
                         <th class="dash-rc-col-cible">Cible</th>
@@ -48,19 +48,16 @@
                         var deltaConsClass = GetDeltaClass(l.DeltaConseillers);
                         var deltaTailleClass = GetDeltaClass(l.DeltaTaillePortefeuille);
 
-                        <tr>
-                            <td class="dash-rc-col-metier dash-rc-metier-label">
-                                @l.LigneMetier
+                        <!-- Row en-tête LIGNE MÉTIER : agrégé, majuscule, graisse fine, background -->
+                        <tr class="dash-rc-lm-row">
+                            <td class="dash-rc-col-metier dash-rc-lm-label">
+                                @l.LigneMetier.ToUpper()
                             </td>
 
-                            <!-- Conseillers -->
                             <td class="dash-rc-val-existant">@l.ConseillersExistants</td>
                             <td class="dash-rc-val-cible">@l.ConseillersCibles</td>
-                            <td class="@deltaConsClass">
-                                @FormatDelta(l.DeltaConseillers)
-                            </td>
+                            <td class="@deltaConsClass">@FormatDelta(l.DeltaConseillers)</td>
 
-                            <!-- Taille portefeuille (fond bleu clair) -->
                             <td class="dash-rc-val-existant dash-rc-taille">
                                 @l.TaillePortefeuilleExistant.ToString("N0")
                             </td>
@@ -71,6 +68,29 @@
                                 @FormatDelta(l.DeltaTaillePortefeuille, "N0")
                             </td>
                         </tr>
+
+                        <!-- Rows détail par profil -->
+                        @foreach (var p in l.Profils)
+                        {
+                            var deltaProfilClass = GetDeltaClass(p.DeltaConseillers);
+
+                            <tr class="dash-rc-profil-row">
+                                <td class="dash-rc-col-metier dash-rc-profil-label">
+                                    @p.Profil
+                                </td>
+
+                                <td class="dash-rc-val-existant dash-rc-profil-val">@p.ConseillersExistants</td>
+                                <td class="dash-rc-val-cible dash-rc-profil-val">@p.ConseillersCibles</td>
+                                <td class="dash-rc-profil-val @deltaProfilClass">
+                                    @FormatDelta(p.DeltaConseillers)
+                                </td>
+
+                                <!-- Colonnes taille : non applicable au niveau profil -->
+                                <td class="dash-rc-taille dash-rc-empty">—</td>
+                                <td class="dash-rc-taille dash-rc-empty">—</td>
+                                <td class="dash-rc-taille dash-rc-empty">—</td>
+                            </tr>
+                        }
                     }
                 </tbody>
             </table>
@@ -132,9 +152,10 @@
         border-bottom: 2px solid #E1E7EF;
     }
 
+    /* Bleu très léger sur le groupe taille */
     .dash-rc-group-taille {
-        background: #EBF3FB;
-        border-bottom: 2px solid #B9D2E8;
+        background: #F4F9FD;
+        border-bottom: 2px solid #D4E4F0;
         border-radius: 6px 6px 0 0;
     }
 
@@ -155,52 +176,104 @@
         color: #8A97A8;
     }
 
-    /* Colonnes détail conseillers */
+    /* Couleurs charte Portefeuille */
     .dash-rc-col-existant { color: #E65100; }
     .dash-rc-col-cible    { color: #1A4E6B; }
     .dash-rc-col-delta    { color: #6C7A89; }
 
-    /* Cellules taille — background bleu léger */
+    /* Colonnes taille — bleu très léger */
     .dash-rc-taille {
-        background: #EBF3FB;
+        background: #F7FBFE;
     }
 
-    /* Lignes de données */
-    .dash-rc-table tbody tr {
-        border-bottom: 1px solid #F5F7FA;
-        transition: background 0.12s ease;
+    /* ═══════════════════════════════════════════════
+       Row en-tête LIGNE MÉTIER — uppercase, thin, background
+    ═══════════════════════════════════════════════ */
+    .dash-rc-lm-row {
+        background: #EEF1F5;
+        border-top: 1px solid #DAE0E7;
+        border-bottom: 1px solid #DAE0E7;
     }
 
-    .dash-rc-table tbody tr:last-child {
-        border-bottom: none;
+    .dash-rc-lm-row:hover {
+        background: #E5E9EF;
     }
 
-    .dash-rc-table tbody tr:hover {
-        background: #FAFBFC;
+    /* Fond taille légèrement plus soutenu sur la row LM */
+    .dash-rc-lm-row .dash-rc-taille {
+        background: #EAF2FA;
     }
 
-    .dash-rc-table tbody tr:hover .dash-rc-taille {
-        background: #DFEBF7;
+    .dash-rc-lm-row:hover .dash-rc-taille {
+        background: #E0EBF5;
     }
 
-    .dash-rc-table tbody td {
-        padding: 14px 6px;
+    .dash-rc-lm-label {
+        font-size: 12px !important;
+        font-weight: 400 !important;          /* thin */
+        letter-spacing: 2px;
+        color: #1A4E6B;
+        text-transform: uppercase;
+    }
+
+    .dash-rc-lm-row td {
+        padding: 12px 6px;
         text-align: center;
         font-size: 15px;
         font-weight: 700;
     }
 
-    .dash-rc-metier-label {
-        text-align: left !important;
-        color: #1A4E6B;
-        padding-left: 8px !important;
-        font-size: 13px !important;
-        font-weight: 700;
+    .dash-rc-lm-row .dash-rc-col-metier {
+        text-align: left;
+        padding-left: 10px;
     }
 
-    .dash-rc-val-existant { color: #E65100; }
-    .dash-rc-val-cible    { color: #1A4E6B; }
+    /* ═══════════════════════════════════════════════
+       Row détail PROFIL
+    ═══════════════════════════════════════════════ */
+    .dash-rc-profil-row {
+        background: white;
+    }
 
+    .dash-rc-profil-row:hover {
+        background: #FAFBFC;
+    }
+
+    .dash-rc-profil-row .dash-rc-taille {
+        background: #F7FBFE;
+    }
+
+    .dash-rc-profil-row:hover .dash-rc-taille {
+        background: #EDF4FA;
+    }
+
+    .dash-rc-profil-row td {
+        padding: 8px 6px;
+        text-align: center;
+        font-size: 12px;
+    }
+
+    .dash-rc-profil-label {
+        text-align: left !important;
+        padding-left: 26px !important;
+        color: #4A5568;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .dash-rc-profil-val {
+        font-weight: 600;
+    }
+
+    .dash-rc-empty {
+        color: #C5CBD3 !important;
+        font-weight: 400 !important;
+        font-style: italic;
+    }
+
+    /* ═══════════════════════════════════════════════
+       Delta colors
+    ═══════════════════════════════════════════════ */
     .dash-delta-good     { color: #1B5E20; }
     .dash-delta-critical { color: #C62828; }
     .dash-delta-neutral  { color: #6C7A89; }
@@ -216,8 +289,7 @@
 
 @code {
     /// <summary>
-    /// Répartition par ligne métier (BP / Retail) :
-    /// nombre de conseillers existant vs cible + taille théorique portefeuille.
+    /// Répartition par ligne métier (BP / Retail) avec détail par type de conseiller.
     /// </summary>
     [Parameter]
     public List<LigneMetierRepartition>? Repartition { get; set; }
