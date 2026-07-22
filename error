@@ -27,15 +27,15 @@ namespace Segmentation.Client.Services
             if (data == null || !data.Any())
                 return new DashboardKpis();
 
-            // 1. Conseillers actifs (matricules distincts)
-            var conseillersActifs = data
+            // 1. Conseillers existants (matricules distincts en poste)
+            var conseillersExistants = data
                 .Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
                 .Select(x => x.MatriculeConseiller)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Count();
 
-            // 2. Clients gérés (somme de tous les segments)
-            var clientsGeres =
+            // 2. Clients commerciaux (somme de tous les segments)
+            var clientsCommerciaux =
                 data.Sum(x => x.HDGPremiumPotentiel + x.HDGPremiumStandard
                             + x.HDGPotentiel + x.HDGSeniorEpargnant + x.HDGStandard
                             + x.CIPotentiel + x.CIStandard
@@ -45,30 +45,34 @@ namespace Segmentation.Client.Services
             // 3. ETP nécessaires (somme des charges théoriques par segment)
             var etpNecessaires = ComputeTotalEtpBesoin(data);
 
-            // 4. Taux de couverture
-            var tauxCouverture = etpNecessaires > 0
-                ? conseillersActifs / etpNecessaires * 100.0
+            // 4. Cible théorique de conseillers = arrondi de l'ETP nécessaire
+            var conseillersCibles = (int)Math.Round(etpNecessaires);
+
+            // 5. Taux de couverture (référence = cible théorique)
+            var tauxCouverture = conseillersCibles > 0
+                ? (double)conseillersExistants / conseillersCibles * 100.0
                 : 0;
 
-            // 5. Concordance moyenne (approximée à ce stade — sera affinée)
+            // 6. Concordance moyenne
             var concordance = ComputeConcordanceMoyenne(data, regles);
+
+            // 7. Taux de rotation portefeuille (placeholder V1)
+            var tauxRotationPortefeuille = 12.0;
 
             return new DashboardKpis
             {
-                ConseillersActifs = conseillersActifs,
-                ClientsGeres = clientsGeres,
-                EtpNecessaires = Math.Round(etpNecessaires, 1),
-                TauxCouverture = Math.Round(tauxCouverture, 0),
-                Concordance = Math.Round(concordance, 0)
+                ConseillersExistants     = conseillersExistants,
+                ConseillersCibles        = conseillersCibles,
+                ClientsCommerciaux       = clientsCommerciaux,
+                EtpNecessaires           = Math.Round(etpNecessaires, 1),
+                TauxCouverture           = Math.Round(tauxCouverture, 0),
+                Concordance              = Math.Round(concordance, 0),
+                TauxRotationPortefeuille = tauxRotationPortefeuille
             };
         }
 
         // ═══════════════════════════════════════════════════════════
         //   HEATMAP TERRITORIALE
-        //   Adaptative selon le niveau filtré :
-        //   - Aucun filtre → grille par région
-        //   - Filtre région → grille par secteur
-        //   - Filtre secteur → grille par agence
         // ═══════════════════════════════════════════════════════════
         public List<TerritoireRow> ComputeHeatmap(
             List<SegmentationDistributiveData> data,
@@ -79,7 +83,6 @@ namespace Segmentation.Client.Services
             if (data == null || !data.Any())
                 return new List<TerritoireRow>();
 
-            // Décide du niveau de granularité
             IEnumerable<IGrouping<string, SegmentationDistributiveData>> groupes;
 
             if (!string.IsNullOrWhiteSpace(filtreSecteur))
@@ -104,12 +107,12 @@ namespace Segmentation.Client.Services
 
                     return new TerritoireRow
                     {
-                        Nom = g.Key,
-                        ClientsGeres = kpis.ClientsGeres,
-                        ConseillersActifs = kpis.ConseillersActifs,
-                        EtpNecessaires = kpis.EtpNecessaires,
-                        TauxCouverture = kpis.TauxCouverture,
-                        Concordance = kpis.Concordance
+                        Nom               = g.Key,
+                        ClientsGeres      = kpis.ClientsCommerciaux,
+                        ConseillersActifs = kpis.ConseillersExistants,
+                        EtpNecessaires    = kpis.EtpNecessaires,
+                        TauxCouverture    = kpis.TauxCouverture,
+                        Concordance       = kpis.Concordance
                     };
                 })
                 .OrderByDescending(x => x.ClientsGeres)
@@ -117,7 +120,7 @@ namespace Segmentation.Client.Services
         }
 
         // ═══════════════════════════════════════════════════════════
-        //   RÉPARTITION ETP PAR SEGMENT (pour graphique)
+        //   RÉPARTITION ETP PAR SEGMENT
         // ═══════════════════════════════════════════════════════════
         public List<SegmentRepartition> ComputeRepartitionParSegment(
             List<SegmentationDistributiveData> data)
@@ -174,17 +177,17 @@ namespace Segmentation.Client.Services
 
                     return new TerritoireRow
                     {
-                        Nom = g.Key.LibAgence,
-                        Secteur = g.Key.LibSecteur,
-                        Region = g.Key.LibRegion,
-                        ClientsGeres = kpis.ClientsGeres,
-                        ConseillersActifs = kpis.ConseillersActifs,
-                        EtpNecessaires = kpis.EtpNecessaires,
-                        TauxCouverture = kpis.TauxCouverture,
-                        Concordance = kpis.Concordance
+                        Nom               = g.Key.LibAgence,
+                        Secteur           = g.Key.LibSecteur,
+                        Region            = g.Key.LibRegion,
+                        ClientsGeres      = kpis.ClientsCommerciaux,
+                        ConseillersActifs = kpis.ConseillersExistants,
+                        EtpNecessaires    = kpis.EtpNecessaires,
+                        TauxCouverture    = kpis.TauxCouverture,
+                        Concordance       = kpis.Concordance
                     };
                 })
-                .OrderBy(x => x.Concordance)   // les plus faibles = alerte
+                .OrderBy(x => x.Concordance)
                 .Take(top)
                 .ToList();
         }
@@ -217,12 +220,9 @@ namespace Segmentation.Client.Services
             List<SegmentationDistributiveData> data,
             ReglesHypothesesModel? regles)
         {
-            // Placeholder V1 — calcul simplifié
-            // À affiner en V2 en croisant avec les règles d'affectation
             if (regles == null || data == null || !data.Any())
                 return 0;
 
-            // Approche V1 : % de conseillers dont le type match une règle prioritaire
             var totalConseillers = data
                 .Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
                 .Select(x => x.MatriculeConseiller)
@@ -254,11 +254,18 @@ namespace Segmentation.Client.Services
     // ═══════════════════════════════════════════════════════════════
     public class DashboardKpis
     {
-        public int ConseillersActifs { get; set; }
-        public int ClientsGeres { get; set; }
+        // ── Conseillers ────────────────────────────
+        public int ConseillersExistants { get; set; }
+        public int ConseillersCibles { get; set; }
+
+        // ── Clients ────────────────────────────────
+        public int ClientsCommerciaux { get; set; }
+
+        // ── Indicateurs de performance ─────────────
         public double EtpNecessaires { get; set; }
         public double TauxCouverture { get; set; }
         public double Concordance { get; set; }
+        public double TauxRotationPortefeuille { get; set; }
     }
 
     public class TerritoireRow
