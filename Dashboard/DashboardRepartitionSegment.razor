@@ -1,9 +1,20 @@
 @using Segmentation.Client.Services
 
 <MudPaper Elevation="0" Class="dash-repartition">
-    <div class="dash-section-title">
-        <span>Répartition par segment</span>
-        <span class="dash-section-hint">Volume, charge ETP et conseillers</span>
+
+    <div class="dash-dim-tags">
+        <button class="dash-dim-tag @(Dimension == "Region" ? "active" : "")"
+                @onclick="@(() => Switch("Region"))">
+            Région
+        </button>
+        <button class="dash-dim-tag @(Dimension == "Secteur" ? "active" : "")"
+                @onclick="@(() => Switch("Secteur"))">
+            Secteur
+        </button>
+        <button class="dash-dim-tag @(Dimension == "Agence" ? "active" : "")"
+                @onclick="@(() => Switch("Agence"))">
+            Agence
+        </button>
     </div>
 
     @if (Repartition == null || !Repartition.Any())
@@ -56,30 +67,60 @@
         min-height: 300px;
     }
 
-    .dash-repartition .dash-section-title {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        margin-bottom: 16px;
-    }
+        .dash-repartition .dash-section-title {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
 
-    .dash-repartition .dash-section-title span:first-child {
-        font-size: 15px;
-        font-weight: 700;
-        color: #1A4E6B;
-    }
+            .dash-repartition .dash-section-title span:first-child {
+                font-size: 15px;
+                font-weight: 700;
+                color: #1A4E6B;
+            }
 
-    .dash-repartition .dash-section-hint {
-        font-size: 11px;
-        color: #8A97A8;
-        font-style: italic;
-    }
+        .dash-repartition .dash-section-hint {
+            font-size: 11px;
+            color: #8A97A8;
+            font-style: italic;
+        }
 
     .dash-rep-list {
         display: flex;
         flex-direction: column;
         gap: 8px;
     }
+
+    /* ── Tag switcher ── */
+    .dash-dim-tags {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 12px;
+    }
+
+    .dash-dim-tag {
+        background: #F0F3F7;
+        color: #6C7A89;
+        border: none;
+        padding: 4px 12px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+        .dash-dim-tag:hover {
+            background: #E1E7EF;
+        }
+
+        .dash-dim-tag.active {
+            background: #1A4E6B;
+            color: white;
+        }
 
     .dash-rep-header,
     .dash-rep-row {
@@ -99,12 +140,12 @@
         border-bottom: 1px solid #EEF1F5;
     }
 
-    .dash-rep-header div:nth-child(3),
-    .dash-rep-header div:nth-child(4),
-    .dash-rep-header div:nth-child(5),
-    .dash-rep-header div:nth-child(6) {
-        text-align: right;
-    }
+        .dash-rep-header div:nth-child(3),
+        .dash-rep-header div:nth-child(4),
+        .dash-rep-header div:nth-child(5),
+        .dash-rep-header div:nth-child(6) {
+            text-align: right;
+        }
 
     .dash-rep-label {
         font-size: 12px;
@@ -137,10 +178,21 @@
         font-weight: 700;
     }
 
-    .dash-rep-val  { color: #1A4E6B; }
-    .dash-rep-pct  { color: #8A97A8; }
-    .dash-rep-etp  { color: #E65100; }
-    .dash-rep-cons { color: #1A4E6B; }
+    .dash-rep-val {
+        color: #1A4E6B;
+    }
+
+    .dash-rep-pct {
+        color: #8A97A8;
+    }
+
+    .dash-rep-etp {
+        color: #E65100;
+    }
+
+    .dash-rep-cons {
+        color: #1A4E6B;
+    }
 
     .dash-repartition .dash-placeholder {
         color: #B0BAC5;
@@ -154,6 +206,16 @@
 @code {
     [Parameter]
     public List<SegmentRepartition>? Repartition { get; set; }
+
+    [Parameter] public string Dimension { get; set; } = "Region";
+    [Parameter] public EventCallback<string> DimensionChanged { get; set; }
+
+    private async Task Switch(string dim)
+    {
+        if (dim == Dimension) return;
+        Dimension = dim;
+        await DimensionChanged.InvokeAsync(dim);
+    }
 
     private string GetSegmentColor(string segment)
     {
@@ -171,7 +233,7 @@
     private string FormatCompact(int value)
     {
         if (value >= 1_000_000) return $"{value / 1_000_000.0:F1}M";
-        if (value >= 1_000)     return $"{value / 1_000.0:F0}K";
+        if (value >= 1_000) return $"{value / 1_000.0:F0}K";
         return value.ToString("N0");
     }
 }
