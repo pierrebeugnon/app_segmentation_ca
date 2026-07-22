@@ -118,7 +118,8 @@ namespace Segmentation.Client.Services
                         EtpNecessaires    = kpis.EtpNecessaires,
                         TauxCouverture    = kpis.TauxCouverture,
                         Concordance       = kpis.Concordance,
-                        TauxRotation      = kpis.TauxRotationPortefeuille
+                        TauxRotation      = kpis.TauxRotationPortefeuille,
+                        TauxPurete        = kpis.TauxPurete
                     };
                 })
                 .OrderByDescending(x => x.ClientsGeres)
@@ -154,7 +155,8 @@ namespace Segmentation.Client.Services
                         EtpNecessaires    = kpis.EtpNecessaires,
                         TauxCouverture    = kpis.TauxCouverture,
                         Concordance       = kpis.Concordance,
-                        TauxRotation      = kpis.TauxRotationPortefeuille
+                        TauxRotation      = kpis.TauxRotationPortefeuille,
+                        TauxPurete        = kpis.TauxPurete
                     };
                 })
                 .OrderByDescending(x => x.ClientsGeres)
@@ -218,7 +220,6 @@ namespace Segmentation.Client.Services
         // ═══════════════════════════════════════════════════════════
         //   DISTRIBUTION GÉOGRAPHIQUE PAR SEGMENT
         //   Segment × Dimension (Region / Secteur / Agence)
-        //   Ordre métier respecté (idem répartition par segment)
         // ═══════════════════════════════════════════════════════════
         public (Dictionary<string, Dictionary<string, int>> Distribution, List<string> Colonnes)
             ComputeDistributionGeographique(
@@ -306,7 +307,8 @@ namespace Segmentation.Client.Services
                         EtpNecessaires    = kpis.EtpNecessaires,
                         TauxCouverture    = kpis.TauxCouverture,
                         Concordance       = kpis.Concordance,
-                        TauxRotation      = kpis.TauxRotationPortefeuille
+                        TauxRotation      = kpis.TauxRotationPortefeuille,
+                        TauxPurete        = kpis.TauxPurete
                     };
                 })
                 .OrderBy(x => x.Concordance)
@@ -592,6 +594,7 @@ namespace Segmentation.Client.Services
         public double TauxCouverture { get; set; }
         public double Concordance { get; set; }
         public double TauxRotation { get; set; }
+        public double TauxPurete { get; set; }
 
         public int DeltaConseillers => ConseillersActifs - ConseillersCibles;
     }
