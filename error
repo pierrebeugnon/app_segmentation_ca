@@ -16,3 +16,121 @@ public class LigneMetierRepartition
     public int DeltaConseillers => ConseillersExistants - ConseillersCibles;
     public double DeltaTaillePortefeuille => TaillePortefeuilleExistant - TaillePortefeuilleCible;
 }
+
+
+
+
+
+
+
+
+
+
+// ═══════════════════════════════════════════════════════════
+//   RÉPARTITION CONSEILLERS × TAILLE THÉORIQUE PORTEFEUILLE
+//   Par ligne métier (Banque Privée / Retail)
+// ═══════════════════════════════════════════════════════════
+public List<LigneMetierRepartition> ComputeRepartitionConseillers(
+    List<SegmentationDistributiveData> data,
+    ReglesHypothesesModel? regles)
+{
+    if (data == null || !data.Any())
+        return new List<LigneMetierRepartition>();
+
+    // Segments BP (contiennent "Premium")
+    var segmentsBP = new[] { "HDG Premium Potentiel", "HDG Premium Standard" };
+
+    // Segments Retail (tous les autres commerciaux)
+    var segmentsRetail = new[]
+    {
+        "HDG Potentiel", "HDG Senior Epargnant", "HDG Standard",
+        "CI Potentiel", "CI Standard",
+        "GP Potentiel", "GP Standard"
+    };
+
+    // Mapping profil → ligne métier depuis les règles R&H
+    var profilsBP = regles?.ConseillersProfils
+        .Where(p => string.Equals(p.LigneMetier, "banque privée", StringComparison.OrdinalIgnoreCase))
+        .Select(p => p.Profil?.Trim() ?? "")
+        .ToHashSet(StringComparer.OrdinalIgnoreCase)
+        ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    var profilsRetail = regles?.ConseillersProfils
+        .Where(p => string.Equals(p.LigneMetier, "retail", StringComparison.OrdinalIgnoreCase))
+        .Select(p => p.Profil?.Trim() ?? "")
+        .ToHashSet(StringComparer.OrdinalIgnoreCase)
+        ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    // Nb conseillers existants par ligne métier (matricules distincts)
+    var conseillersExistantsBP = data
+        .Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
+        .Where(x => profilsBP.Contains(x.TypeConseiller?.Trim() ?? ""))
+        .Select(x => x.MatriculeConseiller)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Count();
+
+    var conseillersExistantsRetail = data
+        .Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
+        .Where(x => profilsRetail.Contains(x.TypeConseiller?.Trim() ?? ""))
+        .Select(x => x.MatriculeConseiller)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Count();
+
+    // Nb clients par ligne métier
+    var clientsBP = data.Sum(x => x.HDGPremiumPotentiel + x.HDGPremiumStandard);
+    var clientsRetail = data.Sum(x =>
+        x.HDGPotentiel + x.HDGSeniorEpargnant + x.HDGStandard
+        + x.CIPotentiel + x.CIStandard
+        + x.GPPotentiel + x.GPStandard);
+
+    // ETP nécessaire par ligne métier (= conseillers cibles)
+    var etpBesoinBP = 0.0;
+    foreach (var seg in segmentsBP)
+    {
+        var charge = _etpService.GetChargeTotaleEtpForSegment(data, seg);
+        if (charge.HasValue) etpBesoinBP += charge.Value;
+    }
+
+    var etpBesoinRetail = 0.0;
+    foreach (var seg in segmentsRetail)
+    {
+        var charge = _etpService.GetChargeTotaleEtpForSegment(data, seg);
+        if (charge.HasValue) etpBesoinRetail += charge.Value;
+    }
+
+    var conseillersCiblesBP = (int)Math.Round(etpBesoinBP);
+    var conseillersCiblesRetail = (int)Math.Round(etpBesoinRetail);
+
+    // Taille théorique portefeuille = clients / conseillers
+    var taillePfExistBP = conseillersExistantsBP > 0
+        ? (double)clientsBP / conseillersExistantsBP : 0;
+    var taillePfCibleBP = conseillersCiblesBP > 0
+        ? (double)clientsBP / conseillersCiblesBP : 0;
+
+    var taillePfExistRetail = conseillersExistantsRetail > 0
+        ? (double)clientsRetail / conseillersExistantsRetail : 0;
+    var taillePfCibleRetail = conseillersCiblesRetail > 0
+        ? (double)clientsRetail / conseillersCiblesRetail : 0;
+
+    return new List<LigneMetierRepartition>
+    {
+        new()
+        {
+            LigneMetier = "Banque Privée",
+            NbClients = clientsBP,
+            ConseillersExistants = conseillersExistantsBP,
+            ConseillersCibles = conseillersCiblesBP,
+            TaillePortefeuilleExistant = Math.Round(taillePfExistBP, 0),
+            TaillePortefeuilleCible = Math.Round(taillePfCibleBP, 0)
+        },
+        new()
+        {
+            LigneMetier = "Retail",
+            NbClients = clientsRetail,
+            ConseillersExistants = conseillersExistantsRetail,
+            ConseillersCibles = conseillersCiblesRetail,
+            TaillePortefeuilleExistant = Math.Round(taillePfExistRetail, 0),
+            TaillePortefeuilleCible = Math.Round(taillePfCibleRetail, 0)
+        }
+    };
+}
