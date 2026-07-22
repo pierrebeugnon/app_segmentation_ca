@@ -126,7 +126,8 @@ namespace Segmentation.Client.Services
         }
 
         // ═══════════════════════════════════════════════════════════
-        //   RÉPARTITION ETP PAR SEGMENT (pour graphique)
+        //   RÉPARTITION PAR SEGMENT
+        //   Enrichi avec : ChargeEtp + ConseillersConcernes
         // ═══════════════════════════════════════════════════════════
         public List<SegmentRepartition> ComputeRepartitionParSegment(
             List<SegmentationDistributiveData> data)
@@ -134,32 +135,101 @@ namespace Segmentation.Client.Services
             if (data == null || !data.Any())
                 return new List<SegmentRepartition>();
 
-            var segments = new[]
+            var segmentsDef = new (string Nom, Func<SegmentationDistributiveData, int> Get)[]
             {
-                ("HDG Premium Potentiel", data.Sum(x => x.HDGPremiumPotentiel)),
-                ("HDG Premium Standard",  data.Sum(x => x.HDGPremiumStandard)),
-                ("HDG Potentiel",         data.Sum(x => x.HDGPotentiel)),
-                ("HDG Senior Epargnant",  data.Sum(x => x.HDGSeniorEpargnant)),
-                ("HDG Standard",          data.Sum(x => x.HDGStandard)),
-                ("CI Potentiel",          data.Sum(x => x.CIPotentiel)),
-                ("CI Standard",           data.Sum(x => x.CIStandard)),
-                ("GP Potentiel",          data.Sum(x => x.GPPotentiel)),
-                ("GP Standard",           data.Sum(x => x.GPStandard))
+                ("HDG Premium Potentiel", x => x.HDGPremiumPotentiel),
+                ("HDG Premium Standard",  x => x.HDGPremiumStandard),
+                ("HDG Potentiel",         x => x.HDGPotentiel),
+                ("HDG Senior Epargnant",  x => x.HDGSeniorEpargnant),
+                ("HDG Standard",          x => x.HDGStandard),
+                ("CI Potentiel",          x => x.CIPotentiel),
+                ("CI Standard",           x => x.CIStandard),
+                ("GP Potentiel",          x => x.GPPotentiel),
+                ("GP Standard",           x => x.GPStandard)
             };
 
-            var total = segments.Sum(s => s.Item2);
-            if (total == 0) return new List<SegmentRepartition>();
+            var totalClients = segmentsDef.Sum(s => data.Sum(x => s.Get(x)));
+            if (totalClients == 0) return new List<SegmentRepartition>();
 
-            return segments
-                .Where(s => s.Item2 > 0)
-                .Select(s => new SegmentRepartition
+            return segmentsDef
+                .Select(s =>
                 {
-                    Segment = s.Item1,
-                    NbClients = s.Item2,
-                    Pourcentage = Math.Round((double)s.Item2 / total * 100, 1)
+                    var nbClients = data.Sum(x => s.Get(x));
+
+                    // Charge ETP totale du segment
+                    var chargeEtp = _etpService.GetChargeTotaleEtpForSegment(data, s.Nom) ?? 0;
+
+                    // Nb de conseillers ayant au moins 1 client du segment (matricules distincts)
+                    var conseillersConcernes = data
+                        .Where(x => s.Get(x) > 0)
+                        .Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
+                        .Select(x => x.MatriculeConseiller)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .Count();
+
+                    return new SegmentRepartition
+                    {
+                        Segment = s.Nom,
+                        NbClients = nbClients,
+                        Pourcentage = Math.Round((double)nbClients / totalClients * 100, 1),
+                        ChargeEtp = Math.Round(chargeEtp, 1),
+                        ConseillersConcernes = conseillersConcernes
+                    };
                 })
+                .Where(s => s.NbClients > 0)
                 .OrderByDescending(x => x.NbClients)
                 .ToList();
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        //   DISTRIBUTION GÉOGRAPHIQUE PAR SEGMENT
+        //   Retourne : Segment → Région → NbClients + liste des régions
+        // ═══════════════════════════════════════════════════════════
+        public (Dictionary<string, Dictionary<string, int>> Distribution, List<string> Regions)
+            ComputeDistributionGeographique(List<SegmentationDistributiveData> data)
+        {
+            if (data == null || !data.Any())
+                return (new(), new());
+
+            var regions = data
+                .Select(x => x.LibRegion ?? "")
+                .Where(r => !string.IsNullOrWhiteSpace(r))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(r => r)
+                .ToList();
+
+            var segmentsDef = new (string Nom, Func<SegmentationDistributiveData, int> Get)[]
+            {
+                ("HDG Premium Potentiel", x => x.HDGPremiumPotentiel),
+                ("HDG Premium Standard",  x => x.HDGPremiumStandard),
+                ("HDG Potentiel",         x => x.HDGPotentiel),
+                ("HDG Senior Epargnant",  x => x.HDGSeniorEpargnant),
+                ("HDG Standard",          x => x.HDGStandard),
+                ("CI Potentiel",          x => x.CIPotentiel),
+                ("CI Standard",           x => x.CIStandard),
+                ("GP Potentiel",          x => x.GPPotentiel),
+                ("GP Standard",           x => x.GPStandard)
+            };
+
+            var distribution = new Dictionary<string, Dictionary<string, int>>();
+
+            foreach (var seg in segmentsDef)
+            {
+                var byRegion = new Dictionary<string, int>();
+
+                foreach (var region in regions)
+                {
+                    var nb = data
+                        .Where(x => string.Equals(x.LibRegion, region, StringComparison.OrdinalIgnoreCase))
+                        .Sum(x => seg.Get(x));
+
+                    byRegion[region] = nb;
+                }
+
+                distribution[seg.Nom] = byRegion;
+            }
+
+            return (distribution, regions);
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -436,6 +506,10 @@ namespace Segmentation.Client.Services
         public string Segment { get; set; } = "";
         public int NbClients { get; set; }
         public double Pourcentage { get; set; }
+
+        // ── Enrichissement ───────────────────────────
+        public double ChargeEtp { get; set; }
+        public int ConseillersConcernes { get; set; }
     }
 
     public class LigneMetierRepartition
