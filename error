@@ -1,2 +1,11 @@
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	RZ1010	Unexpected "{" after "@" character. Once inside the body of a code block (@if {}, @{}, etc.) you do not need to use "@{" to switch to code.		C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\Dashboard.razor	266	
+<!-- ZONE 4 — VUE DÉTAILLÉE PAR AGENCE -->
+<MudPaper Elevation="0" Class="dash-heatmap">
+
+    <div class="dash-section-title dash-heatmap-title">
+        <span>Vue détaillée par agence</span>
+        <span class="dash-section-hint">@_heatmap.Count @GetHeatmapUnit()</span>
+    </div>
+
+    @if (!_heatmap.Any())
+    {
+        ...
