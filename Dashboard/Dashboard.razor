@@ -156,7 +156,34 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════
-         ZONE 3 — HEATMAP TERRITORIALE
+         ZONE 3 — Grille 2 colonnes (Répartitions + Distribution)
+         Colonne gauche : Répartition segment + Distribution géographique
+         Colonne droite : Répartition conseillers
+    ═══════════════════════════════════════════════════════ -->
+    <div class="dash-bottom-grid">
+
+        <div class="dash-bottom-left">
+            <DashboardRepartitionSegment
+                Repartition="@_repartition"
+                Dimension="@_dimensionAffichage"
+                DimensionChanged="OnDimensionChanged" />
+
+            <DashboardDistributionGeographique
+                Distribution="@_distributionGeo"
+                Colonnes="@_regionsGeo"
+                Dimension="@_dimensionAffichage"
+                DimensionChanged="OnDimensionChanged" />
+        </div>
+
+        <DashboardRepartitionConseillers
+            Repartition="@_repartitionConseillers"
+            Dimension="@_dimensionAffichage"
+            DimensionChanged="OnDimensionChanged" />
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 4 — VISION TERRITORIALE (heatmap déplacée en bas)
     ═══════════════════════════════════════════════════════ -->
     <div class="dash-section-title">
         <span>Vision territoriale</span>
@@ -229,25 +256,6 @@
             }
         }
     </MudPaper>
-
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 4 + 5 — Grille 2 colonnes
-         Colonne gauche : Répartition segment + Distribution géo empilés
-         Colonne droite : Répartition conseillers (haute)
-    ═══════════════════════════════════════════════════════ -->
-    <div class="dash-bottom-grid">
-
-        <!-- Colonne gauche : 2 blocs empilés -->
-        <div class="dash-bottom-left">
-            <DashboardRepartitionSegment Repartition="@_repartition" />
-            <DashboardDistributionGeographique Distribution="@_distributionGeo"
-                                                Regions="@_regionsGeo" />
-        </div>
-
-        <!-- Colonne droite : Conseillers × Taille portefeuille -->
-        <DashboardRepartitionConseillers Repartition="@_repartitionConseillers" />
-
-    </div>
 
     <div class="dash-footer">
         © 2026 CA Nord de France — Pilotage réseau
@@ -372,7 +380,7 @@
     .dash-kpi-critical { color: #C62828; }
     .dash-kpi-neutral  { color: #1A4E6B; }
 
-    /* ── KPI compact : Existant + Cible sur 2 lignes ── */
+    /* ── KPI compact ── */
     .dash-kpi-compact {
         display: flex;
         flex-direction: column;
@@ -425,6 +433,7 @@
         align-items: baseline;
         justify-content: space-between;
         margin-bottom: 12px;
+        margin-top: 8px;
     }
 
     .dash-section-title span:first-child {
@@ -453,7 +462,7 @@
         display: grid;
         grid-template-columns: 2fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr;
         align-items: center;
-        padding: 14px 24px;
+        padding: 9px 24px;
         gap: 16px;
     }
 
@@ -571,7 +580,7 @@
     .dash-hm-pill-critical { background: #FFEBEE; color: #C62828; }
 
     /* ═══════════════════════════════════════════════════════
-       ZONE 4 + 5 — Grille 2 colonnes avec bloc gauche empilé
+       ZONE 3 — Grille 2 colonnes avec bloc gauche empilé
     ═══════════════════════════════════════════════════════ */
     .dash-bottom-grid {
         display: grid;
@@ -581,7 +590,6 @@
         align-items: start;
     }
 
-    /* Colonne gauche : 2 blocs empilés verticalement */
     .dash-bottom-left {
         display: flex;
         flex-direction: column;
@@ -618,6 +626,10 @@
     // ── Distribution géographique ───────────────────
     private Dictionary<string, Dictionary<string, int>> _distributionGeo = new();
     private List<string> _regionsGeo = new();
+
+    // ── Dimension d'affichage partagée par les 3 blocs du bas ──
+    // "Region" (par défaut) · "Secteur" · "Agence"
+    private string _dimensionAffichage = "Region";
 
     // ── Filtres ────────────────────────────────────
     private string? filtreRegion, filtreSecteur, filtreAgence;
@@ -672,10 +684,26 @@
         _repartitionConseillers = DashboardService.ComputeRepartitionConseillers(
             _dataFiltree, StateService.Regles);
 
-        // Distribution géographique
-        var geoResult = DashboardService.ComputeDistributionGeographique(_dataFiltree);
+        // Distribution géographique — utilise la dimension partagée
+        var geoResult = DashboardService.ComputeDistributionGeographique(
+            _dataFiltree, _dimensionAffichage);
         _distributionGeo = geoResult.Distribution;
-        _regionsGeo = geoResult.Regions;
+        _regionsGeo = geoResult.Colonnes;
+    }
+
+    // ── Changement de dimension (déclenché par n'importe quel bloc du bas) ──
+    private void OnDimensionChanged(string dim)
+    {
+        _dimensionAffichage = dim;
+
+        // Recalcule uniquement la distribution géographique
+        // (les 2 autres blocs sont juste synchronisés visuellement via le tag actif)
+        var geoResult = DashboardService.ComputeDistributionGeographique(
+            _dataFiltree, _dimensionAffichage);
+        _distributionGeo = geoResult.Distribution;
+        _regionsGeo = geoResult.Colonnes;
+
+        StateHasChanged();
     }
 
     // ── Handlers de filtres ────────────────────────
