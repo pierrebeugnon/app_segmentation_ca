@@ -60,7 +60,6 @@ namespace Segmentation.Client.Services
             var tauxRotationPortefeuille = 12.0;
 
             // 8. Taux de pureté des portefeuilles (existant / cible)
-            //    = % de clients gérés par le profil "prioritaire" désigné en R&H
             var tauxPurete = ComputeTauxPurete(data, regles);
 
             return new DashboardKpis
@@ -78,8 +77,6 @@ namespace Segmentation.Client.Services
 
         // ═══════════════════════════════════════════════════════════
         //   HEATMAP TERRITORIALE (adaptative — legacy)
-        //   Utilisée si on veut afficher région/secteur/agence
-        //   selon les filtres appliqués.
         // ═══════════════════════════════════════════════════════════
         public List<TerritoireRow> ComputeHeatmap(
             List<SegmentationDistributiveData> data,
@@ -129,9 +126,7 @@ namespace Segmentation.Client.Services
         }
 
         // ═══════════════════════════════════════════════════════════
-        //   HEATMAP AGENCES — Vue détaillée (nouveau)
-        //   Toujours au niveau agence, quels que soient les filtres.
-        //   Les filtres Région/Secteur zooment le périmètre affiché.
+        //   HEATMAP AGENCES — Vue détaillée
         // ═══════════════════════════════════════════════════════════
         public List<TerritoireRow> ComputeHeatmapAgences(
             List<SegmentationDistributiveData> data,
@@ -167,7 +162,8 @@ namespace Segmentation.Client.Services
         }
 
         // ═══════════════════════════════════════════════════════════
-        //   RÉPARTITION PAR SEGMENT (enrichie : ETP + Conseillers)
+        //   RÉPARTITION PAR SEGMENT
+        //   Ordre métier respecté (BP → HDG → CI → GP)
         // ═══════════════════════════════════════════════════════════
         public List<SegmentRepartition> ComputeRepartitionParSegment(
             List<SegmentationDistributiveData> data)
@@ -191,6 +187,7 @@ namespace Segmentation.Client.Services
             var totalClients = segmentsDef.Sum(s => data.Sum(x => s.Get(x)));
             if (totalClients == 0) return new List<SegmentRepartition>();
 
+            // Ordre naturel du segmentsDef conservé (hiérarchie métier)
             return segmentsDef
                 .Select(s =>
                 {
@@ -215,13 +212,13 @@ namespace Segmentation.Client.Services
                     };
                 })
                 .Where(s => s.NbClients > 0)
-                .OrderByDescending(x => x.NbClients)
                 .ToList();
         }
 
         // ═══════════════════════════════════════════════════════════
         //   DISTRIBUTION GÉOGRAPHIQUE PAR SEGMENT
         //   Segment × Dimension (Region / Secteur / Agence)
+        //   Ordre métier respecté (idem répartition par segment)
         // ═══════════════════════════════════════════════════════════
         public (Dictionary<string, Dictionary<string, int>> Distribution, List<string> Colonnes)
             ComputeDistributionGeographique(
