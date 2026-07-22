@@ -114,9 +114,11 @@ namespace Segmentation.Client.Services
                         Nom               = g.Key,
                         ClientsGeres      = kpis.ClientsCommerciaux,
                         ConseillersActifs = kpis.ConseillersExistants,
+                        ConseillersCibles = kpis.ConseillersCibles,
                         EtpNecessaires    = kpis.EtpNecessaires,
                         TauxCouverture    = kpis.TauxCouverture,
-                        Concordance       = kpis.Concordance
+                        Concordance       = kpis.Concordance,
+                        TauxRotation      = kpis.TauxRotationPortefeuille
                     };
                 })
                 .OrderByDescending(x => x.ClientsGeres)
@@ -186,9 +188,11 @@ namespace Segmentation.Client.Services
                         Region            = g.Key.LibRegion,
                         ClientsGeres      = kpis.ClientsCommerciaux,
                         ConseillersActifs = kpis.ConseillersExistants,
+                        ConseillersCibles = kpis.ConseillersCibles,
                         EtpNecessaires    = kpis.EtpNecessaires,
                         TauxCouverture    = kpis.TauxCouverture,
-                        Concordance       = kpis.Concordance
+                        Concordance       = kpis.Concordance,
+                        TauxRotation      = kpis.TauxRotationPortefeuille
                     };
                 })
                 .OrderBy(x => x.Concordance)
@@ -207,10 +211,7 @@ namespace Segmentation.Client.Services
             if (data == null || !data.Any())
                 return new List<LigneMetierRepartition>();
 
-            // Segments BP (contiennent "Premium")
             var segmentsBP = new[] { "HDG Premium Potentiel", "HDG Premium Standard" };
-
-            // Segments Retail (autres segments commerciaux)
             var segmentsRetail = new[]
             {
                 "HDG Potentiel", "HDG Senior Epargnant", "HDG Standard",
@@ -218,7 +219,6 @@ namespace Segmentation.Client.Services
                 "GP Potentiel", "GP Standard"
             };
 
-            // Profils par ligne métier depuis le référentiel R&H
             var profilsBP = regles?.ConseillersProfils
                 .Where(p => string.Equals(p.LigneMetier, "banque privée", StringComparison.OrdinalIgnoreCase))
                 .Select(p => p.Profil?.Trim() ?? "")
@@ -235,7 +235,6 @@ namespace Segmentation.Client.Services
                 .ToList()
                 ?? new List<string>();
 
-            // Compte les conseillers existants (matricules distincts) par profil
             int CountExistantByProfil(string profil) =>
                 data.Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
                     .Where(x => string.Equals(x.TypeConseiller?.Trim(), profil, StringComparison.OrdinalIgnoreCase))
@@ -252,14 +251,12 @@ namespace Segmentation.Client.Services
             var conseillersExistantsBP     = existantsBPByProfil.Values.Sum();
             var conseillersExistantsRetail = existantsRetailByProfil.Values.Sum();
 
-            // Clients par ligne métier
             var clientsBP = data.Sum(x => x.HDGPremiumPotentiel + x.HDGPremiumStandard);
             var clientsRetail = data.Sum(x =>
                 x.HDGPotentiel + x.HDGSeniorEpargnant + x.HDGStandard
                 + x.CIPotentiel + x.CIStandard
                 + x.GPPotentiel + x.GPStandard);
 
-            // Cible en conseillers = ETP nécessaire arrondi (par ligne métier)
             var etpBesoinBP = segmentsBP
                 .Select(seg => _etpService.GetChargeTotaleEtpForSegment(data, seg) ?? 0)
                 .Sum();
@@ -271,7 +268,6 @@ namespace Segmentation.Client.Services
             var conseillersCiblesBP     = (int)Math.Round(etpBesoinBP);
             var conseillersCiblesRetail = (int)Math.Round(etpBesoinRetail);
 
-            // Taille théorique portefeuille = clients / nb conseillers
             var taillePfExistBP = conseillersExistantsBP > 0
                 ? (double)clientsBP / conseillersExistantsBP : 0;
             var taillePfCibleBP = conseillersCiblesBP > 0
@@ -282,7 +278,6 @@ namespace Segmentation.Client.Services
             var taillePfCibleRetail = conseillersCiblesRetail > 0
                 ? (double)clientsRetail / conseillersCiblesRetail : 0;
 
-            // Répartition proportionnelle des cibles entre profils
             List<ProfilConseillerRepartition> BuildProfilDetail(
                 List<string> profils,
                 Dictionary<string, int> existantsByProfil,
@@ -295,8 +290,6 @@ namespace Segmentation.Client.Services
                     {
                         var existant = existantsByProfil.GetValueOrDefault(p);
 
-                        // Cible par profil = proportionnelle à l'existant
-                        // Fallback : répartition uniforme si existant = 0
                         var cible = totalExistant > 0
                             ? (int)Math.Round((double)existant * totalCible / totalExistant)
                             : (profils.Count > 0 ? totalCible / profils.Count : 0);
@@ -421,11 +414,21 @@ namespace Segmentation.Client.Services
         public string Nom { get; set; } = "";
         public string? Secteur { get; set; }
         public string? Region { get; set; }
+
         public int ClientsGeres { get; set; }
-        public int ConseillersActifs { get; set; }
+
+        // Conseillers
+        public int ConseillersActifs { get; set; }        // = existants
+        public int ConseillersCibles { get; set; }
+
         public double EtpNecessaires { get; set; }
+
+        // Indicateurs de performance
         public double TauxCouverture { get; set; }
         public double Concordance { get; set; }
+        public double TauxRotation { get; set; }
+
+        public int DeltaConseillers => ConseillersActifs - ConseillersCibles;
     }
 
     public class SegmentRepartition
@@ -446,7 +449,6 @@ namespace Segmentation.Client.Services
         public double TaillePortefeuilleExistant { get; set; }
         public double TaillePortefeuilleCible { get; set; }
 
-        // Détail par type de conseiller (issu du référentiel R&H)
         public List<ProfilConseillerRepartition> Profils { get; set; } = new();
 
         public int DeltaConseillers => ConseillersExistants - ConseillersCibles;
