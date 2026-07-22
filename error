@@ -1,9 +1,29 @@
+/* ── Tag switcher ── */
+.dash-dim-tags {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+}
 
-<div class="dash-dim-tags">
-    <button class="dash-dim-tag @(Dimension == "Region" ? "active" : "")"
-            @onclick="@(() => Switch("Region"))">Région</button>
-    <button class="dash-dim-tag @(Dimension == "Secteur" ? "active" : "")"
-            @onclick="@(() => Switch("Secteur"))">Secteur</button>
-    <button class="dash-dim-tag @(Dimension == "Agence" ? "active" : "")"
-            @onclick="@(() => Switch("Agence"))">Agence</button>
-</div>
+.dash-dim-tag {
+    background: #F0F3F7;
+    color: #6C7A89;
+    border: none;
+    padding: 4px 12px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.dash-dim-tag:hover {
+    background: #E1E7EF;
+}
+
+.dash-dim-tag.active {
+    background: #1A4E6B;
+    color: white;
+}
