@@ -1,3 +1,6 @@
-_chargeATransfererBP.Clear();
-_chargeRecueBP.Clear();
-_chargeATransfererMutualise.Clear();
+@if (_showChargesManuelles)
+{
+    <col style="min-width:110px;width:110px" />
+    <col style="min-width:110px;width:110px" />
+    <col style="min-width:110px;width:110px" />
+}
