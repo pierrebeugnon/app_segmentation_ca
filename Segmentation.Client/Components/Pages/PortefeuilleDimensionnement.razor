@@ -692,7 +692,7 @@
                                 <!-- ── Colonne 2 : Charge à transférer à la BP (HDG Premium uniquement) ── -->
                                 @if (_showChargesManuelles)
                                 {
-                                    var bgTransBp = row.IsTotal || IsHdgPremium(row.Segment) ? "#E3EFF9" : "#F5F5F5";
+                                    var bgTransBp = row.IsTotal || IsHdgPremium(row.Segment) ? "#E3EFF9" : "#BDD7EE";
                                     <td style="text-align:center;padding:4px 3px;background:@bgTransBp">
                                         @if (!row.IsTotal)
                                         {
@@ -728,7 +728,7 @@
                                 <!-- ── Colonne 3 : Charge reçue de la BP (tout sauf HDG Premium) ── -->
                                 @if (_showChargesManuelles)
                                 {
-                                    var bgRecueBp = row.IsTotal || (!IsHdgPremium(row.Segment) && IsSegmentActionnable(row.Segment)) ? "#E3EFF9" : "#F5F5F5";
+                                    var bgRecueBp = row.IsTotal || (!IsHdgPremium(row.Segment) && IsSegmentActionnable(row.Segment)) ? "#E3EFF9" : "#BDD7EE";
                                     <td style="text-align:center;padding:4px 3px;background:@bgRecueBp">
                                         @if (!row.IsTotal)
                                         {
@@ -764,7 +764,7 @@
                                 <!-- ── Colonne 4 : Charge à transférer en pf mutualisé (GP Standard uniquement) ── -->
                                 @if (_showChargesManuelles)
                                 {
-                                    var bgTransMut = row.IsTotal || IsGpStandard(row.Segment) ? "#E3EFF9" : "#F5F5F5";
+                                    var bgTransMut = row.IsTotal || IsGpStandard(row.Segment) ? "#E3EFF9" : "#BDD7EE";
                                     <td style="text-align:center;padding:4px 3px;background:@bgTransMut">
                                         @if (!row.IsTotal)
                                         {
