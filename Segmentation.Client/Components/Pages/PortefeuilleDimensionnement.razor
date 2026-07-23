@@ -397,7 +397,7 @@
                     </colgroup>
                     <thead>
                         <!-- ── Ligne 1 : super-en-tête par métier + toggle Charge ETP ── -->
-                        <tr style="background:#0A1F30">
+                        <tr>
                             <th class="ca-dim-sticky-col"
                                 style="min-width:160px;text-align:left;padding:5px 12px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);letter-spacing:.5px;text-transform:uppercase;background:#0A1F30">
                                 Segments distributifs
@@ -453,7 +453,7 @@
                             <!-- Colonnes Concordance + Rotation -->
                             <th colspan="2"
                                 style="text-align:center;padding:5px 6px;font-size:10px;font-weight:700;color:white;letter-spacing:.3px;text-transform:uppercase;
-                                       border-left:2px solid rgba(255,255,255,0.15);background:#2E5C8A">
+                                       border-left:2px solid rgba(255,255,255,0.15)">
                                 KPI
                             </th>
                         </tr>
@@ -488,28 +488,28 @@
                                     }
                                 }
                             }
-                            <th class="ca-dim-th-profil" style="background:#D5D8DC;color:#3A4550">Aide à la répartition des charges cibles par segment</th>
-                            <th class="ca-dim-th-profil" style="background:#0F2E45">
+                            <th class="ca-dim-th-profil ca-dim-th-aide">Aide à la répartition des charges cibles par segment</th>
+                            <th class="ca-dim-th-profil ca-dim-th-charge">
                                 Charge ETP par segment
                                 <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">ajustée</div>
                             </th>
                             @if (_showChargesManuelles)
                             {
-                                <th class="ca-dim-th-profil" style="background:#4A80B5;color:white">
+                                <th class="ca-dim-th-profil ca-dim-th-manual">
                                     Charge à transférer à la BP
                                     <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">Banque privée uniquement</div>
                                 </th>
-                                <th class="ca-dim-th-profil" style="background:#4A80B5;color:white">
+                                <th class="ca-dim-th-profil ca-dim-th-manual">
                                     Charge reçue de la BP
                                     <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">Standard uniquement</div>
                                 </th>
-                                <th class="ca-dim-th-profil" style="background:#4A80B5;color:white">
+                                <th class="ca-dim-th-profil ca-dim-th-manual">
                                     Charge à transférer en pf mutualisé
                                     <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">GP Standard uniquement</div>
                                 </th>
                             }
-                            <th class="ca-dim-th-profil" style="background:#2E5C8A">Taux de concordance par segment ("pureté" des portefeuilles)</th>
-                            <th class="ca-dim-th-profil" style="background:#2E5C8A">Taux de rotation par segment</th>
+                            <th class="ca-dim-th-profil ca-dim-th-kpi">Taux de concordance par segment ("pureté" des portefeuilles)</th>
+                            <th class="ca-dim-th-profil ca-dim-th-kpi">Taux de rotation par segment</th>
                         </tr>
                     </thead>
                     <tbody>

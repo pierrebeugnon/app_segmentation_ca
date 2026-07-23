@@ -764,8 +764,14 @@ html, body {
     border-left: 1px solid rgba(255,255,255,0.15);
 }
 
-/* En-têtes */
-.ca-dim-table thead tr:not(.ca-dim-superheader) { background: #1A4E6B; color: white; }
+/* En-têtes : ligne 1 très foncée, ligne 2 sur la base du bleu métier #12374C */
+.ca-dim-table thead tr:not(.ca-dim-superheader) { background: #0A1F30; color: white; }
+
+/* Variantes de bleu pour les en-têtes statiques de la matrice */
+.ca-dim-th-charge  { background: #0F2E45; }
+.ca-dim-th-manual  { background: #2E6A93; }
+.ca-dim-th-kpi     { background: #4A8DB8; }
+.ca-dim-th-aide    { background: #D5D8DC; color: #3A4550; }
 
 .ca-dim-th-segment {
     text-align: left;
