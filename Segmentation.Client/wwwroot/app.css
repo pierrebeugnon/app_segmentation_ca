@@ -195,6 +195,7 @@ html, body {
 }
 
 /* ── Bouton Aide — même pill que le toggle, positionné à côté ── */
+/* Vert turquoise identique aux en-têtes de section (.ca-section-header) */
 .ca-page-header .ca-help-btn,
 .ca-help-btn {
     display: inline-flex !important;
@@ -206,9 +207,9 @@ html, body {
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    background: #E8EEF4 !important;
-    color: #1A4E6B !important;
-    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    background: linear-gradient(90deg, #007A7C 0%, #2980B9 100%) !important;
+    color: white !important;
+    transition: filter 0.2s ease, box-shadow 0.2s ease;
     white-space: nowrap;
     line-height: 1;
     appearance: none;
@@ -216,9 +217,8 @@ html, body {
 }
 .ca-page-header .ca-help-btn:hover,
 .ca-help-btn:hover {
-    background: #1A4E6B !important;
-    color: white !important;
-    box-shadow: 0 2px 6px rgba(26,78,107,0.30);
+    filter: brightness(1.12);
+    box-shadow: 0 2px 6px rgba(0,122,124,0.30);
 }
 
 /* ============================================================
@@ -794,13 +794,13 @@ html, body {
 /* En-têtes : ligne 1 très foncée, ligne 2 sur la base du bleu métier #12374C */
 .ca-dim-table thead tr:not(.ca-dim-superheader) { background: #0A1F30; color: white; }
 
-/* Variantes de bleu pour les en-têtes statiques de la matrice */
-/* Aide reste en gris ; Charge ETP très sombre, saisies manuelles et KPI en nuances
-   de plus en plus claires tout en restant dans la famille du bleu métier. */
-.ca-dim-th-charge  { background: #0D2536; }
-.ca-dim-th-manual  { background: #1A4E6B; }
-.ca-dim-th-kpi     { background: #2E6A93; }
-.ca-dim-th-aide    { background: #D5D8DC; color: #3A4550; }
+/* Variantes de couleur pour les en-têtes statiques de la matrice Repartition */
+/* Aide en gris avec texte blanc ; Charge ETP + colonnes manuelles en turquoise
+   identique aux en-têtes de section ; KPI dans une nuance plus claire. */
+.ca-dim-th-aide    { background: #6C7A89; color: white; }
+.ca-dim-th-charge  { background: #007A7C; }
+.ca-dim-th-manual  { background: #007A7C; }
+.ca-dim-th-kpi     { background: #3CB3B5; }
 
 .ca-dim-th-segment {
     text-align: left;
