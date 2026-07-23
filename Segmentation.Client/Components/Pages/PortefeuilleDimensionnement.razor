@@ -122,21 +122,6 @@
             <div style="flex:1"></div>
         </div>
     </MudPaper>
-    <!-- ── Légende Tab effectif ───────────────────────────────────────────────────── -->
-    <div class="ca-dim-legend-bar">
-        <span class="ca-dim-legend-item">
-            <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Style="font-size:15px;color:#2E7D32" />
-            Ajouter un conseiller (bouton en haut du tableau Effectifs)
-        </span>
-        <span class="ca-dim-legend-item">
-            <MudIcon Icon="@Icons.Material.Outlined.RemoveCircleOutline" Style="font-size:15px;color:#B71C1C" />
-            Retirer de la cible — l'effectif ajouté manuellement est supprimé définitivement ; l'effectif existant reste visible (grisé) mais sort de la répartition cible
-        </span>
-        <span class="ca-dim-legend-item">
-            <MudIcon Icon="@Icons.Material.Outlined.AddCircleOutline" Style="font-size:15px;color:#2E7D32" />
-            Réintégrer un effectif existant précédemment retiré de la cible
-        </span>
-    </div>
 
     <MudAlert Severity="Severity.Info" Class="mt-2">
         <div><strong>DEBUG :</strong></div>
@@ -165,10 +150,10 @@
             <div class="ca-section-header" style="display:flex;align-items:center;gap:10px">
                 <span class="ca-section-badge">1</span>
                 Effectif cible de l'agence (vs existant) 
-                <MudTooltip Text="Ligne ▲ Existant : conseillers présents aujourd'hui (jamais supprimés définitivement). Ligne ▼ Cible : scénario simulé. Retirez un effectif de la cible (×) — s'il a déjà une charge cible répartie, elle devra être reportée sur un autre conseiller du même métier. Ajoutez un conseiller (+ Ajouter) pour l'intégrer à la répartition cible.">
-                    <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small"
-                             Style="color:rgba(255,255,255,0.65)" />
-                </MudTooltip>
+                <span class="ca-dim-legend-item" style="margin-left:16px;font-size:11px;color:rgba(255,255,255,0.85)">
+                    <MudIcon Icon="@Icons.Material.Outlined.RemoveCircleOutline" Style="font-size:15px;color:#B71C1C" />
+                    Retirer de la cible
+                </span>
                 <!-- ── Bouton Ajouter un conseiller ── -->
                 <div style="margin-left:auto">
                     <MudMenu Label="+ Ajouter un conseiller"
