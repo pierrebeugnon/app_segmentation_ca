@@ -692,7 +692,8 @@
                                 <!-- ── Colonne 2 : Charge à transférer à la BP (HDG Premium uniquement) ── -->
                                 @if (_showChargesManuelles)
                                 {
-                                    <td style="text-align:center;padding:4px 3px;background:#F5EAD9">
+                                    var bgTransBp = row.IsTotal || IsHdgPremium(row.Segment) ? "#E3EFF9" : "#F5F5F5";
+                                    <td style="text-align:center;padding:4px 3px;background:@bgTransBp">
                                         @if (!row.IsTotal)
                                         {
                                             if (IsHdgPremium(row.Segment))
@@ -707,17 +708,17 @@
                                                                  Variant="Variant.Text"
                                                                  Margin="Margin.Dense"
                                                                  Class="ca-dim-etp-input"
-                                                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#7A4A1E" />
+                                                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#1A4E6B" />
                                             }
                                             else
                                             {
-                                                <span style="color:#BDBDBD;font-size:11px">—</span>
+                                                <span style="color:#757575;font-size:11px">—</span>
                                             }
                                         }
                                         else
                                         {
                                             var totalTransBP = GetTotalATransfererBP();
-                                            <span style="font-weight:700;font-size:12px;color:#7A4A1E">
+                                            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
                                                 @(totalTransBP > 0 ? totalTransBP.ToString("F2") : "—")
                                             </span>
                                         }
@@ -727,7 +728,8 @@
                                 <!-- ── Colonne 3 : Charge reçue de la BP (tout sauf HDG Premium) ── -->
                                 @if (_showChargesManuelles)
                                 {
-                                    <td style="text-align:center;padding:4px 3px;background:#E3EFF9">
+                                    var bgRecueBp = row.IsTotal || (!IsHdgPremium(row.Segment) && IsSegmentActionnable(row.Segment)) ? "#E3EFF9" : "#F5F5F5";
+                                    <td style="text-align:center;padding:4px 3px;background:@bgRecueBp">
                                         @if (!row.IsTotal)
                                         {
                                             if (!IsHdgPremium(row.Segment) && IsSegmentActionnable(row.Segment))
@@ -746,7 +748,7 @@
                                             }
                                             else
                                             {
-                                                <span style="color:#BDBDBD;font-size:11px">—</span>
+                                                <span style="color:#757575;font-size:11px">—</span>
                                             }
                                         }
                                         else
@@ -762,7 +764,8 @@
                                 <!-- ── Colonne 4 : Charge à transférer en pf mutualisé (GP Standard uniquement) ── -->
                                 @if (_showChargesManuelles)
                                 {
-                                    <td style="text-align:center;padding:4px 3px;background:#EDE4F4">
+                                    var bgTransMut = row.IsTotal || IsGpStandard(row.Segment) ? "#E3EFF9" : "#F5F5F5";
+                                    <td style="text-align:center;padding:4px 3px;background:@bgTransMut">
                                         @if (!row.IsTotal)
                                         {
                                             if (IsGpStandard(row.Segment))
@@ -777,17 +780,17 @@
                                                                  Variant="Variant.Text"
                                                                  Margin="Margin.Dense"
                                                                  Class="ca-dim-etp-input"
-                                                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#6B4A80" />
+                                                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#1A4E6B" />
                                             }
                                             else
                                             {
-                                                <span style="color:#BDBDBD;font-size:11px">—</span>
+                                                <span style="color:#757575;font-size:11px">—</span>
                                             }
                                         }
                                         else
                                         {
                                             var totalTransMut = GetTotalATransfererMutualise();
-                                            <span style="font-weight:700;font-size:12px;color:#6B4A80">
+                                            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
                                                 @(totalTransMut > 0 ? totalTransMut.ToString("F2") : "—")
                                             </span>
                                         }
