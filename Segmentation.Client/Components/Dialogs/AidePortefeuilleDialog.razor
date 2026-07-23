@@ -1,0 +1,56 @@
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6" Class="mb-3" Style="color:#1A4E6B">
+            Aide — Dimensionnement des portefeuilles
+        </MudText>
+
+        <MudText Typo="Typo.body2" Class="mb-3">
+            Cette page permet de simuler la répartition des portefeuilles clients entre les conseillers
+            d'une agence, en passant de la situation <b>existante</b> à une situation <b>cible</b>.
+        </MudText>
+
+        <MudExpansionPanels MultiExpansion="true" Elevation="0">
+            <MudExpansionPanel Text="Filtres et vue" Dense="true">
+                <MudList T="object" Dense="true">
+                    <MudListItem>Utilisez les filtres Région / Secteur / Agence pour sélectionner le périmètre étudié, puis cliquez sur Valider.</MudListItem>
+                    <MudListItem>Le bouton à droite du titre bascule entre la vue ETP (charge de travail) et la vue Nombre de clients (projection informative).</MudListItem>
+                </MudList>
+            </MudExpansionPanel>
+
+            <MudExpansionPanel Text="Bloc Effectifs conseillers" Dense="true">
+                <MudList T="object" Dense="true">
+                    <MudListItem>Ligne ▲ Existant : conseillers présents aujourd'hui.</MudListItem>
+                    <MudListItem>Ligne ▼ Cible : scénario simulé. Vous pouvez ajuster les ETP cibles, ajouter un conseiller (+) ou retirer/réintégrer un effectif.</MudListItem>
+                    <MudListItem>Les cellules grisées indiquent un effectif retiré de la cible.</MudListItem>
+                </MudList>
+            </MudExpansionPanel>
+
+            <MudExpansionPanel Text="Répartition des charges par segment" Dense="true">
+                <MudList T="object" Dense="true">
+                    <MudListItem>Répartissez la charge ETP cible par segment entre les conseillers (cellules éditables).</MudListItem>
+                    <MudListItem>Le bouton +/− Charge ETP affiche ou masque les colonnes de saisie manuelle : transfert vers la BP, charge reçue de la BP et transfert en PF mutualisé.</MudListItem>
+                    <MudListItem>Les cellules grisées dans ces colonnes ne sont pas éditables pour le segment concerné.</MudListItem>
+                </MudList>
+            </MudExpansionPanel>
+
+            <MudExpansionPanel Text="Indicateurs KPI" Dense="true">
+                <MudList T="object" Dense="true">
+                    <MudListItem>Taux de concordance : part de la charge affectée aux profils prioritaires du segment. Plus il est élevé, plus les portefeuilles sont "purs".</MudListItem>
+                    <MudListItem>Taux de rotation : évolution relative entre effectif cible et existant.</MudListItem>
+                    <MudListItem>Pour chaque indicateur, la valeur cible est affichée au-dessus et la valeur existante en dessous.</MudListItem>
+                </MudList>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close">Fermer</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private void Close() => MudDialog.Close();
+}

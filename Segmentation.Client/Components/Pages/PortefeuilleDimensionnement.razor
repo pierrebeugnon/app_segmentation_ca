@@ -53,6 +53,12 @@
                 Nombre de clients
             </button>
         </div>
+
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                   StartIcon="@Icons.Material.Outlined.HelpOutline"
+                   OnClick="ShowAide">
+            Aide
+        </MudButton>
     </div>
 
     <!-- ── Filtres organisationnels ────────────────────────────────────── -->
@@ -1222,6 +1228,13 @@
     {
         if (!_collapsedProfils.Remove(profil))
             _collapsedProfils.Add(profil);
+    }
+
+    private async Task ShowAide()
+    {
+        await DialogService.ShowAsync<AidePortefeuilleDialog>(
+            "Aide",
+            new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true });
     }
 
     // ── Handlers de changement des filtres ────────────────────────────────
