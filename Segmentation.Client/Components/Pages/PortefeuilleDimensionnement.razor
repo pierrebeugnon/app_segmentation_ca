@@ -41,6 +41,11 @@
             </MudText>
         </div>
 
+        <button class="ca-help-btn" @onclick="ShowAide">
+            <MudIcon Icon="@Icons.Material.Outlined.HelpOutline" Style="font-size:15px" />
+            Aide
+        </button>
+
         <div class="ca-view-toggle">
             <button class="@(vueEtp ? "ca-view-toggle-btn active" : "ca-view-toggle-btn")"
                     @onclick="@(() => vueEtp = true)">
@@ -53,12 +58,6 @@
                 Nombre de clients
             </button>
         </div>
-
-        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
-                   StartIcon="@Icons.Material.Outlined.HelpOutline"
-                   OnClick="ShowAide">
-            Aide
-        </MudButton>
     </div>
 
     <!-- ── Filtres organisationnels ────────────────────────────────────── -->
