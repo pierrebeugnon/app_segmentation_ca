@@ -480,28 +480,28 @@
                                     }
                                 }
                             }
-                            <th class="ca-dim-th-profil" style="background:#6C7A89;color:white">Aide à la répartition des charges cibles par segment</th>
-                            <th class="ca-dim-th-profil" style="background:#007A7C;color:white">
+                            <th class="ca-dim-th-profil" style="background:#8A96A3;color:white">Aide à la répartition des charges cibles par segment</th>
+                            <th class="ca-dim-th-profil" style="background:#1A9A9C;color:white">
                                 Charge ETP par segment
                                 <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">ajustée</div>
                             </th>
                             @if (_showChargesManuelles)
                             {
-                                <th class="ca-dim-th-profil" style="background:#007A7C;color:white">
+                                <th class="ca-dim-th-profil" style="background:#1A9A9C;color:white">
                                     Charge à transférer à la BP
                                     <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">Banque privée uniquement</div>
                                 </th>
-                                <th class="ca-dim-th-profil" style="background:#007A7C;color:white">
+                                <th class="ca-dim-th-profil" style="background:#1A9A9C;color:white">
                                     Charge reçue de la BP
                                     <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">Standard uniquement</div>
                                 </th>
-                                <th class="ca-dim-th-profil" style="background:#007A7C;color:white">
+                                <th class="ca-dim-th-profil" style="background:#1A9A9C;color:white">
                                     Charge à transférer en pf mutualisé
                                     <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">GP Standard uniquement</div>
                                 </th>
                             }
-                            <th class="ca-dim-th-profil" style="background:#3CB3B5;color:white">Taux de concordance par segment ("pureté" des portefeuilles)</th>
-                            <th class="ca-dim-th-profil" style="background:#3CB3B5;color:white">Taux de rotation par segment</th>
+                            <th class="ca-dim-th-profil" style="background:#4AB6B8;color:white">Taux de concordance par segment ("pureté" des portefeuilles)</th>
+                            <th class="ca-dim-th-profil" style="background:#4AB6B8;color:white">Taux de rotation par segment</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -869,13 +869,13 @@
                         @{
                             var extraCols = _showChargesManuelles ? 7 : 4;
                         }
-                        <tr style="background:#0D2035">
-                            <td style="padding:3px 12px;font-size:9px;font-weight:700;color:rgba(255,255,255,0.45);letter-spacing:1px;text-transform:uppercase">
+                        <tr style="background:#006266">
+                            <td style="padding:3px 12px;font-size:9px;font-weight:700;color:rgba(255,255,255,0.75);letter-spacing:1px;text-transform:uppercase">
                                 Indicateurs KPI
                             </td>
                             @for (int _i = 0; _i < VisibleSlotColumnCount + extraCols; _i++)
                             {
-                                <td style="background:#0D2035"></td>
+                                <td style="background:#006266"></td>
                             }
                         </tr>
 

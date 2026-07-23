@@ -207,7 +207,7 @@ html, body {
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    background: linear-gradient(90deg, #007A7C 0%, #2980B9 100%) !important;
+    background: linear-gradient(90deg, #006266 0%, #1F6A99 100%) !important;
     color: white !important;
     transition: filter 0.2s ease, box-shadow 0.2s ease;
     white-space: nowrap;
@@ -292,7 +292,7 @@ html, body {
 }
 
 .ca-section-header {
-    background: linear-gradient(90deg, #007A7C 0%, #2980B9 100%);
+    background: linear-gradient(90deg, #006266 0%, #1F6A99 100%);
     color: white;
     padding: 10px 16px;
     display: flex;
