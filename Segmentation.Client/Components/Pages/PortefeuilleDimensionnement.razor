@@ -388,8 +388,9 @@
                         <col style="min-width:100px;width:100px" />
                         @if (_showChargesManuelles)
                         {
-                            <col style="min-width:100px;width:100px" />
-                            <col style="min-width:100px;width:100px" />
+                            <col style="min-width:110px;width:110px" />
+                            <col style="min-width:110px;width:110px" />
+                            <col style="min-width:110px;width:110px" />
                         }
                         <col style="min-width:82px;width:82px" />
                         <col style="min-width:82px;width:82px" />
@@ -431,7 +432,7 @@
                             </th>
 
                             <!-- Groupe "Charge ETP" + toggle +/− (aligné sur le pattern des métiers) -->
-                            <th colspan="@(_showChargesManuelles ? 3 : 1)"
+                            <th colspan="@(_showChargesManuelles ? 4 : 1)"
                                 style="text-align:center;padding:5px 6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.90);
                                    border-left:2px solid rgba(255,255,255,0.15);letter-spacing:.3px;text-transform:uppercase">
                                 <div style="display:flex;align-items:center;justify-content:center;gap:6px">
@@ -445,7 +446,7 @@
                                 </div>
                                 @if (_showChargesManuelles)
                                 {
-                                    <div style="font-size:8px;font-weight:400;opacity:0.60;margin-top:2px">3 colonnes</div>
+                                    <div style="font-size:8px;font-weight:400;opacity:0.60;margin-top:2px">4 colonnes</div>
                                 }
                             </th>
 
@@ -494,12 +495,16 @@
                             @if (_showChargesManuelles)
                             {
                                 <th class="ca-dim-th-profil" style="background:#4A80B5;color:white">
-                                    Charge ETP à transférer
-                                    <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">saisie manuelle</div>
+                                    Charge à transférer à la BP
+                                    <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">Banque privée uniquement</div>
                                 </th>
                                 <th class="ca-dim-th-profil" style="background:#4A80B5;color:white">
-                                    Charge ETP à ajouter
-                                    <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">saisie manuelle</div>
+                                    Charge reçue de la BP
+                                    <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">Standard uniquement</div>
+                                </th>
+                                <th class="ca-dim-th-profil" style="background:#4A80B5;color:white">
+                                    Charge à transférer en pf mutualisé
+                                    <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">GP Standard uniquement</div>
                                 </th>
                             }
                             <th class="ca-dim-th-profil" style="background:#1C3F5E">Taux de concordance par segment ("pureté" des portefeuilles)</th>
@@ -684,57 +689,106 @@
                                     }
                                 </td>
 
-                                <!-- ── Colonne 2 : Charge ETP à transférer (saisie manuelle) ── -->
+                                <!-- ── Colonne 2 : Charge à transférer à la BP (HDG Premium uniquement) ── -->
                                 @if (_showChargesManuelles)
                                 {
-                                    <td style="text-align:center;padding:4px 3px;background:#E3EFF9">
+                                    <td style="text-align:center;padding:4px 3px;background:#F5EAD9">
                                         @if (!row.IsTotal)
                                         {
-                                            var segT = row.Segment;
-                                            var valTrans = _chargeATransferer.GetValueOrDefault(segT);
-                                            <MudNumericField T="double?"
-                                                             Value="@valTrans"
-                                                             ValueChanged="@(v => { _chargeATransferer[segT] = v; StateHasChanged(); })"
-                                                             Format="F2" Step="0.25" Min="0"
-                                                             HideSpinButtons="true"
-                                                             Variant="Variant.Text"
-                                                             Margin="Margin.Dense"
-                                                             Class="ca-dim-etp-input"
-                                                             InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#1A4E6B" />
+                                            if (IsHdgPremium(row.Segment))
+                                            {
+                                                var segT = row.Segment;
+                                                var valTransBP = _chargeATransfererBP.GetValueOrDefault(segT);
+                                                <MudNumericField T="double?"
+                                                                 Value="@valTransBP"
+                                                                 ValueChanged="@(v => { _chargeATransfererBP[segT] = v; StateHasChanged(); })"
+                                                                 Format="F2" Step="0.25" Min="0"
+                                                                 HideSpinButtons="true"
+                                                                 Variant="Variant.Text"
+                                                                 Margin="Margin.Dense"
+                                                                 Class="ca-dim-etp-input"
+                                                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#7A4A1E" />
+                                            }
+                                            else
+                                            {
+                                                <span style="color:#BDBDBD;font-size:11px">—</span>
+                                            }
                                         }
                                         else
                                         {
-                                            var totalTrans = GetTotalATransferer();
-                                            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                @(totalTrans > 0 ? totalTrans.ToString("F2") : "—")
+                                            var totalTransBP = GetTotalATransfererBP();
+                                            <span style="font-weight:700;font-size:12px;color:#7A4A1E">
+                                                @(totalTransBP > 0 ? totalTransBP.ToString("F2") : "—")
                                             </span>
                                         }
                                     </td>
                                 }
 
-                                <!-- ── Colonne 3 : Charge ETP à ajouter (saisie manuelle) ── -->
+                                <!-- ── Colonne 3 : Charge reçue de la BP (tout sauf HDG Premium) ── -->
                                 @if (_showChargesManuelles)
                                 {
-                                    <td style="text-align:center;padding:4px 3px;background:#D6E8F7">
+                                    <td style="text-align:center;padding:4px 3px;background:#E3EFF9">
                                         @if (!row.IsTotal)
                                         {
-                                            var segA = row.Segment;
-                                            var valAjout = _chargeAAjouter.GetValueOrDefault(segA);
-                                            <MudNumericField T="double?"
-                                                             Value="@valAjout"
-                                                             ValueChanged="@(v => { _chargeAAjouter[segA] = v; StateHasChanged(); })"
-                                                             Format="F2" Step="0.25" Min="0"
-                                                             HideSpinButtons="true"
-                                                             Variant="Variant.Text"
-                                                             Margin="Margin.Dense"
-                                                             Class="ca-dim-etp-input"
-                                                             InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#1A4E6B" />
+                                            if (!IsHdgPremium(row.Segment) && IsSegmentActionnable(row.Segment))
+                                            {
+                                                var segR = row.Segment;
+                                                var valRecueBP = _chargeRecueBP.GetValueOrDefault(segR);
+                                                <MudNumericField T="double?"
+                                                                 Value="@valRecueBP"
+                                                                 ValueChanged="@(v => { _chargeRecueBP[segR] = v; StateHasChanged(); })"
+                                                                 Format="F2" Step="0.25" Min="0"
+                                                                 HideSpinButtons="true"
+                                                                 Variant="Variant.Text"
+                                                                 Margin="Margin.Dense"
+                                                                 Class="ca-dim-etp-input"
+                                                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#1A4E6B" />
+                                            }
+                                            else
+                                            {
+                                                <span style="color:#BDBDBD;font-size:11px">—</span>
+                                            }
                                         }
                                         else
                                         {
-                                            var totalAjout = GetTotalAAjouter();
+                                            var totalRecueBP = GetTotalRecueBP();
                                             <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                @(totalAjout > 0 ? totalAjout.ToString("F2") : "—")
+                                                @(totalRecueBP > 0 ? totalRecueBP.ToString("F2") : "—")
+                                            </span>
+                                        }
+                                    </td>
+                                }
+
+                                <!-- ── Colonne 4 : Charge à transférer en pf mutualisé (GP Standard uniquement) ── -->
+                                @if (_showChargesManuelles)
+                                {
+                                    <td style="text-align:center;padding:4px 3px;background:#EDE4F4">
+                                        @if (!row.IsTotal)
+                                        {
+                                            if (IsGpStandard(row.Segment))
+                                            {
+                                                var segM = row.Segment;
+                                                var valTransMut = _chargeATransfererMutualise.GetValueOrDefault(segM);
+                                                <MudNumericField T="double?"
+                                                                 Value="@valTransMut"
+                                                                 ValueChanged="@(v => { _chargeATransfererMutualise[segM] = v; StateHasChanged(); })"
+                                                                 Format="F2" Step="0.25" Min="0"
+                                                                 HideSpinButtons="true"
+                                                                 Variant="Variant.Text"
+                                                                 Margin="Margin.Dense"
+                                                                 Class="ca-dim-etp-input"
+                                                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#6B4A80" />
+                                            }
+                                            else
+                                            {
+                                                <span style="color:#BDBDBD;font-size:11px">—</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            var totalTransMut = GetTotalATransfererMutualise();
+                                            <span style="font-weight:700;font-size:12px;color:#6B4A80">
+                                                @(totalTransMut > 0 ? totalTransMut.ToString("F2") : "—")
                                             </span>
                                         }
                                     </td>
@@ -798,7 +852,7 @@
                     <tbody>
                         <!-- Séparateur -->
                         @{
-                            var extraCols = _showChargesManuelles ? 6 : 4;
+                            var extraCols = _showChargesManuelles ? 7 : 4;
                         }
                         <tr style="background:#0D2035">
                             <td style="padding:3px 12px;font-size:9px;font-weight:700;color:rgba(255,255,255,0.45);letter-spacing:1px;text-transform:uppercase">
@@ -839,6 +893,7 @@
                             <td style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;background:#182F4A;@DiffColor(kpiEvoTotal, positifBon: true)">@FormatDiff(kpiEvoTotal)</td>
                             @if (_showChargesManuelles)
                             {
+                                <td style="background:#1C3D62"></td>
                                 <td style="background:#1C3D62"></td>
                                 <td style="background:#1C3D62"></td>
                             }
@@ -890,6 +945,7 @@
                             </td>
                             @if (_showChargesManuelles)
                             {
+                                <td style="background:#1A3558"></td>
                                 <td style="background:#1A3558"></td>
                                 <td style="background:#1A3558"></td>
                             }
@@ -952,6 +1008,7 @@
                             {
                                 <td style="background:#1F446A"></td>
                                 <td style="background:#1F446A"></td>
+                                <td style="background:#1F446A"></td>
                             }
                             <td style="background:#1F446A"></td>
                             <td style="background:#1F446A"></td>
@@ -997,6 +1054,7 @@
                             {
                                 <td style="background:#224A72"></td>
                                 <td style="background:#224A72"></td>
+                                <td style="background:#224A72"></td>
                             }
                             <td style="background:#224A72"></td>
                             <td style="background:#224A72"></td>
@@ -1039,11 +1097,12 @@
                             </td>
                             @if (_showChargesManuelles)
                             {
-                                <td style="background:#224A72"></td>
-                                <td style="background:#224A72"></td>
+                                <td style="background:#24507A"></td>
+                                <td style="background:#24507A"></td>
+                                <td style="background:#24507A"></td>
                             }
-                            <td style="background:#224A72"></td>
-                            <td style="background:#224A72"></td>
+                            <td style="background:#24507A"></td>
+                            <td style="background:#24507A"></td>
                         </tr>
                     </tbody>
                 </table>
@@ -1076,35 +1135,56 @@
         filtreAgence != filtreAgenceApplique;
 
     // ═══════════════════════════════════════════════════════════════════
-    //   CHARGES MANUELLES PAR SEGMENT
-    //   1 - Charge Totale ETP par segment (originale de la BDD)
-    //   2 - Charge ETP à transférer (saisie manuelle)
-    //   3 - Charge ETP à ajouter (saisie manuelle)
-    //   Affichage colonne 1 = originale − (2 + 3)
+    //   Charges manuelles par segment (avec règles métier)
+    // - "À transférer à la BP"           → HDG Premium uniquement
+    // - "Reçue de la BP"                 → Tout sauf HDG Premium
+    // - "À transférer en pf mutualisé"   → GP Standard uniquement
     // ═══════════════════════════════════════════════════════════════════
-    private Dictionary<string, double?> _chargeATransferer = new(StringComparer.OrdinalIgnoreCase);
-    private Dictionary<string, double?> _chargeAAjouter    = new(StringComparer.OrdinalIgnoreCase);
+    
+    private Dictionary<string, double?> _chargeATransfererBP = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, double?> _chargeRecueBP = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, double?> _chargeATransfererMutualise = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Charge Totale ETP par segment ajustée : originale − (à transférer + à ajouter)
+    /// </summary>
+    /// <summary>
+    /// Charge Totale ETP par segment ajustée :
+    /// (originale − à transférer BP) + (reçue BP − à transférer mutualisé)
     /// </summary>
     private double? GetChargeTotaleAffichee(DimMatrixRow row)
     {
         if (row.IsTotal) return null;
 
         var original = GetRowExistantTotal(row) ?? 0;
-        var transferer = _chargeATransferer.GetValueOrDefault(row.Segment) ?? 0;
-        var ajouter    = _chargeAAjouter.GetValueOrDefault(row.Segment)    ?? 0;
+        var transBP = _chargeATransfererBP.GetValueOrDefault(row.Segment) ?? 0;
+        var recueBP = _chargeRecueBP.GetValueOrDefault(row.Segment) ?? 0;
+        var transMut = _chargeATransfererMutualise.GetValueOrDefault(row.Segment) ?? 0;
 
-        return (original - transferer) + ajouter;
+        return (original - transBP) + (recueBP - transMut);
     }
 
-    /// <summary>Totaux des saisies manuelles (pour la ligne Total du tableau).</summary>
-    private double GetTotalATransferer() =>
-        _chargeATransferer.Values.Where(v => v.HasValue).Sum(v => v!.Value);
+    private double GetTotalATransfererBP() =>
+        _chargeATransfererBP.Values.Where(v => v.HasValue).Sum(v => v!.Value);
 
-    private double GetTotalAAjouter() =>
-        _chargeAAjouter.Values.Where(v => v.HasValue).Sum(v => v!.Value);
+    private double GetTotalRecueBP() =>
+        _chargeRecueBP.Values.Where(v => v.HasValue).Sum(v => v!.Value);
+
+    private double GetTotalATransfererMutualise() =>
+        _chargeATransfererMutualise.Values.Where(v => v.HasValue).Sum(v => v!.Value);
+
+    // ── Helpers de règles métier par segment ───────────────────────
+    private static bool IsHdgPremium(string? segment) =>
+        !string.IsNullOrWhiteSpace(segment) &&
+        segment.Contains("Premium", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsGpStandard(string? segment) =>
+        string.Equals(segment?.Trim(), "GP Standard", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsSegmentActionnable(string? segment) =>
+        !string.IsNullOrWhiteSpace(segment) &&
+        !string.Equals(segment.Trim(), "Non segmenté", StringComparison.OrdinalIgnoreCase) &&
+        !string.Equals(segment.Trim(), "Non classé", StringComparison.OrdinalIgnoreCase);
 
     // ── Vue détail / consolidée par métier ────────────────────────────────
     // Métiers présents dans ce set → colonne agrégée (repliée)
@@ -1516,8 +1596,9 @@
 
             // Reset des charges manuelles quand on change d'agence
             // (les saisies étaient liées aux segments de l'agence précédente)
-            _chargeATransferer.Clear();
-            _chargeAAjouter.Clear();
+            _chargeATransfererBP.Clear();
+            _chargeRecueBP.Clear();
+            _chargeATransfererMutualise.Clear();
 
             BuildFilterOptions();
 
