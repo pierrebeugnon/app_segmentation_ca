@@ -450,10 +450,11 @@
                                 }
                             </th>
 
-                            <!-- Colonnes Concordance + Rotation (vides dans la ligne 1) -->
+                            <!-- Colonnes Concordance + Rotation -->
                             <th colspan="2"
-                                style="text-align:center;padding:4px 6px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);
-                                   border-left:2px solid rgba(255,255,255,0.15)">
+                                style="text-align:center;padding:5px 6px;font-size:10px;font-weight:700;color:white;letter-spacing:.3px;text-transform:uppercase;
+                                       border-left:2px solid rgba(255,255,255,0.15);background:#2E5C8A">
+                                KPI
                             </th>
                         </tr>
 
@@ -488,8 +489,8 @@
                                 }
                             }
                             <th class="ca-dim-th-profil" style="background:#D5D8DC;color:#3A4550">Aide à la répartition des charges cibles par segment</th>
-                            <th class="ca-dim-th-profil" style="background:#1C3F5E">
-                                Charge Totale ETP par segment
+                            <th class="ca-dim-th-profil" style="background:#0F2E45">
+                                Charge ETP par segment
                                 <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">ajustée</div>
                             </th>
                             @if (_showChargesManuelles)
@@ -507,8 +508,8 @@
                                     <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">GP Standard uniquement</div>
                                 </th>
                             }
-                            <th class="ca-dim-th-profil" style="background:#1C3F5E">Taux de concordance par segment ("pureté" des portefeuilles)</th>
-                            <th class="ca-dim-th-profil" style="background:#1C3F5E">Taux de rotation par segment</th>
+                            <th class="ca-dim-th-profil" style="background:#2E5C8A">Taux de concordance par segment ("pureté" des portefeuilles)</th>
+                            <th class="ca-dim-th-profil" style="background:#2E5C8A">Taux de rotation par segment</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -516,6 +517,7 @@
                         {
                             var coverageDiff = GetCoverageDiff(row);
                             var concordance = GetConcordance(row);
+                            var concordanceExistant = GetConcordanceExistant(row);
                             var rowCible = GetRowCibleTotal(row);
                             var rowExist = GetRowExistantTotal(row);
 
@@ -799,22 +801,27 @@
 
                                 <!-- ── Colonne Concordance ── -->
                                 <td style="text-align:center;padding:4px 3px;background:#EEF3FA">
-                                    @if (!row.IsTotal && concordance.pct.HasValue)
+                                    @if (!row.IsTotal && (concordance.pct.HasValue || concordanceExistant.pct.HasValue))
                                     {
-                                        var pct = concordance.pct.Value;
-                                        var (concBg, concFg) = pct switch
-                                        {
-                                            _ when pct >= 99.9 => ("#E8F5E9", "#2E7D32"),
-                                            _ when pct >= 80 => ("#FFF3E0", "#E65100"),
-                                            _ => ("#FFEBEE", "#C62828")
-                                        };
-                                        <MudTooltip Text="@concordance.tooltip">
-                                            <div style="background:@concBg;border-radius:5px;padding:2px 6px;min-width:48px">
-                                                <span style="font-size:12px;font-weight:700;color:@concFg">
-                                                    @pct.ToString("F0")%
-                                                </span>
-                                            </div>
-                                        </MudTooltip>
+                                        var (bgCib, fgCib) = GetConcordanceColors(concordance.pct);
+                                        var (bgExi, fgExi) = GetConcordanceColors(concordanceExistant.pct);
+                                        <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+                                            <MudTooltip Text="@concordance.tooltip">
+                                                <div style="background:@bgCib;border-radius:5px;padding:2px 6px;min-width:48px">
+                                                    <span style="font-size:12px;font-weight:700;color:@fgCib">
+                                                        @(concordance.pct.HasValue ? $"{concordance.pct.Value:F0}%" : "—")
+                                                    </span>
+                                                </div>
+                                            </MudTooltip>
+                                            <div style="border-top:1.5px solid #C5CAD0;width:55%;margin:1px 0"></div>
+                                            <MudTooltip Text="@concordanceExistant.tooltip">
+                                                <div style="background:@bgExi;border-radius:5px;padding:2px 6px;min-width:48px">
+                                                    <span style="font-size:12px;font-weight:700;color:@fgExi">
+                                                        @(concordanceExistant.pct.HasValue ? $"{concordanceExistant.pct.Value:F0}%" : "—")
+                                                    </span>
+                                                </div>
+                                            </MudTooltip>
+                                        </div>
                                     }
                                     else if (!row.IsTotal)
                                     {
@@ -826,18 +833,31 @@
                                 <td style="text-align:center;padding:4px 3px;background:#EEF3FA">
                                     @{
                                         var rotRow = GetTauxRotationForRow(row);
+                                        var rotRowExi = GetTauxRotationExistant(row);
                                     }
-                                    @if (!row.IsTotal && rotRow.HasValue)
+                                    @if (!row.IsTotal && (rotRow.HasValue || rotRowExi.HasValue))
                                     {
-                                        var rotColor = rotRow.Value switch
+                                        var rotColorCib = (rotRow ?? 0) switch
                                         {
                                             > 0 => "#2E7D32",
                                             < 0 => "#C62828",
                                             _ => "#6C7A89"
                                         };
-                                        <span style="font-size:12px;font-weight:700;color:@rotColor">
-                                            @(rotRow.Value >= 0 ? "+" : "")@rotRow.Value.ToString("F0")%
-                                        </span>
+                                        var rotColorExi = (rotRowExi ?? 0) switch
+                                        {
+                                            > 0 => "#2E7D32",
+                                            < 0 => "#C62828",
+                                            _ => "#6C7A89"
+                                        };
+                                        <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+                                            <span style="font-size:12px;font-weight:700;color:@rotColorCib">
+                                                @(rotRow.HasValue ? (rotRow.Value >= 0 ? "+" : "") + rotRow.Value.ToString("F0") + "%" : "—")
+                                            </span>
+                                            <div style="border-top:1.5px solid #C5CAD0;width:55%;margin:1px 0"></div>
+                                            <span style="font-size:12px;font-weight:700;color:@rotColorExi">
+                                                @(rotRowExi.HasValue ? (rotRowExi.Value >= 0 ? "+" : "") + rotRowExi.Value.ToString("F0") + "%" : "—")
+                                            </span>
+                                        </div>
                                     }
                                     else if (!row.IsTotal)
                                     {
@@ -1835,6 +1855,42 @@
         return (pct, color, tooltip);
     }
 
+    private (double? pct, string color, string tooltip) GetConcordanceExistant(DimMatrixRow row)
+    {
+        if (row.IsTotal) return (null, "", "");
+        var allSlots = _slots.ToList();
+        var totalExist = allSlots.Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
+        if (totalExist <= 0) return (null, "", "Aucune donnée existante");
+
+        var etpDesigne = allSlots
+            .Where(s => GetAssignmentLevel(row.Segment, s.Profil) > 0)
+            .Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
+        var etpHorsRH = totalExist - etpDesigne;
+
+        var etpPrio = allSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 1).Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
+        var etpSec = allSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 2).Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
+        var etpTert = allSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 3).Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
+
+        var pct = etpDesigne / totalExist * 100.0;
+        var color = pct >= 99.9 ? "color:#2E7D32;font-weight:700" :
+                    pct >= 80   ? "color:#E65100;font-weight:700" :
+                                  "color:#C62828;font-weight:700";
+
+        var tooltip = $"Concordance existant : {pct:F0}% dans les types de segments\n" +
+                      $"  ▸ Prioritaire  : {etpPrio:F2} ETP\n" +
+                      $"  ▸ Secondaire   : {etpSec:F2} ETP\n" +
+                      $"  ▸ Tertiaire    : {etpTert:F2} ETP\n" +
+                      $"  ✗ Hors priorité     : {etpHorsRH:F2} ETP";
+
+        return (pct, color, tooltip);
+    }
+
+    private static (string bg, string fg) GetConcordanceColors(double? pct) =>
+        !pct.HasValue    ? ("#F5F5F5", "#757575") :
+        pct.Value >= 99.9 ? ("#E8F5E9", "#2E7D32") :
+        pct.Value >= 80   ? ("#FFF3E0", "#E65100") :
+                            ("#FFEBEE", "#C62828");
+
     private double? GetEtpCible(string segment, string profil)
     {
         var si = StateService.Regles.SegmentsIntensite
@@ -1882,6 +1938,15 @@
         if (cible <= 0) return null;
         var exist = Math.Round(GetRowExistantTotal(row) ?? 0, 2);
         return Math.Round(cible - exist, 2) / cible * 100.0;
+    }
+
+    private double? GetTauxRotationExistant(DimMatrixRow row)
+    {
+        if (row.IsTotal) return null;
+        var cible = Math.Round(GetRowCibleTotal(row) ?? 0, 2);
+        var exist = Math.Round(GetRowExistantTotal(row) ?? 0, 2);
+        if (exist <= 0) return null;
+        return Math.Round(cible - exist, 2) / exist * 100.0;
     }
 
     private void InitEffectifs()
