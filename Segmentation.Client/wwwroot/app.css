@@ -195,25 +195,29 @@ html, body {
 }
 
 /* ── Bouton Aide — même pill que le toggle, positionné à côté ── */
+.ca-page-header .ca-help-btn,
 .ca-help-btn {
-    display: flex;
+    display: inline-flex !important;
     align-items: center;
     gap: 6px;
     padding: 6px 16px;
-    border: none;
+    border: none !important;
     border-radius: 20px;
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    background: #E8EEF4;
-    color: #1A4E6B;
+    background: #E8EEF4 !important;
+    color: #1A4E6B !important;
     transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
     white-space: nowrap;
     line-height: 1;
+    appearance: none;
+    -webkit-appearance: none;
 }
+.ca-page-header .ca-help-btn:hover,
 .ca-help-btn:hover {
-    background: #1A4E6B;
-    color: white;
+    background: #1A4E6B !important;
+    color: white !important;
     box-shadow: 0 2px 6px rgba(26,78,107,0.30);
 }
 
