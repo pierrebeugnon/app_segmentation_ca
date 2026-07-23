@@ -768,9 +768,11 @@ html, body {
 .ca-dim-table thead tr:not(.ca-dim-superheader) { background: #0A1F30; color: white; }
 
 /* Variantes de bleu pour les en-têtes statiques de la matrice */
-.ca-dim-th-charge  { background: #0F2E45; }
-.ca-dim-th-manual  { background: #2E6A93; }
-.ca-dim-th-kpi     { background: #4A8DB8; }
+/* Aide reste en gris ; Charge ETP très sombre, saisies manuelles et KPI en nuances
+   de plus en plus claires tout en restant dans la famille du bleu métier. */
+.ca-dim-th-charge  { background: #0D2536; }
+.ca-dim-th-manual  { background: #1A4E6B; }
+.ca-dim-th-kpi     { background: #2E6A93; }
 .ca-dim-th-aide    { background: #D5D8DC; color: #3A4550; }
 
 .ca-dim-th-segment {
