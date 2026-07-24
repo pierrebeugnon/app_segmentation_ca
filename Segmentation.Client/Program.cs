@@ -1,13 +1,20 @@
 using Segmentation.Client.Components;
 using Segmentation.Client.Services;
 using Segmentation.Client.Themes;
+using Microsoft.AspNetCore.Components;
 using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddSingleton<MockDataService>();
+builder.Services.AddScoped(sp => new HttpClient
+{
+    BaseAddress = new Uri(sp.GetRequiredService<NavigationManager>().BaseUri)
+});
+
 builder.Services.AddSingleton<SegmentationStateService>();
+builder.Services.AddScoped<ReglesHypothesesService>();
+builder.Services.AddScoped<ReferentielService>();
 builder.Services.AddScoped<RepartitionAutomatiqueService>();
 builder.Services.AddMudServices();
 builder.Services.AddRazorComponents()

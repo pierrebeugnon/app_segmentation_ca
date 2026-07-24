@@ -1,23 +1,33 @@
-feat: Règles & Hypothèses — filtre segments hors scope + ordre métiers
+refactor: supprime MockDataService et branche Règles & Hypothèses sur l'API réelle
 
-Page ReglesHypotheses :
+Suppression du service mocké :
 
-- Suppression définitive des segments "Non segmenté" et "Non classé" :
-  * retirés des données mockées (MockDataService)
-  * filtrés à l'affichage dans les 3 tableaux (Intensité, Affectation,
-    Portefeuilles théoriques) via IsSegmentNonAffectable
-  * IsSegmentNonAffectable étendu pour exclure aussi "Non classé"
+- Suppression de `MockDataService.cs` et retrait de son enregistrement dans
+  `Program.cs`.
+- `VisionGlobale.razor` ne dépend plus de `MockDataService` ; initialise un
+  modèle vide en attendant un endpoint dédié.
+- `SegmentationStateService` n’utilise plus `MockDataService` ; le modèle
+  `Regles` est initialisé vide puis alimenté par la page Règles & Hypothèses.
 
-- Réorganisation des métiers du bloc Agence du plus petit au plus important :
-  1. Conseiller Commercial
-  2. Conseiller Clientèle
-  3. RCP
-  4. Responsable d'Agence
+Branchement sur les vraies données :
 
-- Mise à jour de l'ordre dans MockDataService.ConseillersProfils et des listes
-  ProfilsRetail / ProfilsRetailAvecAccueil.
-- Ajout de GetProfilRank() pour garantir l'ordre souhaité quelle que soit
-  l'origine des données (mock ou référentiel).
+- Enregistrement de `HttpClient` (BaseAddress via `NavigationManager`) ainsi
+  que `ReglesHypothesesService` et `ReferentielService` dans `Program.cs`.
+- Ajout de `ReferentielService.cs` et `ReferentielData.cs` dans le projet
+  client.
+- Remplacement de `ReglesHypothesesService.cs` par la version robuste avec
+  helpers `SafeGet` / `SafeGetObject` et méthodes `LoadAllAsync` /
+  `SaveAllAsync`.
+- Mise à jour de `SegmentationSharedShims.cs` :
+  * `ParametresGenerauxData` : ajout `HeuresParSemaine`, `NbSemainesParAn`,
+    `ParametresGenerauxID`.
+  * `SegmentIntensiteData` : `IntensiteRelationnelle` désormais settable,
+    ajout `SegmentIntensiteID`.
+
+Ajustement page Règles & Hypothèses :
+
+- Correction du namespace du partial `.razor.cs` pour correspondre au fichier
+  `.razor` (`Segmentation.Client.Components.Pages`).
 
 Build OK (0 erreur).
 

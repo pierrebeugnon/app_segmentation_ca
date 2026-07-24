@@ -29,12 +29,9 @@ public class SegmentationStateService
     public int                       TaillePortefeuilleMoyenne { get; private set; }
     public List<DimensionnementEtpRow> EtpCibleRows       { get; private set; } = new();
 
-    public SegmentationStateService(MockDataService mock)
+    public SegmentationStateService()
     {
-        Regles = mock.GetReglesHypotheses();
-        // Sauvegarder les tailles par défaut
-        foreach (var pf in Regles.PortefeuillesTheoriques)
-            _taillesDefaut[pf.Profil] = pf.ClientsParConseiller;
+        Regles = new ReglesHypothesesModel();
         Recalculer();
     }
 

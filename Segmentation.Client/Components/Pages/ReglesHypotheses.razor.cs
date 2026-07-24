@@ -7,7 +7,7 @@ using Segmentation.Shared.Models;
 using System.Globalization;
 using System.Text;
 
-namespace Segmentation.Client.Pages;
+namespace Segmentation.Client.Components.Pages;
 
 public partial class ReglesHypotheses
 {

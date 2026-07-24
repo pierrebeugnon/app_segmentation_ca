@@ -3,10 +3,6 @@ using Segmentation.Shared.Models;
 
 namespace Segmentation.Client.Services
 {
-    /// <summary>
-    /// Service unifié pour charger et sauvegarder les Règles & Hypothèses
-    /// depuis les 4 tables de la BDD.
-    /// </summary>
     public class ReglesHypothesesService
     {
         private readonly HttpClient _http;
@@ -17,28 +13,28 @@ namespace Segmentation.Client.Services
         }
 
         // ═══════════════════════════════════════════════════════════
-        //   LECTURE — Charge les 4 tables en parallèle
+        //   LECTURE
         // ═══════════════════════════════════════════════════════════
         public async Task<ReglesHypothesesBundle> LoadAllAsync()
         {
-            var taskSegments   = _http.GetFromJsonAsync<List<SegmentIntensiteData>>("api/SegmentIntensite");
-            var taskProfils    = _http.GetFromJsonAsync<List<ConseillerProfilData>>("api/ConseillerProfil");
-            var taskRegles     = _http.GetFromJsonAsync<List<RegleAffectationSegmentData>>("api/RegleAffectationSegment");
-            var taskParametres = _http.GetFromJsonAsync<ParametresGenerauxData?>("api/ParametresGeneraux");
+            var taskSegments   = SafeGetListAsync<SegmentIntensiteData>("api/SegmentIntensite");
+            var taskProfils    = SafeGetListAsync<ConseillerProfilData>("api/ConseillerProfil");
+            var taskRegles     = SafeGetListAsync<RegleAffectationSegmentData>("api/RegleAffectationSegment");
+            var taskParametres = SafeGetObjectAsync<ParametresGenerauxData>("api/ParametresGeneraux");
 
             await Task.WhenAll(taskSegments, taskProfils, taskRegles, taskParametres);
 
             return new ReglesHypothesesBundle
             {
-                Segments   = taskSegments.Result   ?? new(),
-                Profils    = taskProfils.Result    ?? new(),
-                Regles     = taskRegles.Result     ?? new(),
+                Segments   = taskSegments.Result,
+                Profils    = taskProfils.Result,
+                Regles     = taskRegles.Result,
                 Parametres = taskParametres.Result
             };
         }
 
         // ═══════════════════════════════════════════════════════════
-        //   SAUVEGARDE — Envoie les 4 tables en parallèle
+        //   SAUVEGARDE
         // ═══════════════════════════════════════════════════════════
         public async Task<ReglesHypothesesSaveResult> SaveAllAsync(ReglesHypothesesBundle bundle)
         {
@@ -58,7 +54,58 @@ namespace Segmentation.Client.Services
             };
         }
 
-        // ── Helpers ─────────────────────────────────────────────────
+        // ═══════════════════════════════════════════════════════════
+        //   Helpers robustes
+        // ═══════════════════════════════════════════════════════════
+
+        private async Task<List<T>> SafeGetListAsync<T>(string url)
+        {
+            try
+            {
+                var response = await _http.GetAsync(url);
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($">>> {url} : status {response.StatusCode}");
+                    return new List<T>();
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(content) || content == "null")
+                    return new List<T>();
+
+                return await response.Content.ReadFromJsonAsync<List<T>>() ?? new List<T>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($">>> Erreur GET {url} : {ex.Message}");
+                return new List<T>();
+            }
+        }
+
+        private async Task<T?> SafeGetObjectAsync<T>(string url) where T : class
+        {
+            try
+            {
+                var response = await _http.GetAsync(url);
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($">>> {url} : status {response.StatusCode}");
+                    return null;
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(content) || content == "null")
+                    return null;
+
+                return await response.Content.ReadFromJsonAsync<T>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($">>> Erreur GET {url} : {ex.Message}");
+                return null;
+            }
+        }
+
         private async Task<int> SaveListAsync<T>(string url, List<T> items)
         {
             var response = await _http.PostAsJsonAsync(url, items);
@@ -85,7 +132,7 @@ namespace Segmentation.Client.Services
     }
 
     // ═══════════════════════════════════════════════════════════════
-    //   Container qui regroupe les 4 tables
+    //   Container
     // ═══════════════════════════════════════════════════════════════
     public class ReglesHypothesesBundle
     {

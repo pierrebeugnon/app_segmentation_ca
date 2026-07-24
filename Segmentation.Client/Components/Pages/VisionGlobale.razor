@@ -1,7 +1,6 @@
 @page "/vision-globale"
 @using System.Linq
 @using System.Collections.Generic
-@inject MockDataService DataService
 @inject SegmentationStateService StateService
 @implements IDisposable
 
@@ -543,7 +542,7 @@
 
     private void LoadData()
     {
-        model = DataService.GetVisionGlobale(!vueReseau);
+        model = new VisionGlobaleModel();
         ApplyStateToModel();
 
         allAgencesProblematiques = model?.AgencesProblematiques?.ToList() ?? new List<AgenceProblematique>();

@@ -29,11 +29,12 @@ public class SegmentationDistributiveData
 
 public class SegmentIntensiteData
 {
+    public int SegmentIntensiteID { get; set; }
     public string LigneMetier { get; set; } = "";
     public string Segment { get; set; } = "";
     public double NombreRdvParAn { get; set; }
     public double DureeRdvHeures { get; set; }
-    public double IntensiteRelationnelle => Math.Round(NombreRdvParAn * DureeRdvHeures, 2);
+    public double IntensiteRelationnelle { get; set; }
     public int NombreClients { get; set; }
     public string Region { get; set; } = "";
     public string Secteur { get; set; } = "";
@@ -58,6 +59,7 @@ public class RegleAffectationSegmentData
 
 public class ParametresGenerauxData
 {
-    // Conteneur utilisé par ReglesHypothesesService ; aucune propriété
-    // n'est exploitée actuellement dans le Client.
+    public int ParametresGenerauxID { get; set; }
+    public double HeuresParSemaine { get; set; }
+    public double NbSemainesParAn { get; set; }
 }
