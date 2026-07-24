@@ -1,10 +1,18 @@
 <MudDialog>
     <DialogContent>
-        <MudText Typo="Typo.body1" Style="white-space:pre-line">@Message</MudText>
+        <div style="display:flex;align-items:flex-start;gap:14px">
+            <div style="flex-shrink:0;width:42px;height:42px;border-radius:50%;
+                        background:#FFF3E0;display:flex;align-items:center;justify-content:center">
+                <MudIcon Icon="@Icons.Material.Rounded.WarningAmber" Style="color:#E65100;font-size:24px" />
+            </div>
+            <MudText Typo="Typo.body1" Style="white-space:pre-line;line-height:1.55;padding-top:2px">@Message</MudText>
+        </div>
     </DialogContent>
     <DialogActions>
         <MudButton Variant="Variant.Text" OnClick="Cancel">Annuler</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="Submit">@ConfirmText</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error"
+                   StartIcon="@Icons.Material.Rounded.DeleteOutline"
+                   OnClick="Submit">@ConfirmText</MudButton>
     </DialogActions>
 </MudDialog>
 

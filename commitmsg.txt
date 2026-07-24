@@ -1,15 +1,14 @@
-feat: popup de confirmation aussi pour les effectifs nouvellement créés
+style: modernise les boutons, popups, tooltips et snackbars
 
-Lors de la suppression d'un effectif ajouté manuellement (bouton
-"Ajouter un nouveau conseiller"), on vérifie maintenant s'il porte une
-charge dans le tableau Répartition.
-
-- Si charge détectée : popup `ConfirmDialog` demandant validation.
-- Sur confirmation : suppression de l'effectif ET remise à null des ETP
-cibles associés dans toutes les lignes du tableau Répartition.
-- Extraction d'une méthode helper `ConfirmRemoveSlotWithChargeAsync`
-pour partager la logique entre `RemoveNewSlot` et
-`RemoveCibleForExistingSlot`.
+Ajout d'un design system léger dans app.css sans changer la palette CA :
+- Boutons MudBlazor : arrondis, sans capitales, ombres et micro-interactions
+  (hover translateY, active state, focus visible)
+- Icon buttons : halo + scale au survol
+- Dialogs / popups : arrondis généreux, ombre profonde, animation d'entrée,
+  bandeau de titre avec liseré turquoise, zone d'actions distincte
+- Backdrop : flou + assombrissement doux
+- Menus, tooltips et snackbars : arrondis + ombres cohérentes
+- ConfirmDialog : icône d'avertissement + bouton supprimer avec icône
 
 Build OK (0 erreur).
 
