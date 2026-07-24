@@ -1,6 +1,6 @@
 Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS8954	Le fichier source ne peut contenir qu’une seule déclaration d’espace de noms d’étendue de fichier.	Segmentation.Client	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\PortefeuilleDimensionnement.razor.cs	9	
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
 Erreur (active)	CS0535	'PortefeuilleDimensionnement' n'implémente pas le membre d'interface 'IDisposable.Dispose()'		C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\PortefeuilleDimensionnement.razor	7	
 Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
 Erreur (active)	CS0103	Le nom '_isLoading' n'existe pas dans le contexte actuel		C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\PortefeuilleDimensionnement.razor	19	
+Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
+Erreur (active)	CS0103	Le nom 'vueEtp' n'existe pas dans le contexte actuel		C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\PortefeuilleDimensionnement.razor	39	
