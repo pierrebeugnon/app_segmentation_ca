@@ -1,5 +1,5 @@
 using System.Net.Http.Json;
-using Segmentation.Client.Models;
+using Segmentation.Shared.Models;
 
 namespace Segmentation.Client.Services
 {

@@ -1,15 +1,15 @@
-build: installe SDK .NET 10 et corrige les erreurs de compilation
+fix: garde les using Segmentation.Shared.Models et ajoute un shim local
 
-- Installe le SDK .NET 10.0.110 pour matcher la cible net10.0 du projet.
-- Ajoute les modèles manquants (SegmentationDistributiveData,
-  SegmentIntensiteData, ConseillerProfilData, RegleAffectationSegmentData,
-  ParametresGenerauxData) dans Segmentation.Client/Models.
-- Remplace les using Segmentation.Shared.Models par Segmentation.Client.Models.
-- Remplace le NavMenu.razor invalide (code C# dans un fichier .razor + réf
-  Telerik non présent) par un menu MudBlazor simple.
-- Ré-intègre DimFiltresBar.razor dans PortefeuilleDimensionnement.razor.
+Pour rester compatible avec le repo client complet (qui possède le vrai
+projet Segmentation.Shared), on remet les using d'origine :
+- Segmentation.Shared.Models dans PortefeuilleDimensionnement.razor
+- Segmentation.Shared.Models dans EtpConversionService.cs
+- Segmentation.Shared.Models dans ReglesHypothesesService.cs
 
-Le projet compile maintenant avec 0 erreur.
+Les modèles manquants sont déclarés dans un fichier shim temporaire
+`Segmentation.Client/Models/SegmentationSharedShims.cs` sous le namespace
+`Segmentation.Shared.Models` pour permettre la compilation dans notre repo
+réduit. Ce fichier doit être SUPPRIMÉ lors du merge dans le repo client.
 
 Generated with [Devin](https://devin.ai)
 
