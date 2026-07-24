@@ -1,15 +1,16 @@
-feat: filtre segments hors scope + ordre métiers dans Règles & Hypothèses
+feat: filtre segments hors scope + ordre métiers sur version originale R&H
 
-Page ReglesHypotheses :
+Page ReglesHypotheses (version .razor/.razor.cs originale réintégrée) :
 
 - Exclusion des segments "Non segmenté" et "Non classé" de l'affichage
-  dans les tableaux Intensité et Affectation (IsSegmentNonAffectable).
+  dans les tableaux Intensité et Affectation.
 - Ordre des métiers du bloc Agence du plus petit au plus important :
   1. Conseiller Commercial
   2. Conseiller Clientèle
   3. RCP
   4. Responsable d'Agence
-  via GetProfilRank() appliqué à la boucle du tableau Temps commercial.
+- Correction du namespace du partial pour correspondre à l'emplacement
+  du fichier .razor (build OK).
 
 Build OK (0 erreur).
 
