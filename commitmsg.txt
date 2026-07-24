@@ -1,18 +1,15 @@
-refactor: restaure le chargement réel des données dans le code-behind
+feat: confirmation + suppression charge lors du retrait d'un effectif cible
 
-Après avoir aligné le .razor.cs sur la version client, les données étaient
-passées sur les mocks. Ce commit réintroduit le chargement HTTP de
-`api/SegmentationDistributive` tout en gardant la structure du .razor.cs
-(client) et les méthodes du markup récent (charges manuelles, totaux KPI).
+Dans le tableau Effectifs, retirer un effectif existant de la cible vérifie
+maintenant s'il porte encore une charge dans le tableau Répartition.
 
-- Ajoute `[Inject] HttpClient` et `LoadDataAsync`.
-- Ajoute `_segmentationDistributive` / `_segmentationDistributiveFiltree`.
-- `BuildSlots` utilise les données réelles quand elles sont disponibles,
-  avec fallback sur les mocks si l'API ne retourne rien.
-- Ajoute la propriété `Etp` manquante dans le shim
-  `SegmentationDistributiveData`.
+- Si une charge est trouvée : ouverture d'une boîte de confirmation
+  `ConfirmDialog` indiquant le nombre de segments et le total ETP concerné.
+- Sur validation : suppression de l'effectif cible (IsCible = false) ET
+  mise à null des ETP cibles saisis pour ce conseiller dans toutes les lignes.
+- Sur annulation : aucune action.
 
-Build OK (0 erreur).
+Suppression du fichier `.razor.cs` fantôme qui doublonnait le code.
 
 Generated with [Devin](https://devin.ai)
 
