@@ -766,7 +766,7 @@
                                     <td style="text-align:center;padding:3px;font-style:italic">
                                         <div style="font-size:11px;@RemplissageColor(rmpCib)">@(rmpCib.HasValue ? $"{rmpCib.Value:F0}%" : "—")</div>
                                         <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                        <div style="font-size:9px;@RemplissageColor(rmpExi)">@(rmpExi.HasValue ? $"{rmpExi.Value:F0}%" : "—")</div>
+                                        <div style="font-size:9px;color:#E65100">@(rmpExi.HasValue ? $"{rmpExi.Value:F0}%" : "—")</div>
                                     </td>
                                 }
                                 else
@@ -778,7 +778,7 @@
                                         <td style="text-align:center;padding:3px;@(!slot.IsCible ? "opacity:0.35" : "")">
                                             <div style="font-size:11px;@RemplissageColor(rmpCib)">@(rmpCib.HasValue ? $"{rmpCib.Value:F0}%" : "—")</div>
                                             <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                            <div style="font-size:9px;@RemplissageColor(rmpExi)">@(rmpExi.HasValue ? $"{rmpExi.Value:F0}%" : "—")</div>
+                                            <div style="font-size:9px;color:#E65100">@(rmpExi.HasValue ? $"{rmpExi.Value:F0}%" : "—")</div>
                                         </td>
                                     }
                                 }
@@ -787,7 +787,7 @@
                             <td style="text-align:center;padding:3px;background:#162840">
                                 <div style="font-size:12px;@RemplissageColor(kpiRmpCibTotal)">@(kpiRmpCibTotal.HasValue ? $"{kpiRmpCibTotal.Value:F0}%" : "—")</div>
                                 <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                <div style="font-size:9px;@RemplissageColor(kpiRmpExiTotal)">@(kpiRmpExiTotal.HasValue ? $"{kpiRmpExiTotal.Value:F0}%" : "—")</div>
+                                <div style="font-size:9px;color:#E65100">@(kpiRmpExiTotal.HasValue ? $"{kpiRmpExiTotal.Value:F0}%" : "—")</div>
                             </td>
                             @if (vueEtp && _showChargesManuelles)
                             {
@@ -827,7 +827,7 @@
                                     <td style="text-align:center;padding:3px;font-style:italic">
                                         <div style="font-size:11px;@concColorCib">@(concPctCib.HasValue ? $"{concPctCib.Value:F0}%" : "—")</div>
                                         <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                        <div style="font-size:9px;@concColorExi">@(concPctExi.HasValue ? $"{concPctExi.Value:F0}%" : "—")</div>
+                                        <div style="font-size:9px;color:#E65100">@(concPctExi.HasValue ? $"{concPctExi.Value:F0}%" : "—")</div>
                                     </td>
                                 }
                                 else
@@ -839,7 +839,7 @@
                                         <td style="text-align:center;padding:3px;@(!slot.IsCible ? "opacity:0.35" : "")">
                                             <div style="font-size:11px;@concColorCib">@(concPctCib.HasValue ? $"{concPctCib.Value:F0}%" : "—")</div>
                                             <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                            <div style="font-size:9px;@concColorExi">@(concPctExi.HasValue ? $"{concPctExi.Value:F0}%" : "—")</div>
+                                            <div style="font-size:9px;color:#E65100">@(concPctExi.HasValue ? $"{concPctExi.Value:F0}%" : "—")</div>
                                         </td>
                                     }
                                 }
@@ -1080,7 +1080,7 @@
     }
 
     private IEnumerable<ConseillerSlot> SlotsForProfil(string profil) =>
-        _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)).Reverse();
+        _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase));
 
     private int VisibleSlotColumnCount =>
         profils.Sum(p => _collapsedProfils.Contains(p)
@@ -1513,9 +1513,7 @@
         "CI Potentiel",
         "CI Standard",
         "GP Potentiel",
-        "GP Standard",
-        "Non segmenté",
-        "Non classé"
+        "GP Standard"
     };
 
     // ── Construction des rows ─────────────────────────────────────────────

@@ -1,23 +1,16 @@
-feat: vue Nombre de clients en consultation avec conversion automatique
+feat: aligne ordre effectifs/répartition, supprime segments hors scope, colore KPI existants
 
 Page PortefeuilleDimensionnement :
 
-- En mode "Nombre de clients" (vue ETP désactivée) :
-  - Toutes les actions d'édition du tableau Répartition sont désactivées :
-    * bouton "Proposition de répartition" masqué
-    * colonnes de saisie manuelle (transferts BP / PF mutualisé) masquées
-    * cellules cibles affichées en lecture seule
-  - Les valeurs ETP internes sont converties en nombre de clients à
-    l'affichage via le service EtpConversionService (ETP × taille théorique).
-  - Les totaux, agrégats par métier, colonne d'aide à la répartition et
-    ligne "Part de nouveaux clients" utilisent des méthodes d'affichage
-    converties en nombre de clients.
-
-- Composant DimTableauEffectifs : ajout d'un paramètre ReadOnly. En mode
-  consultation, les boutons d'ajout/retrait/restauration et les champs
-  ETP cible sont masqués/remplacés par du texte.
-
-- EtpConversionService : ajout de GetClientCountFromEtp(etp, segment).
+- Ordre des conseillers dans le tableau Répartition identique au tableau
+  Effectifs : suppression du `.Reverse()` dans `SlotsForProfil`.
+- Suppression des segments "Non segmenté" et "Non classé" de la liste
+  affichée dans le tableau Répartition.
+- Indicateurs KPI :
+  * valeurs existantes des lignes "Taux de remplissage" passées en orange
+    (#E65100)
+  * valeurs existantes des lignes "Taux de concordance" passées en orange
+    (#E65100)
 
 Build OK (0 erreur).
 
