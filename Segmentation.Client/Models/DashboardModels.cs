@@ -207,4 +207,61 @@ namespace Segmentation.Client.Models
         public List<IndicateurApplicabilite> Indicateurs { get; set; } = new();
         public List<AgenceProblematique> AgencesProblematiques { get; set; } = new();
     }
+
+    // ── Modèles portés depuis Segmentation.Shared (non inclus dans ce repo) ──
+    public class SegmentationDistributiveData
+    {
+        public string LibRegion { get; set; } = "";
+        public string LibSecteur { get; set; } = "";
+        public string LibAgence { get; set; } = "";
+        public string MatriculeConseiller { get; set; } = "";
+        public string TypeConseiller { get; set; } = "";
+
+        public int HDGPremiumPotentiel { get; set; }
+        public int HDGPremiumStandard { get; set; }
+        public int HDGPotentiel { get; set; }
+        public int HDGSeniorEpargnant { get; set; }
+        public int HDGStandard { get; set; }
+        public int CIPotentiel { get; set; }
+        public int CIStandard { get; set; }
+        public int GPPotentiel { get; set; }
+        public int GPStandard { get; set; }
+        public int NonSegmente { get; set; }
+        public int NonClasse { get; set; }
+    }
+
+    public class SegmentIntensiteData
+    {
+        public string LigneMetier { get; set; } = "";
+        public string Segment { get; set; } = "";
+        public double NombreRdvParAn { get; set; }
+        public double DureeRdvHeures { get; set; }
+        public double IntensiteRelationnelle => Math.Round(NombreRdvParAn * DureeRdvHeures, 2);
+        public int NombreClients { get; set; }
+        public string Region { get; set; } = "";
+        public string Secteur { get; set; } = "";
+        public string Agence { get; set; } = "";
+    }
+
+    public class ConseillerProfilData
+    {
+        public string LigneMetier { get; set; } = "";
+        public string Profil { get; set; } = "";
+        public double PartTempsCommercialPct { get; set; }
+        public double PartTempsNonCommercialPct => 100.0 - PartTempsCommercialPct;
+    }
+
+    public class RegleAffectationSegmentData
+    {
+        public string Segment { get; set; } = "";
+        public string ConseillerPrioritaire { get; set; } = "";
+        public string ConseillerSecondaire { get; set; } = "";
+        public string ConseillerTertiaire { get; set; } = "";
+    }
+
+    public class ParametresGenerauxData
+    {
+        // Conteneur utilisé par ReglesHypothesesService ; aucune propriété
+        // n'est exploitée actuellement dans le Client.
+    }
 }

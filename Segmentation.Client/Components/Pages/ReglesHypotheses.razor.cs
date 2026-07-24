@@ -3,7 +3,6 @@ using Microsoft.JSInterop;
 using MudBlazor;
 using Segmentation.Client.Models;
 using Segmentation.Client.Services;
-using Segmentation.Shared.Models;
 using System.Globalization;
 using System.Text;
 

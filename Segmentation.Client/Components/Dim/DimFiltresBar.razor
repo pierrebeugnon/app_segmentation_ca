@@ -1,0 +1,81 @@
+<MudPaper Elevation="1" Style="border-radius:8px;padding:12px 16px;margin-bottom:8px">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <MudIcon Icon="@Icons.Material.Outlined.FilterAlt" Style="color:#1A4E6B;font-size:20px" />
+
+        <MudSelect T="string" Label="Région" Dense="true" Margin="Margin.Dense"
+                   Variant="Variant.Outlined" Style="min-width:160px"
+                   Value="@Region" ValueChanged="RegionChanged"
+                   Disabled="@IsLoading"
+                   Clearable="true">
+            @foreach (var r in Regions)
+            {
+                <MudSelectItem Value="@r">@r</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudSelect T="string" Label="Secteur" Dense="true" Margin="Margin.Dense"
+                   Variant="Variant.Outlined" Style="min-width:180px"
+                   Value="@Secteur" ValueChanged="SecteurChanged"
+                   Disabled="@IsLoading"
+                   Clearable="true">
+            @foreach (var s in Secteurs)
+            {
+                <MudSelectItem Value="@s">@s</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudSelect T="string" Label="Agence" Dense="true" Margin="Margin.Dense"
+                   Variant="Variant.Outlined" Style="min-width:200px"
+                   Value="@Agence" ValueChanged="AgenceChanged"
+                   Disabled="@IsLoading"
+                   Clearable="true">
+            @foreach (var a in Agences)
+            {
+                <MudSelectItem Value="@a">@a</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Search"
+                   OnClick="ApplyFilters"
+                   Disabled="@(!HasPendingFilterChanges)">
+            Valider
+        </MudButton>
+
+        @if (!string.IsNullOrEmpty(Region) || !string.IsNullOrEmpty(Secteur) || !string.IsNullOrEmpty(Agence))
+        {
+            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary"
+                       StartIcon="@Icons.Material.Outlined.Clear"
+                       OnClick="ClearFilters">Effacer filtres</MudButton>
+        }
+
+        @if (HasPendingFilterChanges)
+        {
+            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">
+                Filtres non appliqués
+            </MudChip>
+        }
+
+        <div style="flex:1"></div>
+    </div>
+</MudPaper>
+
+@code {
+    [Parameter] public string? Region { get; set; }
+    [Parameter] public string? Secteur { get; set; }
+    [Parameter] public string? Agence { get; set; }
+
+    [Parameter] public IEnumerable<string> Regions { get; set; } = new List<string>();
+    [Parameter] public IEnumerable<string> Secteurs { get; set; } = new List<string>();
+    [Parameter] public IEnumerable<string> Agences { get; set; } = new List<string>();
+
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public bool HasPendingFilterChanges { get; set; }
+
+    [Parameter] public EventCallback<string?> RegionChanged { get; set; }
+    [Parameter] public EventCallback<string?> SecteurChanged { get; set; }
+    [Parameter] public EventCallback<string?> AgenceChanged { get; set; }
+
+    [Parameter] public EventCallback ApplyFilters { get; set; }
+    [Parameter] public EventCallback ClearFilters { get; set; }
+}

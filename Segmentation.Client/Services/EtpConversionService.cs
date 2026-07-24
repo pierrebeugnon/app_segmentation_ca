@@ -1,4 +1,4 @@
-using Segmentation.Shared.Models;
+using Segmentation.Client.Models;
 
 namespace Segmentation.Client.Services
 {

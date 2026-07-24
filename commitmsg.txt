@@ -1,0 +1,16 @@
+build: installe SDK .NET 10 et corrige les erreurs de compilation
+
+- Installe le SDK .NET 10.0.110 pour matcher la cible net10.0 du projet.
+- Ajoute les modèles manquants (SegmentationDistributiveData,
+  SegmentIntensiteData, ConseillerProfilData, RegleAffectationSegmentData,
+  ParametresGenerauxData) dans Segmentation.Client/Models.
+- Remplace les using Segmentation.Shared.Models par Segmentation.Client.Models.
+- Remplace le NavMenu.razor invalide (code C# dans un fichier .razor + réf
+  Telerik non présent) par un menu MudBlazor simple.
+- Ré-intègre DimFiltresBar.razor dans PortefeuilleDimensionnement.razor.
+
+Le projet compile maintenant avec 0 erreur.
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
