@@ -1,15 +1,13 @@
-fix: garde les using Segmentation.Shared.Models et ajoute un shim local
+refactor: déplace la logique @code de PortefeuilleDimensionnement vers .razor.cs
 
-Pour rester compatible avec le repo client complet (qui possède le vrai
-projet Segmentation.Shared), on remet les using d'origine :
-- Segmentation.Shared.Models dans PortefeuilleDimensionnement.razor
-- Segmentation.Shared.Models dans EtpConversionService.cs
-- Segmentation.Shared.Models dans ReglesHypothesesService.cs
+Avec le SDK .NET 10, le code-behind .razor.cs fonctionne correctement.
+- Crée PortefeuilleDimensionnement.razor.cs avec tous les champs, méthodes,
+  helpers et services injectés.
+- Supprime le bloc @code du fichier .razor, qui ne contient plus que le markup.
+- Déplace les directives @inject / @implements / @using métier dans le .razor.cs.
 
-Les modèles manquants sont déclarés dans un fichier shim temporaire
-`Segmentation.Client/Models/SegmentationSharedShims.cs` sous le namespace
-`Segmentation.Shared.Models` pour permettre la compilation dans notre repo
-réduit. Ce fichier doit être SUPPRIMÉ lors du merge dans le repo client.
+Résultat : le fichier .razor passe de ~1970 lignes à ~930 lignes (soit ~1000
+lignes de logique extraites), facilitant la suite du découpage en composants.
 
 Generated with [Devin](https://devin.ai)
 
