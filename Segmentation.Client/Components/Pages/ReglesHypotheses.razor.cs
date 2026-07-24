@@ -417,6 +417,7 @@ public partial class ReglesHypotheses
 
 		return string.IsNullOrWhiteSpace(s)
 			   || string.Equals(s, "Non segmenté", StringComparison.OrdinalIgnoreCase)
+			   || string.Equals(s, "Non classé", StringComparison.OrdinalIgnoreCase)
 			   || s == "?";
 	}
 
@@ -508,6 +509,19 @@ public partial class ReglesHypotheses
 
 	private static string FormatTypeAgenceLabel(string lm) =>
 		string.IsNullOrWhiteSpace(lm) ? "" : char.ToUpperInvariant(lm[0]) + lm[1..];
+
+	private static int GetProfilRank(string? profil) => profil?.Trim().ToUpperInvariant() switch
+	{
+		"CONSEILLER COMMERCIAL" => 1,
+		"CONSEILLER CLIENTELE" => 2,
+		"RCP" => 3,
+		"RESP. AGENCE" => 4,
+		"CONSEILLER D'ACCUEIL" => 5,
+		"DIR. BP" => 10,
+		"BANQUIER PRIVÉ" => 11,
+		"CGP" => 12,
+		_ => 99
+	};
 
 	private double GetTempsCommercialByType(string ligneMetier)
 	{

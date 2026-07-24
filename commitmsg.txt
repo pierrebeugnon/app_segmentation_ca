@@ -1,33 +1,15 @@
-refactor: supprime MockDataService et branche Règles & Hypothèses sur l'API réelle
+feat: filtre segments hors scope + ordre métiers dans Règles & Hypothèses
 
-Suppression du service mocké :
+Page ReglesHypotheses :
 
-- Suppression de `MockDataService.cs` et retrait de son enregistrement dans
-  `Program.cs`.
-- `VisionGlobale.razor` ne dépend plus de `MockDataService` ; initialise un
-  modèle vide en attendant un endpoint dédié.
-- `SegmentationStateService` n’utilise plus `MockDataService` ; le modèle
-  `Regles` est initialisé vide puis alimenté par la page Règles & Hypothèses.
-
-Branchement sur les vraies données :
-
-- Enregistrement de `HttpClient` (BaseAddress via `NavigationManager`) ainsi
-  que `ReglesHypothesesService` et `ReferentielService` dans `Program.cs`.
-- Ajout de `ReferentielService.cs` et `ReferentielData.cs` dans le projet
-  client.
-- Remplacement de `ReglesHypothesesService.cs` par la version robuste avec
-  helpers `SafeGet` / `SafeGetObject` et méthodes `LoadAllAsync` /
-  `SaveAllAsync`.
-- Mise à jour de `SegmentationSharedShims.cs` :
-  * `ParametresGenerauxData` : ajout `HeuresParSemaine`, `NbSemainesParAn`,
-    `ParametresGenerauxID`.
-  * `SegmentIntensiteData` : `IntensiteRelationnelle` désormais settable,
-    ajout `SegmentIntensiteID`.
-
-Ajustement page Règles & Hypothèses :
-
-- Correction du namespace du partial `.razor.cs` pour correspondre au fichier
-  `.razor` (`Segmentation.Client.Components.Pages`).
+- Exclusion des segments "Non segmenté" et "Non classé" de l'affichage
+  dans les tableaux Intensité et Affectation (IsSegmentNonAffectable).
+- Ordre des métiers du bloc Agence du plus petit au plus important :
+  1. Conseiller Commercial
+  2. Conseiller Clientèle
+  3. RCP
+  4. Responsable d'Agence
+  via GetProfilRank() appliqué à la boucle du tableau Temps commercial.
 
 Build OK (0 erreur).
 

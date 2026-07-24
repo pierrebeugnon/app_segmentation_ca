@@ -88,7 +88,7 @@
                         Segments et intensité relationnelle
                     </div>
 
-                    <MudTable Items="@model.SegmentsIntensite"
+                    <MudTable Items="@model.SegmentsIntensite.Where(s => !IsSegmentNonAffectable(s.Segment)).ToList()"
                               Dense="true"
                               Hover="true"
                               Elevation="0"
@@ -317,7 +317,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var p in profilsDuType)
+                                    @foreach (var p in profilsDuType.OrderBy(p => GetProfilRank(p.Profil)))
                                     {
                                         var volActuel = GetVolumeHoraire(p);
                                         var volRef = GetBaselineVolumeHoraireByProfil(p.Profil);
@@ -360,7 +360,7 @@
                         Règles d'affectation des conseillers par segment de clientèle
                     </div>
 
-                    <MudTable Items="@model.ReglesAffectationSegments"
+                    <MudTable Items="@model.ReglesAffectationSegments.Where(r => !IsSegmentNonAffectable(r.Segment)).ToList()"
                               Dense="true"
                               Hover="true"
                               Elevation="0"
