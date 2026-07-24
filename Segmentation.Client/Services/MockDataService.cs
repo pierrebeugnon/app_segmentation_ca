@@ -123,7 +123,6 @@ namespace Segmentation.Client.Services
                     new() { LigneMetier = "retail",                          Segment = "CI Standard",           NombreRdvParAn = 1.25, DureeRdvHeures = 1,    NombreClients =  3000, Region = "Nord",          Secteur = "Valenciennes",    Agence = "Agence Valenciennes"},
                     new() { LigneMetier = "retail",                          Segment = "GP Potentiel",          NombreRdvParAn = 1,    DureeRdvHeures = 1.25, NombreClients =  1500, Region = "Nord",          Secteur = "Douai",           Agence = "Agence Douai"       },
                     new() { LigneMetier = "retail",                          Segment = "GP Standard",           NombreRdvParAn = 0.5,  DureeRdvHeures = 0.5,  NombreClients =  8000, Region = "Nord",          Secteur = "Douai",           Agence = "Agence Douai"       },
-                    new() { LigneMetier = "retail - portefeuille mutualisé", Segment = "Non segmenté",          NombreRdvParAn = 0,    DureeRdvHeures = 0,    NombreClients =  5400, Region = "Nord",          Secteur = "Lille Métropole", Agence = "Agence Tourcoing"   },
                 },
 
                 // ── Section 2 : Hypothèses temps de travail + profils
@@ -134,10 +133,10 @@ namespace Segmentation.Client.Services
                     new() { LigneMetier = "banque privée", Profil = "DIR. BP",                PartTempsCommercialPct = 60 },
                     new() { LigneMetier = "banque privée", Profil = "BANQUIER PRIVÉ",          PartTempsCommercialPct = 60 },
                     new() { LigneMetier = "banque privée", Profil = "CGP",                     PartTempsCommercialPct = 60 },
-                    new() { LigneMetier = "retail",        Profil = "RESP. AGENCE",            PartTempsCommercialPct = 40 },
-                    new() { LigneMetier = "retail",        Profil = "RCP",                     PartTempsCommercialPct = 40 },
-                    new() { LigneMetier = "retail",        Profil = "CONSEILLER CLIENTELE",    PartTempsCommercialPct = 40 },
                     new() { LigneMetier = "retail",        Profil = "CONSEILLER COMMERCIAL",   PartTempsCommercialPct = 40 },
+                    new() { LigneMetier = "retail",        Profil = "CONSEILLER CLIENTELE",    PartTempsCommercialPct = 40 },
+                    new() { LigneMetier = "retail",        Profil = "RCP",                     PartTempsCommercialPct = 40 },
+                    new() { LigneMetier = "retail",        Profil = "RESP. AGENCE",            PartTempsCommercialPct = 40 },
                 },
 
                 // ── Section 3 : Règles d'affectation des clients par conseiller
@@ -152,7 +151,6 @@ namespace Segmentation.Client.Services
                     new() { Segment = "CI Standard",           ConseillerPrioritaire = "CONSEILLER CLIENTELE", ConseillerSecondaire = "CONSEILLER COMMERCIAL"  },
                     new() { Segment = "GP Potentiel",          ConseillerPrioritaire = "CONSEILLER CLIENTELE", ConseillerSecondaire = "CONSEILLER CLIENTELE"   },
                     new() { Segment = "GP Standard",           ConseillerPrioritaire = "CONSEILLER COMMERCIAL",ConseillerSecondaire = "CONSEILLER CLIENTELE"   },
-                    new() { Segment = "Non segmenté",          ConseillerPrioritaire = "CONSEILLER COMMERCIAL",ConseillerSecondaire = "CONSEILLER D'ACCUEIL"   },
                 },
 
                 // ── Section 4 : Config profil→segment (tailles calculées dynamiquement)
@@ -168,7 +166,6 @@ namespace Segmentation.Client.Services
                     new() { LigneMetier = "retail",                         Profil = "CONSEILLER CLIENTELE",    SegmentCouvert = "CI Standard"           },
                     new() { LigneMetier = "retail",                         Profil = "CONSEILLER COMMERCIAL",   SegmentCouvert = "GP Potentiel"          },
                     new() { LigneMetier = "retail - portefeuille mutualisé", Profil = "CONSEILLER COMMERCIAL",  SegmentCouvert = "GP Standard"           },
-                    new() { LigneMetier = "N/A",                            Profil = "",                        SegmentCouvert = "Non segmenté"          },
                 },
 
                 // ── Backward compat

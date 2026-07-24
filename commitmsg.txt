@@ -1,12 +1,23 @@
-style: inverse fonction/matricule dans entêtes Répartition + KPI existants en gras/orange
+feat: Règles & Hypothèses — filtre segments hors scope + ordre métiers
 
-Page PortefeuilleDimensionnement :
+Page ReglesHypotheses :
 
-- Dans les entêtes individuelles du tableau Répartition, la fonction/profil
-  court apparaît maintenant au-dessus et le matricule/label du conseiller
-  en dessous, comme dans le tableau Effectifs.
-- Indicateurs KPI : les valeurs existantes des lignes "Taux de remplissage"
-  et "Taux de concordance" sont désormais en gras ET orange (#E65100).
+- Suppression définitive des segments "Non segmenté" et "Non classé" :
+  * retirés des données mockées (MockDataService)
+  * filtrés à l'affichage dans les 3 tableaux (Intensité, Affectation,
+    Portefeuilles théoriques) via IsSegmentNonAffectable
+  * IsSegmentNonAffectable étendu pour exclure aussi "Non classé"
+
+- Réorganisation des métiers du bloc Agence du plus petit au plus important :
+  1. Conseiller Commercial
+  2. Conseiller Clientèle
+  3. RCP
+  4. Responsable d'Agence
+
+- Mise à jour de l'ordre dans MockDataService.ConseillersProfils et des listes
+  ProfilsRetail / ProfilsRetailAvecAccueil.
+- Ajout de GetProfilRank() pour garantir l'ordre souhaité quelle que soit
+  l'origine des données (mock ou référentiel).
 
 Build OK (0 erreur).
 

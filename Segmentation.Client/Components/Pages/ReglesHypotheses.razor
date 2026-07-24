@@ -86,7 +86,7 @@
                         Segments et intensité relationnelle
                     </div>
 
-                    <MudTable Items="@model.SegmentsIntensite"
+                    <MudTable Items="@model.SegmentsIntensite.Where(s => !IsSegmentNonAffectable(s.Segment)).ToList()"
                               Dense="true"
                               Hover="true"
                               Elevation="0"
@@ -318,7 +318,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var p in profilsDuType)
+                                    @foreach (var p in profilsDuType.OrderBy(p => GetProfilRank(p.Profil)))
                                     {
                                         var volActuel  = GetVolumeHoraire(p);
                                         var volRef     = GetBaselineVolumeHoraireByProfil(p.Profil);
@@ -362,7 +362,7 @@
                         Règles d'affectation des conseillers par segment de clientèle
                     </div>
 
-                    <MudTable Items="@model.ReglesAffectationSegments"
+                    <MudTable Items="@model.ReglesAffectationSegments.Where(r => !IsSegmentNonAffectable(r.Segment)).ToList()"
                               Dense="true"
                               Hover="true"
                               Elevation="0"
@@ -496,7 +496,7 @@
                         </MudChip>
                     </div>
 
-                    <MudTable Items="@model.TaillesTheoretiques.OrderByDescending(t => GetTailleTheoriqueCalculee(t.Profil, t.SegmentCouvert)).ToList()"
+                    <MudTable Items="@model.TaillesTheoretiques.Where(t => !IsSegmentNonAffectable(t.SegmentCouvert)).OrderByDescending(t => GetTailleTheoriqueCalculee(t.Profil, t.SegmentCouvert)).ToList()"
                               Dense="true"
                               Hover="true"
                               Elevation="0"
@@ -595,18 +595,18 @@
 
     private static readonly List<string> ProfilsRetail = new()
     {
-        "RESP. AGENCE",
-        "RCP",
+        "CONSEILLER COMMERCIAL",
         "CONSEILLER CLIENTELE",
-        "CONSEILLER COMMERCIAL"
+        "RCP",
+        "RESP. AGENCE"
     };
 
     private static readonly List<string> ProfilsRetailAvecAccueil = new()
     {
-        "RESP. AGENCE",
-        "RCP",
-        "CONSEILLER CLIENTELE",
         "CONSEILLER COMMERCIAL",
+        "CONSEILLER CLIENTELE",
+        "RCP",
+        "RESP. AGENCE",
         "CONSEILLER D'ACCUEIL"
     };
 
@@ -840,6 +840,7 @@
 
         return string.IsNullOrWhiteSpace(s)
                || string.Equals(s, "Non segmenté", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(s, "Non classé", StringComparison.OrdinalIgnoreCase)
                || s == "?";
     }
 
@@ -873,6 +874,19 @@
 
     private static string FormatTypeAgenceLabel(string lm) =>
         string.IsNullOrWhiteSpace(lm) ? "" : char.ToUpperInvariant(lm[0]) + lm[1..];
+
+    private static int GetProfilRank(string? profil) => profil?.Trim().ToUpperInvariant() switch
+    {
+        "CONSEILLER COMMERCIAL" => 1,
+        "CONSEILLER CLIENTELE"  => 2,
+        "RCP"                   => 3,
+        "RESP. AGENCE"          => 4,
+        "CONSEILLER D'ACCUEIL"  => 5,
+        "DIR. BP"               => 10,
+        "BANQUIER PRIVÉ"        => 11,
+        "CGP"                   => 12,
+        _                       => 99
+    };
 
     private double GetTempsCommercialByType(string ligneMetier)
     {
