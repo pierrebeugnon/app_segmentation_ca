@@ -2,45 +2,83 @@
 
 <MudDialog>
     <DialogContent>
-        <MudText Typo="Typo.h6" Class="mb-3" Style="color:#1A4E6B">
-            Aide — Dimensionnement des portefeuilles
-        </MudText>
+        <div class="ca-aide-header">
+            <div class="ca-aide-header-icon">
+                <MudIcon Icon="@Icons.Material.Rounded.Groups" Style="font-size:22px" />
+            </div>
+            <div>
+                <MudText Typo="Typo.h6" Style="color:#12374C;font-weight:700">
+                    Dimensionnement des portefeuilles
+                </MudText>
+                <MudText Typo="Typo.body2" Class="ca-aide-lead">
+                    Simulez la répartition des portefeuilles clients entre les conseillers d'une agence,
+                    de la situation <b>existante</b> vers une situation <b>cible</b>.
+                </MudText>
+            </div>
+        </div>
 
-        <MudText Typo="Typo.body2" Class="mb-3">
-            Cette page permet de simuler la répartition des portefeuilles clients entre les conseillers
-            d'une agence, en passant de la situation <b>existante</b> à une situation <b>cible</b>.
-        </MudText>
-
-        <MudExpansionPanels MultiExpansion="true" Elevation="0">
-            <MudExpansionPanel Text="Filtres et vue" Dense="true">
-                <MudList T="object" Dense="true">
-                    <MudListItem>Utilisez les filtres Région / Secteur / Agence pour sélectionner le périmètre étudié, puis cliquez sur Valider.</MudListItem>
-                    <MudListItem>Le bouton à droite du titre bascule entre la vue ETP (charge de travail) et la vue Nombre de clients (projection informative).</MudListItem>
-                </MudList>
+        <MudExpansionPanels MultiExpansion="true" Elevation="0" Class="ca-aide-panels">
+            <MudExpansionPanel Dense="true">
+                <TitleContent>
+                    <div class="ca-aide-panel-title">
+                        <MudIcon Icon="@Icons.Material.Rounded.FilterAlt" Class="ca-aide-panel-icon" />
+                        Filtres et vue
+                    </div>
+                </TitleContent>
+                <ChildContent>
+                    <ul class="ca-aide-list">
+                        <li>Utilisez les filtres <b>Région / Secteur / Agence</b> pour sélectionner le périmètre étudié, puis cliquez sur <b>Valider</b>.</li>
+                        <li>Le bouton à droite du titre bascule entre la vue <b>ETP</b> (charge de travail) et la vue <b>Nombre de clients</b> (projection informative).</li>
+                    </ul>
+                </ChildContent>
             </MudExpansionPanel>
 
-            <MudExpansionPanel Text="Bloc Effectifs conseillers" Dense="true">
-                <MudList T="object" Dense="true">
-                    <MudListItem>Ligne ▲ Existant : conseillers présents aujourd'hui.</MudListItem>
-                    <MudListItem>Ligne ▼ Cible : scénario simulé. Vous pouvez ajuster les ETP cibles, ajouter un conseiller (+) ou retirer/réintégrer un effectif.</MudListItem>
-                    <MudListItem>Les cellules grisées indiquent un effectif retiré de la cible.</MudListItem>
-                </MudList>
+            <MudExpansionPanel Dense="true">
+                <TitleContent>
+                    <div class="ca-aide-panel-title">
+                        <MudIcon Icon="@Icons.Material.Rounded.PeopleAlt" Class="ca-aide-panel-icon" />
+                        Bloc Effectifs conseillers
+                    </div>
+                </TitleContent>
+                <ChildContent>
+                    <ul class="ca-aide-list">
+                        <li><span class="ca-aide-tag ca-aide-tag-orange">▲ Existant</span> conseillers présents aujourd'hui.</li>
+                        <li><span class="ca-aide-tag ca-aide-tag-navy">▼ Cible</span> scénario simulé. Ajustez les ETP cibles, ajoutez un conseiller (+) ou retirez/réintégrez un effectif.</li>
+                        <li>Les cellules grisées indiquent un effectif retiré de la cible.</li>
+                    </ul>
+                </ChildContent>
             </MudExpansionPanel>
 
-            <MudExpansionPanel Text="Répartition des charges par segment" Dense="true">
-                <MudList T="object" Dense="true">
-                    <MudListItem>Répartissez la charge ETP cible par segment entre les conseillers (cellules éditables).</MudListItem>
-                    <MudListItem>Le bouton +/− Charge ETP affiche ou masque les colonnes de saisie manuelle : transfert vers la BP, charge reçue de la BP et transfert en PF mutualisé.</MudListItem>
-                    <MudListItem>Les cellules grisées dans ces colonnes ne sont pas éditables pour le segment concerné.</MudListItem>
-                </MudList>
+            <MudExpansionPanel Dense="true">
+                <TitleContent>
+                    <div class="ca-aide-panel-title">
+                        <MudIcon Icon="@Icons.Material.Rounded.PieChartOutline" Class="ca-aide-panel-icon" />
+                        Répartition des charges par segment
+                    </div>
+                </TitleContent>
+                <ChildContent>
+                    <ul class="ca-aide-list">
+                        <li>Répartissez la charge ETP cible par segment entre les conseillers (cellules éditables).</li>
+                        <li>Le bouton <b>+/− Charge ETP</b> affiche ou masque les colonnes de saisie manuelle : transfert vers la BP, charge reçue de la BP et transfert en PF mutualisé.</li>
+                        <li>Les cellules grisées dans ces colonnes ne sont pas éditables pour le segment concerné.</li>
+                    </ul>
+                </ChildContent>
             </MudExpansionPanel>
 
-            <MudExpansionPanel Text="Indicateurs KPI" Dense="true">
-                <MudList T="object" Dense="true">
-                    <MudListItem>Taux de concordance : part de la charge affectée aux profils prioritaires du segment. Plus il est élevé, plus les portefeuilles sont "purs".</MudListItem>
-                    <MudListItem>Taux de rotation : évolution relative entre effectif cible et existant.</MudListItem>
-                    <MudListItem>Pour chaque indicateur, la valeur cible est affichée au-dessus et la valeur existante en dessous.</MudListItem>
-                </MudList>
+            <MudExpansionPanel Dense="true">
+                <TitleContent>
+                    <div class="ca-aide-panel-title">
+                        <MudIcon Icon="@Icons.Material.Rounded.Insights" Class="ca-aide-panel-icon" />
+                        Indicateurs KPI
+                    </div>
+                </TitleContent>
+                <ChildContent>
+                    <ul class="ca-aide-list">
+                        <li><b>Taux de concordance</b> : part de la charge affectée aux profils prioritaires du segment. Plus il est élevé, plus les portefeuilles sont « purs ».</li>
+                        <li><b>Taux de rotation</b> : évolution relative entre effectif cible et existant.</li>
+                        <li>Pour chaque indicateur, la valeur cible est affichée au-dessus et la valeur existante en dessous.</li>
+                    </ul>
+                </ChildContent>
             </MudExpansionPanel>
         </MudExpansionPanels>
     </DialogContent>

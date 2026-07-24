@@ -209,7 +209,8 @@ html, body {
     cursor: pointer;
     background: linear-gradient(90deg, #006266 0%, #1F6A99 100%) !important;
     color: white !important;
-    transition: filter 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,98,102,0.28);
+    transition: filter 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
     white-space: nowrap;
     line-height: 1;
     appearance: none;
@@ -218,8 +219,119 @@ html, body {
 .ca-page-header .ca-help-btn:hover,
 .ca-help-btn:hover {
     filter: brightness(1.12);
-    box-shadow: 0 2px 6px rgba(0,122,124,0.30);
+    box-shadow: 0 4px 12px rgba(0,122,124,0.35);
+    transform: translateY(-1px);
 }
+.ca-page-header .ca-help-btn:active,
+.ca-help-btn:active {
+    transform: translateY(0);
+    filter: brightness(1.0);
+}
+
+/* ============================================================
+   DIALOGS "AIDE" — header illustré + panneaux thématiques
+   ============================================================ */
+
+.ca-aide-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding-bottom: 16px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid #EDF1F5;
+}
+
+.ca-aide-header-icon {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    background: linear-gradient(135deg, #006266 0%, #1F6A99 100%);
+    box-shadow: 0 3px 10px rgba(0,98,102,0.30);
+}
+
+.ca-aide-lead {
+    color: var(--ca-text-muted);
+    margin-top: 4px;
+    line-height: 1.55;
+}
+
+.ca-aide-panels .mud-expand-panel {
+    border: 1px solid #E9EDF1 !important;
+    border-radius: 10px !important;
+    margin-bottom: 8px !important;
+    overflow: hidden;
+    box-shadow: none !important;
+}
+.ca-aide-panels .mud-expand-panel:before { display: none; }
+
+.ca-aide-panels .mud-expand-panel-header {
+    padding: 10px 14px !important;
+    transition: background-color .15s ease;
+}
+.ca-aide-panels .mud-expand-panel-header:hover {
+    background: rgba(26,78,107,.05);
+}
+
+.ca-aide-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ca-navy-dark);
+}
+
+.ca-aide-panel-icon {
+    font-size: 19px !important;
+    color: #1F6A99;
+    flex-shrink: 0;
+}
+
+.ca-aide-list {
+    list-style: none;
+    margin: 4px 0 6px;
+    padding: 0 14px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ca-aide-list li {
+    position: relative;
+    padding-left: 16px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--ca-text);
+}
+
+.ca-aide-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 7px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #1F6A99;
+}
+
+.ca-aide-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-right: 4px;
+}
+
+.ca-aide-tag-navy   { background: rgba(26,78,107,.12); color: #1A4E6B; }
+.ca-aide-tag-orange { background: rgba(232,119,34,.14); color: #C25A00; }
 
 /* ============================================================
    KPI CARDS

@@ -1,14 +1,11 @@
-style: modernise les boutons, popups, tooltips et snackbars
+style: modernise le bouton Aide et le contenu des popups d'aide
 
-Ajout d'un design system léger dans app.css sans changer la palette CA :
-- Boutons MudBlazor : arrondis, sans capitales, ombres et micro-interactions
-  (hover translateY, active state, focus visible)
-- Icon buttons : halo + scale au survol
-- Dialogs / popups : arrondis généreux, ombre profonde, animation d'entrée,
-  bandeau de titre avec liseré turquoise, zone d'actions distincte
-- Backdrop : flou + assombrissement doux
-- Menus, tooltips et snackbars : arrondis + ombres cohérentes
-- ConfirmDialog : icône d'avertissement + bouton supprimer avec icône
+- Bouton "Aide" (.ca-help-btn) : ombre, léger lift au survol, feedback au clic.
+- AidePortefeuilleDialog et AideRepartitionDialog : refonte du contenu avec
+  header illustré (icône + accroche), panneaux d'expansion thématiques avec
+  icônes, listes à puces stylées et tags visuels (▲ Existant / ▼ Cible).
+- Nouveaux styles CSS dédiés : .ca-aide-header, .ca-aide-panels,
+  .ca-aide-panel-title, .ca-aide-list, .ca-aide-tag.
 
 Build OK (0 erreur).
 
