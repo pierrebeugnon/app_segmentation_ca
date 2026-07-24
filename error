@@ -1,6 +1,8 @@
 Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0535	'PortefeuilleDimensionnement' n'implémente pas le membre d'interface 'IDisposable.Dispose()'		C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\PortefeuilleDimensionnement.razor	7	
+Erreur (active)	CS0102	Le type 'PortefeuilleDimensionnement' contient déjà une définition pour 'StateService'	Segmentation.Client	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\PortefeuilleDimensionnement.razor.cs	12	
 Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0103	Le nom '_isLoading' n'existe pas dans le contexte actuel		C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\PortefeuilleDimensionnement.razor	19	
+Erreur (active)	CS0102	Le type 'PortefeuilleDimensionnement' contient déjà une définition pour 'DialogService'	Segmentation.Client	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\PortefeuilleDimensionnement.razor.cs	13	
 Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0103	Le nom 'vueEtp' n'existe pas dans le contexte actuel		C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\PortefeuilleDimensionnement.razor	39	
+Erreur (active)	CS0102	Le type 'PortefeuilleDimensionnement' contient déjà une définition pour 'Snackbar'	Segmentation.Client	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\PortefeuilleDimensionnement.razor.cs	14	
+Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
+Erreur (active)	CS0102	Le type 'PortefeuilleDimensionnement' contient déjà une définition pour 'RepartitionService'	Segmentation.Client	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\PortefeuilleDimensionnement.razor.cs	15	
