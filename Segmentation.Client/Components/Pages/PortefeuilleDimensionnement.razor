@@ -185,7 +185,7 @@
                     <thead>
                         <tr>
                             <th style="text-align:left;padding:6px 12px;font-size:11px;color:#6C7A89;background:#F8FAFD;border-bottom:2px solid #E2E8F0;position:sticky;left:0;z-index:3;box-shadow:2px 0 4px rgba(0,0,0,0.06)">
-                                Conseiller
+                                Conseillers de l'agence
                             </th>
                             @foreach (var slot in _slots)
                             {
@@ -193,9 +193,9 @@
                                 var isNew  = !slot.IsActuel && slot.IsCible;
                                 <th style="text-align:center;padding:5px 3px;font-size:11px;border-bottom:2px solid #E2E8F0;
                                            @(isGrey ? "background:#F0F2F5;color:#9AA5B1" : isNew ? "background:#F1FBF4;color:#2E7D32" : "background:#F8FAFD;color:#1A4E6B")">
-                                    <div style="font-weight:700">@slot.Label</div>
+                                    <div style="font-weight:700">@_profilShort.GetValueOrDefault(slot.Profil, slot.Profil)</div>
                                     <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:1px">
-                                        @_profilShort.GetValueOrDefault(slot.Profil, slot.Profil)
+                                        @slot.Label
                                     </div>
                                 </th>
                             }
@@ -243,7 +243,7 @@
                                         @* ── Bouton d'action (dépend de l'état) ── *@
                                         @if (isActive)
                                         {
-                                            <MudTooltip Text="">
+                                            <MudTooltip Text="Retirer ce conseiller de la répartition cible (reste dans l'existant)">
                                                 <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
                                                                Size="Size.Small"
                                                                Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
