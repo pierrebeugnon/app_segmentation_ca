@@ -1,15 +1,17 @@
-feat: confirmation + suppression charge lors du retrait d'un effectif cible
+feat: popup de confirmation aussi pour les effectifs nouvellement créés
 
-Dans le tableau Effectifs, retirer un effectif existant de la cible vérifie
-maintenant s'il porte encore une charge dans le tableau Répartition.
+Lors de la suppression d'un effectif ajouté manuellement (bouton
+"Ajouter un nouveau conseiller"), on vérifie maintenant s'il porte une
+charge dans le tableau Répartition.
 
-- Si une charge est trouvée : ouverture d'une boîte de confirmation
-  `ConfirmDialog` indiquant le nombre de segments et le total ETP concerné.
-- Sur validation : suppression de l'effectif cible (IsCible = false) ET
-  mise à null des ETP cibles saisis pour ce conseiller dans toutes les lignes.
-- Sur annulation : aucune action.
+- Si charge détectée : popup `ConfirmDialog` demandant validation.
+- Sur confirmation : suppression de l'effectif ET remise à null des ETP
+cibles associés dans toutes les lignes du tableau Répartition.
+- Extraction d'une méthode helper `ConfirmRemoveSlotWithChargeAsync`
+pour partager la logique entre `RemoveNewSlot` et
+`RemoveCibleForExistingSlot`.
 
-Suppression du fichier `.razor.cs` fantôme qui doublonnait le code.
+Build OK (0 erreur).
 
 Generated with [Devin](https://devin.ai)
 

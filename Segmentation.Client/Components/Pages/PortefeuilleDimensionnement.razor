@@ -1324,8 +1324,38 @@
         RecalcTotal();
     }
 
-    private void RemoveNewSlot(ConseillerSlot slot)
+    private async Task<bool> ConfirmRemoveSlotWithChargeAsync(ConseillerSlot slot, List<DimMatrixRow> chargeRows)
     {
+        var totalCharge = chargeRows.Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0);
+        var message =
+            $"{slot.Label} a encore {chargeRows.Count} segment(s) avec {totalCharge:F2} ETP réparti(s) en cible.\n" +
+            "La suppression de cet effectif supprimera également sa charge.";
+
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Message, message },
+            { x => x.ConfirmText, "Supprimer" },
+        };
+        var dialogRef = await DialogService.ShowAsync<ConfirmDialog>(
+            "Supprimer l'effectif et sa charge",
+            parameters,
+            new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.ExtraSmall });
+        var result = await dialogRef.Result;
+        return result is { Canceled: false };
+    }
+
+    private async Task RemoveNewSlot(ConseillerSlot slot)
+    {
+        var chargeRows = rows.Where(r => !r.IsTotal && (r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0) > 0.001).ToList();
+
+        if (chargeRows.Any() && !await ConfirmRemoveSlotWithChargeAsync(slot, chargeRows))
+            return;
+
+        foreach (var row in chargeRows)
+        {
+            row.EtpCibleSaisieParProfil[slot.Id] = null;
+        }
+
         _slots.Remove(slot);
         foreach (var row in rows)
         {
@@ -1339,29 +1369,12 @@
     {
         var chargeRows = rows.Where(r => !r.IsTotal && (r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0) > 0.001).ToList();
 
-        if (chargeRows.Any())
+        if (chargeRows.Any() && !await ConfirmRemoveSlotWithChargeAsync(slot, chargeRows))
+            return;
+
+        foreach (var row in chargeRows)
         {
-            var totalCharge = chargeRows.Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0);
-            var message =
-                $"{slot.Label} a encore {chargeRows.Count} segment(s) avec {totalCharge:F2} ETP réparti(s) en cible.\n" +
-                "La suppression de cet effectif supprimera également sa charge.";
-
-            var parameters = new DialogParameters<ConfirmDialog>
-            {
-                { x => x.Message, message },
-                { x => x.ConfirmText, "Supprimer" },
-            };
-            var dialogRef = await DialogService.ShowAsync<ConfirmDialog>(
-                "Supprimer l'effectif et sa charge",
-                parameters,
-                new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.ExtraSmall });
-            var result = await dialogRef.Result;
-            if (result is null || result.Canceled) return;
-
-            foreach (var row in chargeRows)
-            {
-                row.EtpCibleSaisieParProfil[slot.Id] = null;
-            }
+            row.EtpCibleSaisieParProfil[slot.Id] = null;
         }
 
         slot.IsCible = false;
