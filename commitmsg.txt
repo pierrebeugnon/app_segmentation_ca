@@ -1,11 +1,23 @@
-style: modernise le bouton Aide et le contenu des popups d'aide
+feat: vue Nombre de clients en consultation avec conversion automatique
 
-- Bouton "Aide" (.ca-help-btn) : ombre, léger lift au survol, feedback au clic.
-- AidePortefeuilleDialog et AideRepartitionDialog : refonte du contenu avec
-  header illustré (icône + accroche), panneaux d'expansion thématiques avec
-  icônes, listes à puces stylées et tags visuels (▲ Existant / ▼ Cible).
-- Nouveaux styles CSS dédiés : .ca-aide-header, .ca-aide-panels,
-  .ca-aide-panel-title, .ca-aide-list, .ca-aide-tag.
+Page PortefeuilleDimensionnement :
+
+- En mode "Nombre de clients" (vue ETP désactivée) :
+  - Toutes les actions d'édition du tableau Répartition sont désactivées :
+    * bouton "Proposition de répartition" masqué
+    * colonnes de saisie manuelle (transferts BP / PF mutualisé) masquées
+    * cellules cibles affichées en lecture seule
+  - Les valeurs ETP internes sont converties en nombre de clients à
+    l'affichage via le service EtpConversionService (ETP × taille théorique).
+  - Les totaux, agrégats par métier, colonne d'aide à la répartition et
+    ligne "Part de nouveaux clients" utilisent des méthodes d'affichage
+    converties en nombre de clients.
+
+- Composant DimTableauEffectifs : ajout d'un paramètre ReadOnly. En mode
+  consultation, les boutons d'ajout/retrait/restauration et les champs
+  ETP cible sont masqués/remplacés par du texte.
+
+- EtpConversionService : ajout de GetClientCountFromEtp(etp, segment).
 
 Build OK (0 erreur).
 

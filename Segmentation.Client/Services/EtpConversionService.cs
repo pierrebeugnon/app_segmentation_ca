@@ -133,6 +133,21 @@ namespace Segmentation.Client.Services
         }
 
         /// <summary>
+        /// Nombre de clients correspondant à un ETP donné pour un segment.
+        /// </summary>
+        public double? GetClientCountFromEtp(double? etp, string segment)
+        {
+            if (!etp.HasValue || etp.Value <= 0)
+                return null;
+
+            var taille = GetTailleTheoriqueForSegment(segment);
+            if (!taille.HasValue || taille.Value <= 0)
+                return null;
+
+            return Math.Round(etp.Value * taille.Value, 2);
+        }
+
+        /// <summary>
         /// Taille théorique de portefeuille pour un segment.
         /// </summary>
         public double? GetTailleTheoriqueForSegment(string segment)

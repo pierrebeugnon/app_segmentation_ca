@@ -5,23 +5,26 @@
     <div class="ca-section-header" style="display:flex;align-items:center;gap:10px">
         Effectif cible de l'agence (vs existant)
         <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
-            <span class="ca-dim-legend-item" style="font-size:11px;color:rgba(255,255,255,0.85)">
-                <MudIcon Icon="@Icons.Material.Outlined.RemoveCircleOutline" Style="font-size:15px;color:#B71C1C" />
-                Retirer de la cible
-            </span>
-            <!-- ── Bouton Ajouter un conseiller ── -->
-            <MudMenu Label="+ Ajouter un nouveau conseiller dans l'agence'"
-                     StartIcon="@Icons.Material.Filled.PersonAdd"
-                     Variant="Variant.Filled" Size="Size.Small" Color="Color.Success"
-                     IconColor="Color.Inherit">
-                @foreach (var profil in Profils)
-                {
-                    var p = profil;
-                    <MudMenuItem OnClick="@(() => OnAddSlot.InvokeAsync(p))" Icon="@Icons.Material.Outlined.PersonAdd">
-                        @p
-                    </MudMenuItem>
-                }
-            </MudMenu>
+            @if (!ReadOnly)
+            {
+                <span class="ca-dim-legend-item" style="font-size:11px;color:rgba(255,255,255,0.85)">
+                    <MudIcon Icon="@Icons.Material.Outlined.RemoveCircleOutline" Style="font-size:15px;color:#B71C1C" />
+                    Retirer de la cible
+                </span>
+                <!-- ── Bouton Ajouter un conseiller ── -->
+                <MudMenu Label="+ Ajouter un nouveau conseiller dans l'agence'"
+                         StartIcon="@Icons.Material.Filled.PersonAdd"
+                         Variant="Variant.Filled" Size="Size.Small" Color="Color.Success"
+                         IconColor="Color.Inherit">
+                    @foreach (var profil in Profils)
+                    {
+                        var p = profil;
+                        <MudMenuItem OnClick="@(() => OnAddSlot.InvokeAsync(p))" Icon="@Icons.Material.Outlined.PersonAdd">
+                            @p
+                        </MudMenuItem>
+                    }
+                </MudMenu>
+            }
         </div>
     </div>
 
@@ -75,7 +78,7 @@
                             <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
 
                                 @* ── Zone valeur ETP ── *@
-                                @if (isActive || isNew)
+                                @if ((isActive || isNew) && !ReadOnly)
                                 {
                                     <div style="display:flex;justify-content:center;align-items:center;width:100%">
                                         <MudNumericField T="double"
@@ -88,13 +91,19 @@
                                                          InputStyle="@($"text-align:center;font-size:12px;font-weight:700;padding:1px 2px;{(isNew ? "color:#2E7D32" : "color:#1A4E6B")}")" />
                                     </div>
                                 }
+                                else if ((isActive || isNew) && ReadOnly)
+                                {
+                                    <span style="font-size:12px;font-weight:700;@(isNew ? "color:#2E7D32" : "color:#1A4E6B")">
+                                        @s.EtpCible.ToString("F2")
+                                    </span>
+                                }
                                 else if (isRemoved)
                                 {
                                     <span style="color:#9AA5B1;font-size:12px">✗</span>
                                 }
 
                                 @* ── Bouton d'action (dépend de l'état) ── *@
-                                @if (isActive)
+                                @if (!ReadOnly && isActive)
                                 {
                                     <MudTooltip Text="Retirer ce conseiller de la répartition cible (reste dans l'existant)">
                                         <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
@@ -103,7 +112,7 @@
                                                        OnClick="@(() => OnRemoveCibleSlot.InvokeAsync(s))" />
                                     </MudTooltip>
                                 }
-                                else if (isRemoved)
+                                else if (!ReadOnly && isRemoved)
                                 {
                                     <MudTooltip Text="Réintégrer ce conseiller dans la répartition cible">
                                         <MudIconButton Icon="@Icons.Material.Outlined.AddCircleOutline"
@@ -112,7 +121,7 @@
                                                        OnClick="@(() => OnRestoreCible.InvokeAsync(s))" />
                                     </MudTooltip>
                                 }
-                                else if (isNew)
+                                else if (!ReadOnly && isNew)
                                 {
                                     <MudTooltip Text="Retirer ce conseiller ajouté manuellement">
                                         <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
@@ -183,6 +192,7 @@
     [Parameter] public List<string> Profils { get; set; } = new();
     [Parameter] public IReadOnlyDictionary<string, string> ProfilShort { get; set; } = new Dictionary<string, string>();
 
+    [Parameter] public bool ReadOnly { get; set; }
     [Parameter] public EventCallback<string> OnAddSlot { get; set; }
     [Parameter] public EventCallback<ConseillerSlot> OnRemoveCibleSlot { get; set; }
     [Parameter] public EventCallback<ConseillerSlot> OnRestoreCible { get; set; }

@@ -99,6 +99,7 @@
         <DimTableauEffectifs Slots="_slots"
                                Profils="profils"
                                ProfilShort="_profilShort"
+                               ReadOnly="@(!vueEtp)"
                                OnAddSlot="AddSlot"
                                OnRemoveCibleSlot="RemoveCibleForExistingSlot"
                                OnRestoreCible="RestoreCible"
@@ -112,20 +113,25 @@
         <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden">
             <div class="ca-section-header" style="display:flex;align-items:center;gap:10px">
                 Répartition des charges par agence @(vueEtp ? "(en ETP)" : "(nombre de clients)") — Existant vs Cible
-                <MudTooltip Text="Chaque cellule affiche : ▲ la valeur existante (lecture seule) et ▼ la cible à saisir. Les colonnes grisées correspondent aux conseillers supprimés du scénario cible.">
+                <MudTooltip Text="@(vueEtp
+                    ? "Chaque cellule affiche : ▲ la valeur existante (lecture seule) et ▼ la cible à saisir. Les colonnes grisées correspondent aux conseillers supprimés du scénario cible."
+                    : "Vue de consultation uniquement. Les valeurs sont affichées en nombre de clients.")">
                     <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small"
                              Style="color:rgba(255,255,255,0.65)" />
                 </MudTooltip>
-                <div style="margin-left:auto">
-                    <MudTooltip Text="Distribue automatiquement la charge ETP existante par segment vers les conseillers prioritaires. Remplace toutes les valeurs cibles existantes.">
-                        <MudButton Variant="Variant.Outlined" Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.AutoFixHigh"
-                                   Style="color:rgba(255,255,255,0.92);border-color:rgba(255,255,255,0.5);font-size:11px;height:28px;text-transform:none"
-                                   OnClick="AutoDistribuerCible">
-                            Proposition de répartition de la charge ETP en cible
-                        </MudButton>
-                    </MudTooltip>
-                </div>
+                @if (vueEtp)
+                {
+                    <div style="margin-left:auto">
+                        <MudTooltip Text="Distribue automatiquement la charge ETP existante par segment vers les conseillers prioritaires. Remplace toutes les valeurs cibles existantes.">
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.AutoFixHigh"
+                                       Style="color:rgba(255,255,255,0.92);border-color:rgba(255,255,255,0.5);font-size:11px;height:28px;text-transform:none"
+                                       OnClick="AutoDistribuerCible">
+                                Proposition de répartition de la charge ETP en cible
+                            </MudButton>
+                        </MudTooltip>
+                    </div>
+                }
             </div>
 
             <div class="ca-dim-scroll-wrapper">
@@ -148,7 +154,7 @@
                         }
                         <col style="min-width:68px;width:68px" />
                         <col style="min-width:100px;width:100px" />
-                        @if (_showChargesManuelles)
+                        @if (vueEtp && _showChargesManuelles)
                         {
                             <col style="min-width:110px;width:110px" />
                             <col style="min-width:110px;width:110px" />
@@ -194,23 +200,26 @@
                             </th>
 
                             <!-- Groupe "Charge ETP" + toggle +/− (aligné sur le pattern des métiers) -->
-                            <th colspan="@(_showChargesManuelles ? 4 : 1)"
-                                style="text-align:center;padding:5px 6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.90);
-                                   border-left:2px solid rgba(255,255,255,0.15);letter-spacing:.3px;text-transform:uppercase">
-                                <div style="display:flex;align-items:center;justify-content:center;gap:6px">
-                                    <span>Charge ETP par segment</span>
-                                    <button class="ca-profil-toggle"
-                                            title="@(_showChargesManuelles ? "Masquer les saisies manuelles" : "Afficher les saisies manuelles")"
-                                            @onclick="@(() => _showChargesManuelles = !_showChargesManuelles)">
-                                        <MudIcon Icon="@(_showChargesManuelles? Icons.Material.Filled.Remove : Icons.Material.Filled.Add)"
-                                                 Style="font-size:13px;color:white;display:block" />
-                                    </button>
-                                </div>
-                                @if (_showChargesManuelles)
-                                {
-                                    <div style="font-size:8px;font-weight:400;opacity:0.60;margin-top:2px">4 colonnes</div>
-                                }
-                            </th>
+                            @if (vueEtp)
+                            {
+                                <th colspan="@(_showChargesManuelles ? 4 : 1)"
+                                    style="text-align:center;padding:5px 6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.90);
+                                       border-left:2px solid rgba(255,255,255,0.15);letter-spacing:.3px;text-transform:uppercase">
+                                    <div style="display:flex;align-items:center;justify-content:center;gap:6px">
+                                        <span>Charge ETP par segment</span>
+                                        <button class="ca-profil-toggle"
+                                                title="@(_showChargesManuelles ? "Masquer les saisies manuelles" : "Afficher les saisies manuelles")"
+                                                @onclick="@(() => _showChargesManuelles = !_showChargesManuelles)">
+                                            <MudIcon Icon="@(_showChargesManuelles? Icons.Material.Filled.Remove : Icons.Material.Filled.Add)"
+                                                     Style="font-size:13px;color:white;display:block" />
+                                        </button>
+                                    </div>
+                                    @if (vueEtp && _showChargesManuelles)
+                                    {
+                                        <div style="font-size:8px;font-weight:400;opacity:0.60;margin-top:2px">4 colonnes</div>
+                                    }
+                                </th>
+                            }
 
                             <!-- Colonnes Concordance + Rotation -->
                             <th colspan="2"
@@ -259,7 +268,7 @@
                                 Charge ETP par segment
                                 <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">ajustée</div>
                             </th>
-                            @if (_showChargesManuelles)
+                            @if (vueEtp && _showChargesManuelles)
                             {
                                 <th class="ca-dim-th-profil" style="background:#1A9A9C;color:white">
                                     Charge à transférer de l'agence vers la Banque Privée
@@ -281,7 +290,7 @@
                     <tbody>
                         @foreach (var row in filteredRows)
                         {
-                            var coverageDiff = GetCoverageDiff(row);
+                            var coverageDiff = vueEtp ? GetCoverageDiff(row) : GetDisplayCoverageDiff(row);
                             var concordance = GetConcordance(row);
                             var concordanceExistant = GetConcordanceExistant(row);
                             var rowCible = GetRowCibleTotal(row);
@@ -304,34 +313,28 @@
                                             {
                                                 <div style="display:flex;flex-direction:column;align-items:center;padding:4px 2px">
                                                     <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                        @(aggTotal.HasValue? aggTotal.Value.ToString("F2") : "—")
+                                                        @FormatTotal(GetDisplayProfilTotal(profil, true))
                                                     </span>
                                                     <div style="border-top:1.5px solid #C5CAD0;width:60%;margin:2px 0"></div>
                                                     <span style="font-size:10px;color:#E65100">
-                                                        @(aggExist.HasValue? aggExist.Value.ToString("F2") : "—")
+                                                        @FormatTotal(GetDisplayProfilTotal(profil, false))
                                                     </span>
-                                                </div>
-                                            }
-                                            else if (vueEtp)
-                                            {
-                                                <div class="ca-dim-cell-inner">
-                                                    <div class="ca-dim-cell-top">
-                                                        <span style="font-size:11px;font-weight:600;color:#1A4E6B">
-                                                            @(aggCib.HasValue? aggCib.Value.ToString("F2") : "—")
-                                                        </span>
-                                                    </div>
-                                                    <div class="ca-dim-cell-bottom">
-                                                        <span style="color:#E65100;font-size:10px;font-weight:600;font-style:italic">
-                                                            @(aggExist.HasValue? aggExist.Value.ToString("F2") : "—")
-                                                        </span>
-                                                    </div>
                                                 </div>
                                             }
                                             else
                                             {
-                                                <span style="font-size:11px;font-weight:600;color:#1A4E6B">
-                                                    @(aggCib.HasValue? aggCib.Value.ToString("F2") : "—")
-                                                </span>
+                                                <div class="ca-dim-cell-inner">
+                                                    <div class="ca-dim-cell-top">
+                                                        <span style="font-size:11px;font-weight:600;color:#1A4E6B">
+                                                            @FormatDisplay(aggCib, row.Segment)
+                                                        </span>
+                                                    </div>
+                                                    <div class="ca-dim-cell-bottom">
+                                                        <span style="color:#E65100;font-size:10px;font-weight:600;font-style:italic">
+                                                            @FormatDisplay(aggExist, row.Segment)
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             }
                                         </td>
                                     }
@@ -348,15 +351,15 @@
                                             <td class="ca-dim-td-merged" style="@GetMergedCellStyle(lvl, row.IsTotal, !s.IsCible);text-align:center;padding:2px">
                                                 @if (row.IsTotal)
                                                 {
-                                                    var totCib = GetEtpCibleSaisieTotal(s.Id);
-                                                    var totExist = etp;
+                                                    var totCib = GetDisplayTotalForSlot(s.Id, true);
+                                                    var totExist = GetDisplayTotalForSlot(s.Id, false);
                                                     <div style="display:flex;flex-direction:column;align-items:center;padding:4px 2px">
                                                         <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                            @(totCib.HasValue? totCib.Value.ToString("F2") : "—")
+                                                            @FormatTotal(totCib)
                                                         </span>
                                                         <div style="border-top:1.5px solid #C5CAD0;width:60%;margin:2px 0"></div>
                                                         <span style="font-size:10px;color:#E65100">
-                                                            @(totExist.HasValue? totExist.Value.ToString("F2") : "—")
+                                                            @FormatTotal(totExist)
                                                         </span>
                                                     </div>
                                                 }
@@ -383,17 +386,25 @@
                                                         </div>
                                                         <div class="ca-dim-cell-bottom">
                                                             <span style="color:#E65100;font-size:10px;font-weight:600;font-style:italic">
-                                                                @(etp.HasValue? etp.Value.ToString("F2") : "—")
+                                                                @FormatDisplay(etp, row.Segment)
                                                             </span>
                                                         </div>
                                                     </div>
                                                 }
                                                 else
                                                 {
-                                                    var etpCible = GetEtpCible(row.Segment, s.Profil);
-                                                    <span style="font-size:11px;font-weight:600">
-                                                        @(etpCible.HasValue? etpCible.Value.ToString("F2") : "—")
-                                                    </span>
+                                                    <div class="ca-dim-cell-inner">
+                                                        <div class="ca-dim-cell-top">
+                                                            <span style="font-size:11px;font-weight:600;color:#1A4E6B">
+                                                                @(s.IsCible ? FormatDisplay(cib, row.Segment) : "—")
+                                                            </span>
+                                                        </div>
+                                                        <div class="ca-dim-cell-bottom">
+                                                            <span style="color:#E65100;font-size:10px;font-weight:600;font-style:italic">
+                                                                @FormatDisplay(etp, row.Segment)
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 }
                                             </td>
                                         }
@@ -412,14 +423,15 @@
                                         {
                                             var diff = coverageDiff.Value;
                                             var absDiff = Math.Abs(diff);
+                                            var unit = vueEtp ? "ETP" : "clients";
                                             var (diffFg, diffBg, diffTooltip, diffIcon) = diff switch
                                             {
                                                 _ when absDiff < 0.01 =>
                                                 ("#2E7D32", "#E8F5E9", "Couverture complète", Icons.Material.Filled.CheckCircle),
                                                 _ when diff < 0 =>
-                                                ("#C62828", "#FFEBEE", $"Sous-couverture : {diff:F2} ETP manquant", Icons.Material.Filled.ArrowDropDown),
+                                                ("#C62828", "#FFEBEE", $"Sous-couverture : {Math.Abs(diff):F0} {unit} manquant", Icons.Material.Filled.ArrowDropDown),
                                                 _ =>
-                                                ("#E65100", "#FFF3E0", $"Sur-répartition : +{diff:F2} ETP au-delà de la charge", Icons.Material.Filled.ArrowDropUp)
+                                                ("#E65100", "#FFF3E0", $"Sur-répartition : +{diff:F0} {unit} au-delà de la charge", Icons.Material.Filled.ArrowDropUp)
                                             };
                                             <MudTooltip Text="@diffTooltip">
                                                 <div style="display:flex;flex-direction:column;align-items:center;gap:0;
@@ -440,11 +452,11 @@
                                     {
                                         <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
                                             <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                @(rowCible.HasValue? rowCible.Value.ToString("F2") : "—")
+                                                @FormatTotal(GetDisplayRowTotal(row, true))
                                             </span>
                                             <div style="border-top:1.5px solid #C5CAD0;width:55%;margin:1px 0"></div>
                                             <span style="font-size:10px;color:#E65100;font-style:italic">
-                                                @(rowExist.HasValue? rowExist.Value.ToString("F2") : "—")
+                                                @FormatTotal(GetDisplayRowTotal(row, false))
                                             </span>
                                         </div>
                                     }
@@ -452,13 +464,13 @@
                                     {
                                         var chargeAffichee = GetChargeTotaleAffichee(row);
                                         <span style="font-weight:700;font-size:13px;color:#1A4E6B">
-                                            @(chargeAffichee.HasValue && chargeAffichee.Value > 0 ? chargeAffichee.Value.ToString("F2") : "—")
+                                            @FormatDisplay(chargeAffichee, row.Segment)
                                         </span>
                                     }
                                 </td>
 
                                 <!-- ── Colonne 2 : Charge à transférer à la BP (HDG Premium uniquement) ── -->
-                                @if (_showChargesManuelles)
+                                @if (vueEtp && _showChargesManuelles)
                                 {
                                     var bgTransBp = row.IsTotal || IsHdgPremium(row.Segment) ? "#daffff" : "#b2ebec";
                                     <td style="text-align:center;padding:4px 3px;background:@bgTransBp">
@@ -494,7 +506,7 @@
                                 }
 
                                 <!-- ── Colonne 3 : Charge reçue de la BP (tout sauf HDG Premium) ── -->
-                                @if (_showChargesManuelles)
+                                @if (vueEtp && _showChargesManuelles)
                                 {
                                     var bgRecueBp = row.IsTotal || (!IsHdgPremium(row.Segment) && IsSegmentActionnable(row.Segment)) ? "#daffff" : "#b2ebec";
                                     <td style="text-align:center;padding:4px 3px;background:@bgRecueBp">
@@ -530,7 +542,7 @@
                                 }
 
                                 <!-- ── Colonne 4 : Charge à transférer en pf mutualisé (GP Standard uniquement) ── -->
-                                @if (_showChargesManuelles)
+                                @if (vueEtp && _showChargesManuelles)
                                 {
                                     var bgTransMut = row.IsTotal || IsGpStandard(row.Segment) ? "#daffff" : "#b2ebec";
                                     <td style="text-align:center;padding:4px 3px;background:@bgTransMut">
@@ -687,7 +699,7 @@
                     <tbody>
                         <!-- Séparateur -->
                         @{
-                            var extraCols = _showChargesManuelles ? 7 : 4;
+                            var extraCols = (vueEtp && _showChargesManuelles) ? 7 : 4;
                         }
                         <tr style="background:#0A1F30">
                             <td style="padding:3px 12px;font-size:9px;font-weight:700;color:rgba(255,255,255,0.75);letter-spacing:1px;text-transform:uppercase">
@@ -725,7 +737,7 @@
                             }
                             <td style="background:#1C3D62"></td>
                             <td style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;background:#182F4A;@DiffColor(kpiEvoTotal, positifBon: true)">@FormatDiff(kpiEvoTotal)</td>
-                            @if (_showChargesManuelles)
+                            @if (vueEtp && _showChargesManuelles)
                             {
                                 <td style="background:#1C3D62"></td>
                                 <td style="background:#1C3D62"></td>
@@ -777,7 +789,7 @@
                                 <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
                                 <div style="font-size:9px;@RemplissageColor(kpiRmpExiTotal)">@(kpiRmpExiTotal.HasValue ? $"{kpiRmpExiTotal.Value:F0}%" : "—")</div>
                             </td>
-                            @if (_showChargesManuelles)
+                            @if (vueEtp && _showChargesManuelles)
                             {
                                 <td style="background:#1A3558"></td>
                                 <td style="background:#1A3558"></td>
@@ -838,7 +850,7 @@
                                 <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
                                 <div style="font-size:9px;@ConcordanceColor(kpiConcExiTotal)">@(kpiConcExiTotal.HasValue ? $"{kpiConcExiTotal.Value:F0}%" : "—")</div>
                             </td>
-                            @if (_showChargesManuelles)
+                            @if (vueEtp && _showChargesManuelles)
                             {
                                 <td style="background:#1F446A"></td>
                                 <td style="background:#1F446A"></td>
@@ -883,7 +895,7 @@
                             <td style="text-align:center;padding:6px 4px;font-size:12px;font-weight:700;background:#1B3959;@DiffColor(kpiRotTotal, positifBon: true)">
                                 @(kpiRotTotal.HasValue ? $"{kpiRotTotal.Value:+0.0;-0.0;0.0}%" : "—")
                             </td>
-                            @if (_showChargesManuelles)
+                            @if (vueEtp && _showChargesManuelles)
                             {
                                 <td style="background:#224A72"></td>
                                 <td style="background:#224A72"></td>
@@ -895,9 +907,8 @@
 
                         <!-- ── Taux d'entrée ── -->
                         @{
-                            var entAllCible = Math.Round(_slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2);
-                            var entDiff = GetTauxEntreeTotal();
-                            double? kpiEntTotal = entAllCible > 0 ? entDiff : null;
+                            var entDiff = vueEtp ? GetTauxEntreeTotal() : GetDisplayTauxEntreeTotal();
+                            double? kpiEntTotal = entDiff > 0 ? entDiff : null;
                         }
                         <tr style="background:#24507A">
                             <td class="ca-dim-sticky-col" style="background:#24507A;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
@@ -907,27 +918,27 @@
                             {
                                 if (_collapsedProfils.Contains(profil))
                                 {
-                                    var ent = GetTauxEntreeForProfil(profil);
+                                    var ent = vueEtp ? GetTauxEntreeForProfil(profil) : GetDisplayTauxEntreeForProfil(profil);
                                     <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;color:white">
-                                        @(ent.HasValue? ent.Value.ToString("F2") : "—")
+                                        @FormatTotal(ent)
                                     </td>
                                 }
                                 else
                                 {
                                     foreach (var slot in SlotsForProfil(profil))
                                     {
-                                        var ent = GetTauxEntreeSlot(slot);
+                                        var ent = vueEtp ? GetTauxEntreeSlot(slot) : GetDisplayTauxEntreeSlot(slot);
                                         <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
-                                            @(ent.HasValue? ent.Value.ToString("F2") : "—")
+                                            @FormatTotal(ent)
                                         </td>
                                     }
                                 }
                             }
                             <td style="background:#24507A"></td>
                             <td style="text-align:center;padding:6px 4px;font-size:12px;font-weight:700;color:white;background:#1C3C5E">
-                                @(kpiEntTotal.HasValue? kpiEntTotal.Value.ToString("F2") : "—")
+                                @FormatTotal(kpiEntTotal)
                             </td>
-                            @if (_showChargesManuelles)
+                            @if (vueEtp && _showChargesManuelles)
                             {
                                 <td style="background:#24507A"></td>
                                 <td style="background:#24507A"></td>
@@ -1637,6 +1648,48 @@
         filteredRows = rows.ToList();
     }
 
+    // ── Affichage ETP / Nombre de clients ─────────────────────────────────
+    private double? ToDisplayValue(double? etpValue, string segment) =>
+        vueEtp ? etpValue : EtpService.GetClientCountFromEtp(etpValue, segment);
+
+    private string FormatDisplay(double? etpValue, string segment, string etpFormat = "F2")
+    {
+        var v = ToDisplayValue(etpValue, segment);
+        if (v is null) return "—";
+        var format = !vueEtp || (v.Value % 1) == 0 ? "F0" : etpFormat;
+        return v.Value.ToString(format);
+    }
+
+    private string FormatTotal(double? value)
+    {
+        if (value is null) return "—";
+        var format = Math.Abs(value.Value % 1) < 0.001 ? "F0" : "F2";
+        return value.Value.ToString(format);
+    }
+
+    private double? GetDisplayTotalForSlot(string slotId, bool cible)
+    {
+        return rows.Where(r => !r.IsTotal)
+                 .Sum(r => ToDisplayValue(
+                     cible ? r.EtpCibleSaisieParProfil.GetValueOrDefault(slotId)
+                           : r.EtpParProfil.GetValueOrDefault(slotId),
+                     r.Segment));
+    }
+
+    private double? GetDisplayProfilTotal(string profil, bool cible)
+    {
+        return _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase))
+                     .Sum(s => GetDisplayTotalForSlot(s.Id, cible) ?? 0);
+    }
+
+    private double? GetDisplayRowTotal(DimMatrixRow row, bool cible)
+    {
+        var dict = cible ? row.EtpCibleSaisieParProfil : row.EtpParProfil;
+        var keys = cible ? _slots.Where(s => s.IsCible).Select(s => s.Id) : _slots.Select(s => s.Id);
+        return dict.Where(kv => keys.Contains(kv.Key))
+                   .Sum(kv => ToDisplayValue(kv.Value, row.Segment));
+    }
+
     private static string GetExistantColor(double? existant, double? _ = null) =>
         (!existant.HasValue || existant.Value <= 0) ? "color:#9AA5B1" : "color:#E65100;font-weight:600";
 
@@ -1648,6 +1701,16 @@
         var totalExist  = _slots.Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
         if (totalCible <= 0 && totalExist <= 0) return null;
         return totalCible - totalExist;
+    }
+
+    private double? GetDisplayCoverageDiff(DimMatrixRow row)
+    {
+        if (row.IsTotal) return null;
+        var activeSlots = _slots.Where(s => s.IsCible).ToList();
+        var totalCib = activeSlots.Sum(s => EtpService.GetClientCountFromEtp(row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id), row.Segment) ?? 0);
+        var totalExist = _slots.Sum(s => EtpService.GetClientCountFromEtp(row.EtpParProfil.GetValueOrDefault(s.Id), row.Segment) ?? 0);
+        if (totalCib <= 0 && totalExist <= 0) return null;
+        return totalCib - totalExist;
     }
 
     private (double? pct, string color, string tooltip) GetConcordance(DimMatrixRow row)
@@ -1910,12 +1973,25 @@
         return Math.Max(0, c - e);
     }
 
+    private double GetDisplayEntreesCell(DimMatrixRow row, string slotId)
+    {
+        var cibClients = EtpService.GetClientCountFromEtp(row.EtpCibleSaisieParProfil.GetValueOrDefault(slotId), row.Segment) ?? 0;
+        var existClients = EtpService.GetClientCountFromEtp(row.EtpParProfil.GetValueOrDefault(slotId), row.Segment) ?? 0;
+        return Math.Max(0, cibClients - existClients);
+    }
+
     private double? GetTauxEntreeSlot(ConseillerSlot slot)
     {
         var cible = Math.Round(GetEtpCibleSaisieTotal(slot.Id) ?? 0, 2);
         if (cible <= 0) return null;
         var entrees = rows.Where(r => !r.IsTotal).Sum(r => GetEntreesCell(r, slot.Id));
         return Math.Round(entrees, 2);
+    }
+
+    private double? GetDisplayTauxEntreeSlot(ConseillerSlot slot)
+    {
+        var entrees = rows.Where(r => !r.IsTotal).Sum(r => GetDisplayEntreesCell(r, slot.Id));
+        return entrees > 0 ? Math.Round(entrees, 2) : null;
     }
 
     private double? GetTauxEntreeForProfil(string profil)
@@ -1927,10 +2003,24 @@
         return Math.Round(entrees, 2);
     }
 
+    private double? GetDisplayTauxEntreeForProfil(string profil)
+    {
+        var slots = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
+        var entrees = rows.Where(r => !r.IsTotal).Sum(r => slots.Sum(s => GetDisplayEntreesCell(r, s.Id)));
+        return entrees > 0 ? Math.Round(entrees, 2) : null;
+    }
+
     private double GetTauxEntreeTotal()
     {
         var activeSlots = _slots.Where(s => s.IsCible).ToList();
         var entrees = rows.Where(r => !r.IsTotal).Sum(r => activeSlots.Sum(s => GetEntreesCell(r, s.Id)));
+        return Math.Round(entrees, 2);
+    }
+
+    private double GetDisplayTauxEntreeTotal()
+    {
+        var activeSlots = _slots.Where(s => s.IsCible).ToList();
+        var entrees = rows.Where(r => !r.IsTotal).Sum(r => activeSlots.Sum(s => GetDisplayEntreesCell(r, s.Id)));
         return Math.Round(entrees, 2);
     }
 
