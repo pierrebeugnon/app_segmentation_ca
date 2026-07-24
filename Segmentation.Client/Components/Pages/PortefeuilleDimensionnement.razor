@@ -150,7 +150,6 @@
         ══════════════════════════════════════════════════════════ -->
         <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden;margin-bottom:12px">
             <div class="ca-section-header" style="display:flex;align-items:center;gap:10px">
-                <span class="ca-section-badge">1</span>
                 Effectif cible de l'agence (vs existant) 
                 <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
                     <span class="ca-dim-legend-item" style="font-size:11px;color:rgba(255,255,255,0.85)">
@@ -158,7 +157,7 @@
                         Retirer de la cible
                     </span>
                     <!-- ── Bouton Ajouter un conseiller ── -->
-                    <MudMenu Label="+ Ajouter un conseiller"
+                    <MudMenu Label="+ Ajouter un nouveau conseiller dans l'agence'"
                              StartIcon="@Icons.Material.Filled.PersonAdd"
                              Variant="Variant.Filled" Size="Size.Small" Color="Color.Success"
                              IconColor="Color.Inherit">
@@ -201,7 +200,7 @@
                                 </th>
                             }
                             <th style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;background:#EEF3FA;color:#1A4E6B;border-bottom:2px solid #E2E8F0">
-                                Total
+                                Nombre de conseillers total dans l'agence
                             </th>
                         </tr>
                     </thead>
@@ -244,7 +243,7 @@
                                         @* ── Bouton d'action (dépend de l'état) ── *@
                                         @if (isActive)
                                         {
-                                            <MudTooltip Text="Retirer cet effectif de la répartition cible (reste dans l'existant)">
+                                            <MudTooltip Text="">
                                                 <MudIconButton Icon="@Icons.Material.Outlined.RemoveCircleOutline"
                                                                Size="Size.Small"
                                                                Style="padding:0;width:18px;height:18px;color:#B71C1C;opacity:0.6"
@@ -310,6 +309,11 @@
 
         <!-- ── Légende ───────────────────────────────────────────────────── -->
         <div class="ca-dim-legend-bar">
+             <span class="ca-dim-legend-item" style="font-size:11px;color:#6C7A89;gap:10px">
+                <span style="font-weight:700;color:#1A4E6B">▼ Répartition de la charge</span>
+                <span style="color:#C5CAD0">·</span>
+                <span style="font-weight:600;color:#FF8F00;font-style:italic">▲ Répartition existante de la charge ETP</span>
+            </span>
             <span class="ca-dim-legend-item">
                 <span class="ca-dim-swatch" style="background:#1A6B3C"></span>Conseiller Prioritaire
             </span>
@@ -320,11 +324,6 @@
                 <span class="ca-dim-swatch" style="background:#C3E6CB;border:1px solid #52A86B"></span>Conseiller Secondaire 2
             </span>
             <span class="ca-dim-legend-sep"></span>
-            <span class="ca-dim-legend-item" style="font-size:11px;color:#6C7A89;gap:10px">
-                <span style="font-weight:700;color:#1A4E6B">▼ Cible (saisie)</span>
-                <span style="color:#C5CAD0">·</span>
-                <span style="font-weight:600;color:#FF8F00;font-style:italic">▲ Existant</span>
-            </span>
         </div>
 
         <!-- ══════════════════════════════════════════════════════════
@@ -333,26 +332,18 @@
         ══════════════════════════════════════════════════════════ -->
         <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden">
             <div class="ca-section-header" style="display:flex;align-items:center;gap:10px">
-                <span class="ca-section-badge">1</span>
                 Répartition des charges par agence @(vueEtp ? "(en ETP)" : "(nombre de clients)") — Existant vs Cible
                 <MudTooltip Text="Chaque cellule affiche : ▲ la valeur existante (lecture seule) et ▼ la cible à saisir. Les colonnes grisées correspondent aux conseillers supprimés du scénario cible.">
                     <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small"
                              Style="color:rgba(255,255,255,0.65)" />
                 </MudTooltip>
-                @if (vueEtp)
-                {
-                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
-                             Style="height:20px;font-size:10px;color:rgba(255,255,255,0.85);border-color:rgba(255,255,255,0.4)">
-                        Cellules ▼ cible modifiables
-                    </MudChip>
-                }
                 <div style="margin-left:auto">
                     <MudTooltip Text="Distribue automatiquement la charge ETP existante par segment vers les conseillers prioritaires. Remplace toutes les valeurs cibles existantes.">
                         <MudButton Variant="Variant.Outlined" Size="Size.Small"
                                    StartIcon="@Icons.Material.Filled.AutoFixHigh"
                                    Style="color:rgba(255,255,255,0.92);border-color:rgba(255,255,255,0.5);font-size:11px;height:28px;text-transform:none"
                                    OnClick="AutoDistribuerCible">
-                            Répartition automatique
+                            Proposition de répartition de la charge ETP en cible
                         </MudButton>
                     </MudTooltip>
                 </div>
@@ -428,7 +419,7 @@
                                 style="text-align:center;padding:5px 6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.90);
                                    border-left:2px solid rgba(255,255,255,0.15);letter-spacing:.3px;text-transform:uppercase">
                                 <div style="display:flex;align-items:center;justify-content:center;gap:6px">
-                                    <span>Charge ETP</span>
+                                    <span>Charge ETP par segment</span>
                                     <button class="ca-profil-toggle"
                                             title="@(_showChargesManuelles ? "Masquer les saisies manuelles" : "Afficher les saisies manuelles")"
                                             @onclick="@(() => _showChargesManuelles = !_showChargesManuelles)">
@@ -446,7 +437,7 @@
                             <th colspan="2"
                                 style="text-align:center;padding:5px 6px;font-size:10px;font-weight:700;color:white;letter-spacing:.3px;text-transform:uppercase;
                                        border-left:2px solid rgba(255,255,255,0.15)">
-                                KPI
+                                KPI clé par segment
                             </th>
                         </tr>
 
@@ -480,7 +471,7 @@
                                     }
                                 }
                             }
-                            <th class="ca-dim-th-profil" style="background:#8A96A3;color:white">Aide à la répartition des charges cibles par segment</th>
+                            <th class="ca-dim-th-profil" style="background:#969696;color:white">Aide à la répartition des charges cibles par segment</th>
                             <th class="ca-dim-th-profil" style="background:#1A9A9C;color:white">
                                 Charge ETP par segment
                                 <div style="font-size:9px;font-weight:400;opacity:0.75;margin-top:2px">ajustée</div>
@@ -661,7 +652,7 @@
                                 </td>
 
                                 <!-- ── Colonne 1 : Charge Totale ETP par segment (ajustée) ── -->
-                                <td style="text-align:center;padding:6px 4px;background:#EEF3FA">
+                                <td style="text-align:center;padding:6px 4px;background:#daffff">
                                     @if (row.IsTotal)
                                     {
                                         <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
@@ -686,7 +677,7 @@
                                 <!-- ── Colonne 2 : Charge à transférer à la BP (HDG Premium uniquement) ── -->
                                 @if (_showChargesManuelles)
                                 {
-                                    var bgTransBp = row.IsTotal || IsHdgPremium(row.Segment) ? "#E3EFF9" : "#BDD7EE";
+                                    var bgTransBp = row.IsTotal || IsHdgPremium(row.Segment) ? "#daffff" : "#b2ebec";
                                     <td style="text-align:center;padding:4px 3px;background:@bgTransBp">
                                         @if (!row.IsTotal)
                                         {
@@ -722,7 +713,7 @@
                                 <!-- ── Colonne 3 : Charge reçue de la BP (tout sauf HDG Premium) ── -->
                                 @if (_showChargesManuelles)
                                 {
-                                    var bgRecueBp = row.IsTotal || (!IsHdgPremium(row.Segment) && IsSegmentActionnable(row.Segment)) ? "#E3EFF9" : "#BDD7EE";
+                                    var bgRecueBp = row.IsTotal || (!IsHdgPremium(row.Segment) && IsSegmentActionnable(row.Segment)) ? "#daffff" : "#b2ebec";
                                     <td style="text-align:center;padding:4px 3px;background:@bgRecueBp">
                                         @if (!row.IsTotal)
                                         {
@@ -758,7 +749,7 @@
                                 <!-- ── Colonne 4 : Charge à transférer en pf mutualisé (GP Standard uniquement) ── -->
                                 @if (_showChargesManuelles)
                                 {
-                                    var bgTransMut = row.IsTotal || IsGpStandard(row.Segment) ? "#E3EFF9" : "#BDD7EE";
+                                    var bgTransMut = row.IsTotal || IsGpStandard(row.Segment) ? "#daffff" : "#b2ebec";
                                     <td style="text-align:center;padding:4px 3px;background:@bgTransMut">
                                         @if (!row.IsTotal)
                                         {
@@ -792,7 +783,7 @@
                                 }
 
                                 <!-- ── Colonne Concordance ── -->
-                                <td style="text-align:center;padding:4px 3px;background:#EEF3FA">
+                                <td style="text-align:center;padding:4px 3px;background:#daffff">
                                     @if (!row.IsTotal && (concordance.pct.HasValue || concordanceExistant.pct.HasValue))
                                     {
                                         var (bgCib, fgCib) = GetConcordanceColors(concordance.pct);
@@ -822,7 +813,7 @@
                                 </td>
 
                                 <!-- ── Colonne Taux de rotation par segment ── -->
-                                <td style="text-align:center;padding:4px 3px;background:#EEF3FA">
+                                <td style="text-align:center;padding:4px 3px;background:#daffff">
                                     @{
                                         var rotRow = GetTauxRotationForRow(row);
                                         var rotRowExi = GetTauxRotationExistant(row);
@@ -869,13 +860,13 @@
                         @{
                             var extraCols = _showChargesManuelles ? 7 : 4;
                         }
-                        <tr style="background:#006266">
+                        <tr style="background:#0A1F30">
                             <td style="padding:3px 12px;font-size:9px;font-weight:700;color:rgba(255,255,255,0.75);letter-spacing:1px;text-transform:uppercase">
                                 Indicateurs KPI
                             </td>
                             @for (int _i = 0; _i < VisibleSlotColumnCount + extraCols; _i++)
                             {
-                                <td style="background:#006266"></td>
+                                <td style="background:#0A1F30"></td>
                             }
                         </tr>
 
