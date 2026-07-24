@@ -63,19 +63,67 @@
     </div>
 
     <!-- ── Filtres organisationnels ────────────────────────────────────── -->
-    <DimFiltresBar Region="@filtreRegion"
-                   RegionChanged="OnRegionChanged"
-                   Secteur="@filtreSecteur"
-                   SecteurChanged="OnSecteurChanged"
-                   Agence="@filtreAgence"
-                   AgenceChanged="OnAgenceChanged"
-                   Regions="@allRegions"
-                   Secteurs="@allSecteurs"
-                   Agences="@allAgences"
-                   IsLoading="@_isLoading"
-                   HasPendingFilterChanges="@HasPendingFilterChanges"
-                   ApplyFilters="ApplyFilters"
-                   ClearFilters="ClearFilters" />
+    <MudPaper Elevation="1" Style="border-radius:8px;padding:12px 16px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+            <MudIcon Icon="@Icons.Material.Outlined.FilterAlt" Style="color:#1A4E6B;font-size:20px" />
+
+            <MudSelect T="string" Label="Région" Dense="true" Margin="Margin.Dense"
+                       Variant="Variant.Outlined" Style="min-width:160px"
+                       Value="@filtreRegion" ValueChanged="OnRegionChanged"
+                       Disabled="@_isLoading"
+                       Clearable="true">
+                @foreach (var r in allRegions)
+                {
+                    <MudSelectItem Value="@r">@r</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSelect T="string" Label="Secteur" Dense="true" Margin="Margin.Dense"
+                       Variant="Variant.Outlined" Style="min-width:180px"
+                       Value="@filtreSecteur" ValueChanged="OnSecteurChanged"
+                       Disabled="@_isLoading"
+                       Clearable="true">
+                @foreach (var s in allSecteurs)
+                {
+                    <MudSelectItem Value="@s">@s</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSelect T="string" Label="Agence" Dense="true" Margin="Margin.Dense"
+                       Variant="Variant.Outlined" Style="min-width:200px"
+                       Value="@filtreAgence" ValueChanged="OnAgenceChanged"
+                       Disabled="@_isLoading"
+                       Clearable="true">
+                @foreach (var a in allAgences)
+                {
+                    <MudSelectItem Value="@a">@a</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Search"
+                       OnClick="ApplyFilters"
+                       Disabled="@(!HasPendingFilterChanges)">
+                Valider
+            </MudButton>
+
+            @if (!string.IsNullOrEmpty(filtreRegion) || !string.IsNullOrEmpty(filtreSecteur) || !string.IsNullOrEmpty(filtreAgence))
+            {
+                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Outlined.Clear"
+                           OnClick="ClearFilters">Effacer filtres</MudButton>
+            }
+
+            @if (HasPendingFilterChanges)
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">
+                    Filtres non appliqués
+                </MudChip>
+            }
+
+            <div style="flex:1"></div>
+        </div>
+    </MudPaper>
 
     <MudAlert Severity="Severity.Info" Class="mt-2">
         <div><strong>DEBUG :</strong></div>
