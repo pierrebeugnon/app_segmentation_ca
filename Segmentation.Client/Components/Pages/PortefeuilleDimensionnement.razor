@@ -255,9 +255,9 @@
                                         <th class="ca-dim-th-profil"
                                             style="@(isGrey ? "background:#D8DEE8;color:#8A9BB0;text-decoration:line-through;opacity:0.65" :
                                                                                          isNew ? "background:#2E8B57;color:white" : "")">
-                                            <div style="font-size:11px;font-weight:700">@slot.Label</div>
+                                            <div style="font-size:11px;font-weight:700">@_profilShort.GetValueOrDefault(slot.Profil, slot.Profil)</div>
                                             <div style="font-size:9px;font-weight:400;opacity:0.75">
-                                                @_profilShort.GetValueOrDefault(slot.Profil, slot.Profil)
+                                                @slot.Label
                                             </div>
                                         </th>
                                     }
@@ -766,7 +766,7 @@
                                     <td style="text-align:center;padding:3px;font-style:italic">
                                         <div style="font-size:11px;@RemplissageColor(rmpCib)">@(rmpCib.HasValue ? $"{rmpCib.Value:F0}%" : "—")</div>
                                         <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                        <div style="font-size:9px;color:#E65100">@(rmpExi.HasValue ? $"{rmpExi.Value:F0}%" : "—")</div>
+                                        <div style="font-size:9px;font-weight:700;color:#E65100">@(rmpExi.HasValue ? $"{rmpExi.Value:F0}%" : "—")</div>
                                     </td>
                                 }
                                 else
@@ -778,7 +778,7 @@
                                         <td style="text-align:center;padding:3px;@(!slot.IsCible ? "opacity:0.35" : "")">
                                             <div style="font-size:11px;@RemplissageColor(rmpCib)">@(rmpCib.HasValue ? $"{rmpCib.Value:F0}%" : "—")</div>
                                             <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                            <div style="font-size:9px;color:#E65100">@(rmpExi.HasValue ? $"{rmpExi.Value:F0}%" : "—")</div>
+                                            <div style="font-size:9px;font-weight:700;color:#E65100">@(rmpExi.HasValue ? $"{rmpExi.Value:F0}%" : "—")</div>
                                         </td>
                                     }
                                 }
@@ -787,7 +787,7 @@
                             <td style="text-align:center;padding:3px;background:#162840">
                                 <div style="font-size:12px;@RemplissageColor(kpiRmpCibTotal)">@(kpiRmpCibTotal.HasValue ? $"{kpiRmpCibTotal.Value:F0}%" : "—")</div>
                                 <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                <div style="font-size:9px;color:#E65100">@(kpiRmpExiTotal.HasValue ? $"{kpiRmpExiTotal.Value:F0}%" : "—")</div>
+                                <div style="font-size:9px;font-weight:700;color:#E65100">@(kpiRmpExiTotal.HasValue ? $"{kpiRmpExiTotal.Value:F0}%" : "—")</div>
                             </td>
                             @if (vueEtp && _showChargesManuelles)
                             {
@@ -827,7 +827,7 @@
                                     <td style="text-align:center;padding:3px;font-style:italic">
                                         <div style="font-size:11px;@concColorCib">@(concPctCib.HasValue ? $"{concPctCib.Value:F0}%" : "—")</div>
                                         <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                        <div style="font-size:9px;color:#E65100">@(concPctExi.HasValue ? $"{concPctExi.Value:F0}%" : "—")</div>
+                                        <div style="font-size:9px;font-weight:700;color:#E65100">@(concPctExi.HasValue ? $"{concPctExi.Value:F0}%" : "—")</div>
                                     </td>
                                 }
                                 else
@@ -839,7 +839,7 @@
                                         <td style="text-align:center;padding:3px;@(!slot.IsCible ? "opacity:0.35" : "")">
                                             <div style="font-size:11px;@concColorCib">@(concPctCib.HasValue ? $"{concPctCib.Value:F0}%" : "—")</div>
                                             <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                            <div style="font-size:9px;color:#E65100">@(concPctExi.HasValue ? $"{concPctExi.Value:F0}%" : "—")</div>
+                                            <div style="font-size:9px;font-weight:700;color:#E65100">@(concPctExi.HasValue ? $"{concPctExi.Value:F0}%" : "—")</div>
                                         </td>
                                     }
                                 }

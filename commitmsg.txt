@@ -1,16 +1,12 @@
-feat: aligne ordre effectifs/répartition, supprime segments hors scope, colore KPI existants
+style: inverse fonction/matricule dans entêtes Répartition + KPI existants en gras/orange
 
 Page PortefeuilleDimensionnement :
 
-- Ordre des conseillers dans le tableau Répartition identique au tableau
-  Effectifs : suppression du `.Reverse()` dans `SlotsForProfil`.
-- Suppression des segments "Non segmenté" et "Non classé" de la liste
-  affichée dans le tableau Répartition.
-- Indicateurs KPI :
-  * valeurs existantes des lignes "Taux de remplissage" passées en orange
-    (#E65100)
-  * valeurs existantes des lignes "Taux de concordance" passées en orange
-    (#E65100)
+- Dans les entêtes individuelles du tableau Répartition, la fonction/profil
+  court apparaît maintenant au-dessus et le matricule/label du conseiller
+  en dessous, comme dans le tableau Effectifs.
+- Indicateurs KPI : les valeurs existantes des lignes "Taux de remplissage"
+  et "Taux de concordance" sont désormais en gras ET orange (#E65100).
 
 Build OK (0 erreur).
 
