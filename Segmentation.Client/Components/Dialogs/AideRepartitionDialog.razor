@@ -1,0 +1,50 @@
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6" Class="mb-3" Style="color:#1A4E6B">
+            Aide — Répartition des charges
+        </MudText>
+
+        <MudText Typo="Typo.body2" Class="mb-3">
+            Ce tableau permet de répartir la charge ETP (ou le nombre de clients) par segment
+            distributif entre les conseillers de l'agence, en distinguant la situation
+            <b>existante (▲)</b> de la situation <b>cible (▼)</b>.
+        </MudText>
+
+        <MudExpansionPanels MultiExpansion="true" Elevation="0">
+            <MudExpansionPanel Text="Lire le tableau" Dense="true">
+                <MudList T="object" Dense="true">
+                    <MudListItem>Chaque ligne représente un segment distributif.</MudListItem>
+                    <MudListItem>Les colonnes regroupent les conseillers par métier. Cliquez sur +/− pour replier/déplier un métier.</MudListItem>
+                    <MudListItem>En vue ETP, chaque cellule affiche la valeur cible saisissable (▼) et, en dessous, la valeur existante (▲) en orange italique.</MudListItem>
+                    <MudListItem>Les colonnes grisées correspondent aux conseillers retirés du scénario cible.</MudListItem>
+                </MudList>
+            </MudExpansionPanel>
+
+            <MudExpansionPanel Text="Remplir le tableau" Dense="true">
+                <MudList T="object" Dense="true">
+                    <MudListItem>Saisissez directement la charge cible dans les cellules éditables (ligne ▼).</MudListItem>
+                    <MudListItem>Utilisez le bouton <b>Proposition de répartition</b> pour remplir automatiquement selon les règles de priorité.</MudListItem>
+                    <MudListItem>Affichez/masquez les colonnes de saisie manuelle (transferts BP, charges reçues, PF mutualisé) via le bouton +/− Charge ETP par segment.</MudListItem>
+                    <MudListItem>Les cellules grises des colonnes manuelles ne sont pas éditables pour ce segment.</MudListItem>
+                </MudList>
+            </MudExpansionPanel>
+
+            <MudExpansionPanel Text="Indicateurs KPI" Dense="true">
+                <MudList T="object" Dense="true">
+                    <MudListItem><b>Taux de concordance</b> : part de la charge cible affectée aux profils prioritaires du segment. 100 % = répartition idéale.</MudListItem>
+                    <MudListItem><b>Taux de rotation</b> : variation relative entre effectif cible et existant.</MudListItem>
+                    <MudListItem>Pour chaque KPI, la valeur cible est affichée au-dessus et la valeur existante en dessous.</MudListItem>
+                </MudList>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close">Fermer</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private void Close() => MudDialog.Close();
+}

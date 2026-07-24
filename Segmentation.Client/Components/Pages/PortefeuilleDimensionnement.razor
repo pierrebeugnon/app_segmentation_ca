@@ -444,6 +444,10 @@
                         <!-- ── Ligne 2 : colonnes individuelles + colonnes KPI ── -->
                         <tr class="ca-dim-superheader">
                             <th class="ca-dim-sticky-col" style="min-width:160px;text-align:left;padding-left:12px;font-size:11px">
+                                <button type="button" class="ca-help-btn" @onclick="ShowAideRepartition" style="padding:4px 10px;font-size:10px">
+                                    <MudIcon Icon="@Icons.Material.Outlined.HelpOutline" Style="font-size:13px" />
+                                    Aide
+                                </button>
                             </th>
                             @foreach (var profil in profils)
                             {
@@ -538,7 +542,7 @@
                                                         </span>
                                                     </div>
                                                     <div class="ca-dim-cell-bottom">
-                                                        <span style="@GetExistantColor(aggExist);font-size:10px;font-weight:600;font-style:italic">
+                                                        <span style="color:#E65100;font-size:10px;font-weight:600;font-style:italic">
                                                             @(aggExist.HasValue? aggExist.Value.ToString("F2") : "—")
                                                         </span>
                                                     </div>
@@ -599,7 +603,7 @@
                                                             }
                                                         </div>
                                                         <div class="ca-dim-cell-bottom">
-                                                            <span style="@GetExistantColor(etp);font-size:10px;font-weight:600;font-style:italic">
+                                                            <span style="color:#E65100;font-size:10px;font-weight:600;font-style:italic">
                                                                 @(etp.HasValue? etp.Value.ToString("F2") : "—")
                                                             </span>
                                                         </div>
@@ -784,7 +788,27 @@
 
                                 <!-- ── Colonne Concordance ── -->
                                 <td style="text-align:center;padding:4px 3px;background:#daffff">
-                                    @if (!row.IsTotal && (concordance.pct.HasValue || concordanceExistant.pct.HasValue))
+                                    @if (row.IsTotal)
+                                    {
+                                        var totalConcCib = GetTotalConcordance();
+                                        var totalConcExi = GetTotalConcordanceExistant();
+                                        var (bgCib, fgCib) = GetConcordanceColors(totalConcCib);
+                                        var (bgExi, fgExi) = GetConcordanceColors(totalConcExi);
+                                        <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+                                            <div style="background:@bgCib;border-radius:5px;padding:2px 6px;min-width:48px">
+                                                <span style="font-size:12px;font-weight:700;color:@fgCib">
+                                                    @(totalConcCib.HasValue ? $"{totalConcCib.Value:F0}%" : "—")
+                                                </span>
+                                            </div>
+                                            <div style="border-top:1.5px solid #C5CAD0;width:55%;margin:1px 0"></div>
+                                            <div style="background:@bgExi;border-radius:5px;padding:2px 6px;min-width:48px">
+                                                <span style="font-size:12px;font-weight:700;color:@fgExi">
+                                                    @(totalConcExi.HasValue ? $"{totalConcExi.Value:F0}%" : "—")
+                                                </span>
+                                            </div>
+                                        </div>
+                                    }
+                                    else if (concordance.pct.HasValue || concordanceExistant.pct.HasValue)
                                     {
                                         var (bgCib, fgCib) = GetConcordanceColors(concordance.pct);
                                         var (bgExi, fgExi) = GetConcordanceColors(concordanceExistant.pct);
@@ -806,7 +830,7 @@
                                             </MudTooltip>
                                         </div>
                                     }
-                                    else if (!row.IsTotal)
+                                    else
                                     {
                                         <span style="color:#BDBDBD;font-size:11px">—</span>
                                     }
@@ -818,7 +842,33 @@
                                         var rotRow = GetTauxRotationForRow(row);
                                         var rotRowExi = GetTauxRotationExistant(row);
                                     }
-                                    @if (!row.IsTotal && (rotRow.HasValue || rotRowExi.HasValue))
+                                    @if (row.IsTotal)
+                                    {
+                                        var rotTotalCib = GetTotalTauxRotation();
+                                        var rotTotalExi = GetTotalTauxRotationExistant();
+                                        var rotColorTotalCib = (rotTotalCib ?? 0) switch
+                                        {
+                                            > 0 => "#2E7D32",
+                                            < 0 => "#C62828",
+                                            _ => "#6C7A89"
+                                        };
+                                        var rotColorTotalExi = (rotTotalExi ?? 0) switch
+                                        {
+                                            > 0 => "#2E7D32",
+                                            < 0 => "#C62828",
+                                            _ => "#6C7A89"
+                                        };
+                                        <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+                                            <span style="font-size:12px;font-weight:700;color:@rotColorTotalCib">
+                                                @(rotTotalCib.HasValue ? (rotTotalCib.Value >= 0 ? "+" : "") + rotTotalCib.Value.ToString("F0") + "%" : "—")
+                                            </span>
+                                            <div style="border-top:1.5px solid #C5CAD0;width:55%;margin:1px 0"></div>
+                                            <span style="font-size:12px;font-weight:700;color:@rotColorTotalExi">
+                                                @(rotTotalExi.HasValue ? (rotTotalExi.Value >= 0 ? "+" : "") + rotTotalExi.Value.ToString("F0") + "%" : "—")
+                                            </span>
+                                        </div>
+                                    }
+                                    else if (rotRow.HasValue || rotRowExi.HasValue)
                                     {
                                         var rotColorCib = (rotRow ?? 0) switch
                                         {
@@ -842,7 +892,7 @@
                                             </span>
                                         </div>
                                     }
-                                    else if (!row.IsTotal)
+                                    else
                                     {
                                         <span style="color:#BDBDBD;font-size:11px">—</span>
                                     }
@@ -1208,6 +1258,13 @@
     {
         await DialogService.ShowAsync<AidePortefeuilleDialog>(
             "Aide",
+            new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true });
+    }
+
+    private async Task ShowAideRepartition()
+    {
+        await DialogService.ShowAsync<AideRepartitionDialog>(
+            "Aide — Répartition des charges",
             new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true });
     }
 
@@ -1932,6 +1989,53 @@
         if (row.IsTotal) return null;
         var cible = Math.Round(GetRowCibleTotal(row) ?? 0, 2);
         var exist = Math.Round(GetRowExistantTotal(row) ?? 0, 2);
+        if (exist <= 0) return null;
+        return Math.Round(cible - exist, 2) / exist * 100.0;
+    }
+
+    // ── Totaux des KPI ─────────────────────────────────────────────────────
+    private double? GetTotalConcordance()
+    {
+        var activeSlots = _slots.Where(s => s.IsCible).ToList();
+        var totalCible = rows.Where(r => !r.IsTotal)
+            .Sum(r => activeSlots.Sum(s => r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0));
+        if (totalCible <= 0) return null;
+
+        var etpDesigne = rows.Where(r => !r.IsTotal)
+            .Sum(r => activeSlots
+                .Where(s => GetAssignmentLevel(r.Segment, s.Profil) > 0)
+                .Sum(s => r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0));
+
+        return etpDesigne / totalCible * 100.0;
+    }
+
+    private double? GetTotalConcordanceExistant()
+    {
+        var allSlots = _slots.ToList();
+        var totalExist = rows.Where(r => !r.IsTotal)
+            .Sum(r => allSlots.Sum(s => r.EtpParProfil.GetValueOrDefault(s.Id) ?? 0));
+        if (totalExist <= 0) return null;
+
+        var etpDesigne = rows.Where(r => !r.IsTotal)
+            .Sum(r => allSlots
+                .Where(s => GetAssignmentLevel(r.Segment, s.Profil) > 0)
+                .Sum(s => r.EtpParProfil.GetValueOrDefault(s.Id) ?? 0));
+
+        return etpDesigne / totalExist * 100.0;
+    }
+
+    private double? GetTotalTauxRotation()
+    {
+        var cible = rows.Where(r => !r.IsTotal).Sum(r => GetRowCibleTotal(r) ?? 0);
+        if (cible <= 0) return null;
+        var exist = rows.Where(r => !r.IsTotal).Sum(r => GetRowExistantTotal(r) ?? 0);
+        return Math.Round(cible - exist, 2) / cible * 100.0;
+    }
+
+    private double? GetTotalTauxRotationExistant()
+    {
+        var cible = rows.Where(r => !r.IsTotal).Sum(r => GetRowCibleTotal(r) ?? 0);
+        var exist = rows.Where(r => !r.IsTotal).Sum(r => GetRowExistantTotal(r) ?? 0);
         if (exist <= 0) return null;
         return Math.Round(cible - exist, 2) / exist * 100.0;
     }
