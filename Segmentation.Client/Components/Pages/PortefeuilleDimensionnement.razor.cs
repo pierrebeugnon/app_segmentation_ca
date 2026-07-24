@@ -3,8 +3,6 @@ using MudBlazor;
 using Segmentation.Client.Components.Dialogs;
 using Segmentation.Client.Models;
 using Segmentation.Client.Services;
-using Segmentation.Shared.Models;
-using System.Net.Http.Json;
 
 namespace Segmentation.Client.Components.Pages;
 
@@ -15,15 +13,11 @@ public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 	[Inject] private IDialogService DialogService { get; set; } = default!;
 	[Inject] private ISnackbar Snackbar { get; set; } = default!;
 	[Inject] private RepartitionAutomatiqueService RepartitionService { get; set; } = default!;
-	[Inject] private HttpClient Http { get; set; } = default!;
 	private bool vueEtp = true;
-	private bool _isLoading = false;
 	private List<string> profils = new();   // types distincts (lookup assignment)
 	private List<string> segments = new();
 	private List<DimMatrixRow> rows = new();
 	private List<ConseillerSlot> _slots = new();
-	private List<SegmentationDistributiveData> _segmentationDistributive = new();
-	private List<SegmentationDistributiveData> _segmentationDistributiveFiltree = new();
 
 	// ── Vue détail / consolidée par métier ────────────────────────────────
 	// Métiers présents dans ce set → colonne agrégée (repliée)
@@ -130,10 +124,6 @@ public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 	private string? filtreSecteur = null;
 	private string? filtreAgence = null;
 
-	private string? filtreRegionApplique = null;
-	private string? filtreSecteurApplique = null;
-	private string? filtreAgenceApplique = null;
-
 	private List<string> allRegions = new();
 	private List<string> allSecteurs = new();
 	private List<string> allAgences = new();
@@ -154,31 +144,10 @@ public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 		};
 
 	// ── Lifecycle ─────────────────────────────────────────────────────────
-	protected override async Task OnInitializedAsync()
+	protected override void OnInitialized()
 	{
 		StateService.OnChange += OnReglesChanged;
-		await LoadDataAsync();
 		InitData();
-	}
-
-	private async Task LoadDataAsync()
-	{
-		_isLoading = true;
-		try
-		{
-			_segmentationDistributive = await Http.GetFromJsonAsync<List<SegmentationDistributiveData>>(
-				"api/SegmentationDistributive") ?? new();
-			_segmentationDistributiveFiltree = _segmentationDistributive.ToList();
-			Console.WriteLine($">>> SegmentationDistributive chargée : {_segmentationDistributive.Count} lignes");
-		}
-		catch (Exception ex)
-		{
-			Console.WriteLine($">>> Erreur chargement SegmentationDistributive : {ex.Message}");
-		}
-		finally
-		{
-			_isLoading = false;
-		}
 	}
 
 	public void Dispose() => StateService.OnChange -= OnReglesChanged;
@@ -215,27 +184,6 @@ public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 	// ── Construction des slots individuels ───────────────────────────────
 	private List<ConseillerSlot> BuildSlots()
 	{
-		// Données réelles si disponibles
-		if (_segmentationDistributiveFiltree is { Count: > 0 })
-		{
-			return _segmentationDistributiveFiltree
-				.Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
-				.Select(x => new ConseillerSlot
-				{
-					Profil = x.TypeConseiller,
-					Label = $"{_profilShort.GetValueOrDefault(x.TypeConseiller, x.TypeConseiller[..Math.Min(3, x.TypeConseiller.Length)].ToUpper())}-{x.MatriculeConseiller}",
-					EtpActuel = x.Etp ?? 0,
-					EtpCible = x.Etp ?? 0,
-					IsActuel = true,
-					IsCible = true
-				})
-				.GroupBy(s => s.Label)
-				.Select(g => g.First())
-				.Reverse()
-				.ToList();
-		}
-
-		// Fallback mock
 		var result = new List<ConseillerSlot>();
 		foreach (var profil in GetProfils())
 		{
@@ -360,43 +308,13 @@ public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 		filteredRows = segsFiltres.Any()
 			? rows.Where(r => r.IsTotal || segsFiltres.Contains(r.Segment)).ToList()
 			: rows.ToList();
-
-		filtreRegionApplique = filtreRegion;
-		filtreSecteurApplique = filtreSecteur;
-		filtreAgenceApplique = filtreAgence;
 	}
 
 	private void ClearFilters()
 	{
 		filtreRegion = filtreAgence = filtreSecteur = null;
-		filtreRegionApplique = filtreSecteurApplique = filtreAgenceApplique = null;
 		ApplyFilters();
 	}
-
-	private void OnRegionChanged(string? newRegion)
-	{
-		filtreRegion = newRegion;
-		filtreSecteur = null;
-		filtreAgence = null;
-		BuildFilterOptions();
-	}
-
-	private void OnSecteurChanged(string? newSecteur)
-	{
-		filtreSecteur = newSecteur;
-		filtreAgence = null;
-		BuildFilterOptions();
-	}
-
-	private void OnAgenceChanged(string? newAgence)
-	{
-		filtreAgence = newAgence;
-	}
-
-	private bool HasPendingFilterChanges =>
-		filtreRegion != filtreRegionApplique ||
-		filtreSecteur != filtreSecteurApplique ||
-		filtreAgence != filtreAgenceApplique;
 
 	// ── Sources de données ────────────────────────────────────────────────
 	// Ordre d'affichage inversé : du conseiller commercial (COM) au directeur (DIR),
@@ -534,6 +452,62 @@ public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 		ApplyFilters();
 	}
 
+	// ── Code couleur existant — toujours orange ───────────────────────────
+	private static string GetExistantColor(double? existant, double? _ = null) =>
+		(!existant.HasValue || existant.Value <= 0) ? "color:#9AA5B1" : "color:#E65100;font-weight:600";
+
+	// ── Couverture : différence entre ETP distribué et charge ETP ────────
+	// Résultat = totalCible − totalExist
+	//   = 0   → couverture complète (vert)
+	//   < 0   → sous-couverture (rouge)   — il manque des ETP assignés
+	//   > 0   → sur-répartition (orange)  — plus assigné que la charge
+	private double? GetCoverageDiff(DimMatrixRow row)
+	{
+		if (row.IsTotal) return null;
+		var activeSlots = _slots.Where(s => s.IsCible).ToList();
+		var totalCible = activeSlots.Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
+		var totalExist = _slots.Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
+		if (totalCible <= 0 && totalExist <= 0) return null;
+		return totalCible - totalExist;
+	}
+
+	// ── Concordance : % ETP assigné à un type DÉSIGNÉ dans R&H ───────────
+	// Concordant  = type de conseiller de niveau 1, 2 ou 3 pour ce segment
+	// Non-concordant = type absent des R&H pour ce segment (niveau 0)
+	// 100% = toute la répartition est dans des types désignés
+	// Ex. : 0.80 dans prio/sec/tert + 0.20 hors R&H → 80%
+	private (double? pct, string color, string tooltip) GetConcordance(DimMatrixRow row)
+	{
+		if (row.IsTotal) return (null, "", "");
+		var activeSlots = _slots.Where(s => s.IsCible).ToList();
+		var totalCible = activeSlots.Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
+		if (totalCible <= 0) return (null, "", "Aucune saisie");
+
+		// ETP dans les types DÉSIGNÉS (niveaux 1, 2 ou 3 dans R&H)
+		var etpDesigne = activeSlots
+			.Where(s => GetAssignmentLevel(row.Segment, s.Profil) > 0)
+			.Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
+		var etpHorsRH = totalCible - etpDesigne;
+
+		// Détail par niveau (pour le tooltip)
+		var etpPrio = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 1).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
+		var etpSec = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 2).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
+		var etpTert = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 3).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
+
+		var pct = etpDesigne / totalCible * 100.0;
+		var color = pct >= 99.9 ? "color:#2E7D32;font-weight:700" :
+					pct >= 80 ? "color:#E65100;font-weight:700" :
+								  "color:#C62828;font-weight:700";
+
+		var tooltip = $"Concordance : {pct:F0}% dans les types R&H\n" +
+					  $"  ▸ Prioritaire  : {etpPrio:F2} ETP\n" +
+					  $"  ▸ Secondaire   : {etpSec:F2} ETP\n" +
+					  $"  ▸ Tertiaire    : {etpTert:F2} ETP\n" +
+					  $"  ✗ Hors R&H     : {etpHorsRH:F2} ETP";
+
+		return (pct, color, tooltip);
+	}
+
 	// ── ETP CIBLE calculé depuis ReglesHypothèses ─────────────────────────
 	private double? GetEtpCible(string segment, string profil)
 	{
@@ -575,46 +549,14 @@ public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 		return vals.Any() ? vals.Sum(v => v!.Value) : null;
 	}
 
-	// ── Couverture : différence entre ETP distribué et charge ETP ────────
-	private double? GetCoverageDiff(DimMatrixRow row)
+	// Taux de rotation par segment = (cible − existant) / cible × 100
+	private double? GetTauxRotationForRow(DimMatrixRow row)
 	{
 		if (row.IsTotal) return null;
-		var activeSlots = _slots.Where(s => s.IsCible).ToList();
-		var totalCible = activeSlots.Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-		var totalExist = _slots.Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
-		if (totalCible <= 0 && totalExist <= 0) return null;
-		return totalCible - totalExist;
-	}
-
-	// ── Concordance : % ETP assigné à un type DÉSIGNÉ dans R&H ───────────
-	private (double? pct, string color, string tooltip) GetConcordance(DimMatrixRow row)
-	{
-		if (row.IsTotal) return (null, "", "");
-		var activeSlots = _slots.Where(s => s.IsCible).ToList();
-		var totalCible = activeSlots.Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-		if (totalCible <= 0) return (null, "", "Aucune saisie");
-
-		var etpDesigne = activeSlots
-			.Where(s => GetAssignmentLevel(row.Segment, s.Profil) > 0)
-			.Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-		var etpHorsRH = totalCible - etpDesigne;
-
-		var etpPrio = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 1).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-		var etpSec = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 2).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-		var etpTert = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 3).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-
-		var pct = etpDesigne / totalCible * 100.0;
-		var color = pct >= 99.9 ? "color:#2E7D32;font-weight:700" :
-					pct >= 80 ? "color:#E65100;font-weight:700" :
-								  "color:#C62828;font-weight:700";
-
-		var tooltip = $"Concordance : {pct:F0}% dans les types R&H\n" +
-					  $"  ▸ Prioritaire  : {etpPrio:F2} ETP\n" +
-					  $"  ▸ Secondaire   : {etpSec:F2} ETP\n" +
-					  $"  ▸ Tertiaire    : {etpTert:F2} ETP\n" +
-					  $"  ✗ Hors R&H     : {etpHorsRH:F2} ETP";
-
-		return (pct, color, tooltip);
+		var cible = Math.Round(GetRowCibleTotal(row) ?? 0, 2);
+		if (cible <= 0) return null;
+		var exist = Math.Round(GetRowExistantTotal(row) ?? 0, 2);
+		return Math.Round(cible - exist, 2) / cible * 100.0;
 	}
 
 	// ── KPI : init taux (rotation/entrée keyed par slot.Id, mock null) ────
@@ -635,6 +577,8 @@ public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 							"color:#EF9A9A;font-weight:700";
 
 	// ── KPI concordance par slot ──────────────────────────────────────────
+	// % de l'ETP cible attribué à ce slot qui provient de segments où son
+	// profil est désigné dans R&H (niveaux 1, 2 ou 3)
 	private (double? pct, string color) GetConcordanceForSlot(ConseillerSlot slot)
 	{
 		var totalCible = GetEtpCibleSaisieTotal(slot.Id);
@@ -685,6 +629,9 @@ public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 	}
 
 	// ── KPI taux de rotation par slot ─────────────────────────────────────
+	// (Cible − Existant) / Cible × 100
+	// Arrondi à 2 décimales pour éviter les écarts de précision
+	// (valeurs affichées F2 ≠ valeurs internes brutes)
 	private double? GetTauxRotation(ConseillerSlot slot)
 	{
 		var cible = Math.Round(GetEtpCibleSaisieTotal(slot.Id) ?? 0, 2);
@@ -705,6 +652,14 @@ public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 	}
 
 	// ── KPI entrées dans le portefeuille par slot ─────────────────────────
+	// Entrées = somme, PAR SEGMENT, de max(0, cible − existant) — arrondi à 2 décimales.
+	// Le calcul se fait cellule par cellule (segment × conseiller) et non sur les totaux
+	// agrégés : un ETP existant réaffecté d'un segment vers un autre pour le même
+	// conseiller compte comme une nouvelle entrée dans le segment de destination
+	// (l'existant n'y était pas déjà distribué), même si le volume total du
+	// conseiller ne change pas.
+	// Ex. : Existant HDG P-BP 0.4 / Cible HDG P-BP 0 + Cible GP Standard 0.4
+	//       → 0 (retrait) + 0.4 (nouvelle entrée) = 0.4 point de nouvelles entrées.
 	private double GetEntreesCell(DimMatrixRow row, string slotId)
 	{
 		var c = Math.Round(row.EtpCibleSaisieParProfil.GetValueOrDefault(slotId) ?? 0, 2);
@@ -748,6 +703,7 @@ public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 	}
 
 	// Taux de remplissage CIBLE par slot, en % = charge ETP cible saisie ÷ EtpCible du conseiller × 100
+	// 100% = portefeuille cible parfaitement chargé · < 100% = sous-chargé · > 100% = surchargé
 	private double? GetRemplissageForSlot(ConseillerSlot slot)
 	{
 		if (!slot.IsCible || slot.EtpCible <= 0) return null;
@@ -784,166 +740,4 @@ public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 		v > 0 ? (positifBon ? "color:#A5D6A7;font-weight:700" : "color:#EF9A9A;font-weight:700") :
 		v < 0 ? (positifBon ? "color:#EF9A9A;font-weight:700" : "color:#A5D6A7;font-weight:700") :
 		"color:rgba(255,255,255,0.6);font-weight:600";
-
-	// ═══════════════════════════════════════════════════════════════════════
-	//  Méthodes ajoutées pour supporter le markup récent (charges manuelles,
-	//  totaux KPI dans le tableau, aides)
-	// ═══════════════════════════════════════════════════════════════════════
-
-	private bool _showChargesManuelles = false;
-
-	private async Task ShowAide()
-	{
-		await DialogService.ShowAsync<AidePortefeuilleDialog>(
-			"Aide",
-			new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true });
-	}
-
-	private async Task ShowAideRepartition()
-	{
-		await DialogService.ShowAsync<AideRepartitionDialog>(
-			"Aide — Répartition des charges",
-			new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true });
-	}
-
-	// ── Charges manuelles par segment ─────────────────────────────────────
-	private Dictionary<string, double?> _chargeATransfererBP = new(StringComparer.OrdinalIgnoreCase);
-	private Dictionary<string, double?> _chargeRecueBP = new(StringComparer.OrdinalIgnoreCase);
-	private Dictionary<string, double?> _chargeATransfererMutualise = new(StringComparer.OrdinalIgnoreCase);
-
-	private static bool IsHdgPremium(string? segment) =>
-		!string.IsNullOrWhiteSpace(segment) &&
-		segment.Contains("Premium", StringComparison.OrdinalIgnoreCase);
-
-	private static bool IsGpStandard(string? segment) =>
-		string.Equals(segment?.Trim(), "GP Standard", StringComparison.OrdinalIgnoreCase);
-
-	private static bool IsSegmentActionnable(string? segment) =>
-		!string.IsNullOrWhiteSpace(segment) &&
-		!string.Equals(segment.Trim(), "Non segmenté", StringComparison.OrdinalIgnoreCase) &&
-		!string.Equals(segment.Trim(), "Non classé", StringComparison.OrdinalIgnoreCase);
-
-	private double? GetChargeTotaleAffichee(DimMatrixRow row)
-	{
-		if (row.IsTotal) return null;
-
-		var original = GetRowExistantTotal(row) ?? 0;
-		var transBP = _chargeATransfererBP.GetValueOrDefault(row.Segment) ?? 0;
-		var recueBP = _chargeRecueBP.GetValueOrDefault(row.Segment) ?? 0;
-		var transMut = _chargeATransfererMutualise.GetValueOrDefault(row.Segment) ?? 0;
-
-		return (original - transBP) + (recueBP - transMut);
-	}
-
-	private double GetTotalATransfererBP() =>
-		_chargeATransfererBP.Values.Where(v => v.HasValue).Sum(v => v!.Value);
-
-	private double GetTotalRecueBP() =>
-		_chargeRecueBP.Values.Where(v => v.HasValue).Sum(v => v!.Value);
-
-	private double GetTotalATransfererMutualise() =>
-		_chargeATransfererMutualise.Values.Where(v => v.HasValue).Sum(v => v!.Value);
-
-	// ── Concordance existante par ligne + couleurs de badge ────────────────
-	private (double? pct, string color, string tooltip) GetConcordanceExistant(DimMatrixRow row)
-	{
-		if (row.IsTotal) return (null, "", "");
-		var allSlots = _slots.ToList();
-		var totalExist = allSlots.Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
-		if (totalExist <= 0) return (null, "", "Aucune donnée existante");
-
-		var etpDesigne = allSlots
-			.Where(s => GetAssignmentLevel(row.Segment, s.Profil) > 0)
-			.Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
-		var etpHorsRH = totalExist - etpDesigne;
-
-		var etpPrio = allSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 1).Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
-		var etpSec = allSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 2).Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
-		var etpTert = allSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 3).Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
-
-		var pct = etpDesigne / totalExist * 100.0;
-		var color = pct >= 99.9 ? "color:#2E7D32;font-weight:700" :
-					pct >= 80 ? "color:#E65100;font-weight:700" :
-								  "color:#C62828;font-weight:700";
-
-		var tooltip = $"Concordance existant : {pct:F0}% dans les types R&H\n" +
-					  $"  ▸ Prioritaire  : {etpPrio:F2} ETP\n" +
-					  $"  ▸ Secondaire   : {etpSec:F2} ETP\n" +
-					  $"  ▸ Tertiaire    : {etpTert:F2} ETP\n" +
-					  $"  ✗ Hors R&H     : {etpHorsRH:F2} ETP";
-
-		return (pct, color, tooltip);
-	}
-
-	private static (string bg, string fg) GetConcordanceColors(double? pct) =>
-		!pct.HasValue    ? ("#F5F5F5", "#757575") :
-		pct.Value >= 99.9 ? ("#E8F5E9", "#2E7D32") :
-		pct.Value >= 80   ? ("#FFF3E0", "#E65100") :
-							("#FFEBEE", "#C62828");
-
-	// ── Taux de rotation par ligne ────────────────────────────────────────
-	private double? GetTauxRotationForRow(DimMatrixRow row)
-	{
-		if (row.IsTotal) return null;
-		var cible = Math.Round(GetRowCibleTotal(row) ?? 0, 2);
-		if (cible <= 0) return null;
-		var exist = Math.Round(GetRowExistantTotal(row) ?? 0, 2);
-		return Math.Round(cible - exist, 2) / cible * 100.0;
-	}
-
-	private double? GetTauxRotationExistant(DimMatrixRow row)
-	{
-		if (row.IsTotal) return null;
-		var cible = Math.Round(GetRowCibleTotal(row) ?? 0, 2);
-		var exist = Math.Round(GetRowExistantTotal(row) ?? 0, 2);
-		if (exist <= 0) return null;
-		return Math.Round(cible - exist, 2) / exist * 100.0;
-	}
-
-	// ── Totaux des KPI ─────────────────────────────────────────────────────
-	private double? GetTotalConcordance()
-	{
-		var activeSlots = _slots.Where(s => s.IsCible).ToList();
-		var totalCible = rows.Where(r => !r.IsTotal)
-			.Sum(r => activeSlots.Sum(s => r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0));
-		if (totalCible <= 0) return null;
-
-		var etpDesigne = rows.Where(r => !r.IsTotal)
-			.Sum(r => activeSlots
-				.Where(s => GetAssignmentLevel(r.Segment, s.Profil) > 0)
-				.Sum(s => r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0));
-
-		return etpDesigne / totalCible * 100.0;
-	}
-
-	private double? GetTotalConcordanceExistant()
-	{
-		var allSlots = _slots.ToList();
-		var totalExist = rows.Where(r => !r.IsTotal)
-			.Sum(r => allSlots.Sum(s => r.EtpParProfil.GetValueOrDefault(s.Id) ?? 0));
-		if (totalExist <= 0) return null;
-
-		var etpDesigne = rows.Where(r => !r.IsTotal)
-			.Sum(r => allSlots
-				.Where(s => GetAssignmentLevel(r.Segment, s.Profil) > 0)
-				.Sum(s => r.EtpParProfil.GetValueOrDefault(s.Id) ?? 0));
-
-		return etpDesigne / totalExist * 100.0;
-	}
-
-	private double? GetTotalTauxRotation()
-	{
-		var cible = rows.Where(r => !r.IsTotal).Sum(r => GetRowCibleTotal(r) ?? 0);
-		if (cible <= 0) return null;
-		var exist = rows.Where(r => !r.IsTotal).Sum(r => GetRowExistantTotal(r) ?? 0);
-		return Math.Round(cible - exist, 2) / cible * 100.0;
-	}
-
-	private double? GetTotalTauxRotationExistant()
-	{
-		var cible = rows.Where(r => !r.IsTotal).Sum(r => GetRowCibleTotal(r) ?? 0);
-		var exist = rows.Where(r => !r.IsTotal).Sum(r => GetRowExistantTotal(r) ?? 0);
-		if (exist <= 0) return null;
-		return Math.Round(cible - exist, 2) / exist * 100.0;
-	}
 }
