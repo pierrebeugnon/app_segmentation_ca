@@ -1,13 +1,11 @@
-refactor: déplace la logique @code de PortefeuilleDimensionnement vers .razor.cs
+refactor: aligne PortefeuilleDimensionnement.razor.cs sur le client
 
-Avec le SDK .NET 10, le code-behind .razor.cs fonctionne correctement.
-- Crée PortefeuilleDimensionnement.razor.cs avec tous les champs, méthodes,
-  helpers et services injectés.
-- Supprime le bloc @code du fichier .razor, qui ne contient plus que le markup.
-- Déplace les directives @inject / @implements / @using métier dans le .razor.cs.
+- Reprend la structure du .razor.cs client (mock data, filtres, helpers KPI).
+- Ajoute les méthodes manquantes requises par le markup actuel :
+  aides, charges manuelles, totaux KPI, handlers de filtres.
+- Supprime du markup les références aux champs API non utilisés.
 
-Résultat : le fichier .razor passe de ~1970 lignes à ~930 lignes (soit ~1000
-lignes de logique extraites), facilitant la suite du découpage en composants.
+Build OK (0 erreur).
 
 Generated with [Devin](https://devin.ai)
 
