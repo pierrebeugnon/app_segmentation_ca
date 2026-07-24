@@ -1,9 +1,16 @@
-refactor: aligne PortefeuilleDimensionnement.razor.cs sur le client
+refactor: restaure le chargement réel des données dans le code-behind
 
-- Reprend la structure du .razor.cs client (mock data, filtres, helpers KPI).
-- Ajoute les méthodes manquantes requises par le markup actuel :
-  aides, charges manuelles, totaux KPI, handlers de filtres.
-- Supprime du markup les références aux champs API non utilisés.
+Après avoir aligné le .razor.cs sur la version client, les données étaient
+passées sur les mocks. Ce commit réintroduit le chargement HTTP de
+`api/SegmentationDistributive` tout en gardant la structure du .razor.cs
+(client) et les méthodes du markup récent (charges manuelles, totaux KPI).
+
+- Ajoute `[Inject] HttpClient` et `LoadDataAsync`.
+- Ajoute `_segmentationDistributive` / `_segmentationDistributiveFiltree`.
+- `BuildSlots` utilise les données réelles quand elles sont disponibles,
+  avec fallback sur les mocks si l'API ne retourne rien.
+- Ajoute la propriété `Etp` manquante dans le shim
+  `SegmentationDistributiveData`.
 
 Build OK (0 erreur).
 

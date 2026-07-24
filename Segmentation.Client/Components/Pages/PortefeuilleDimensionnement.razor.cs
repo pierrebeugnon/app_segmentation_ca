@@ -3,6 +3,8 @@ using MudBlazor;
 using Segmentation.Client.Components.Dialogs;
 using Segmentation.Client.Models;
 using Segmentation.Client.Services;
+using Segmentation.Shared.Models;
+using System.Net.Http.Json;
 
 namespace Segmentation.Client.Components.Pages;
 
@@ -13,12 +15,15 @@ public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 	[Inject] private IDialogService DialogService { get; set; } = default!;
 	[Inject] private ISnackbar Snackbar { get; set; } = default!;
 	[Inject] private RepartitionAutomatiqueService RepartitionService { get; set; } = default!;
+	[Inject] private HttpClient Http { get; set; } = default!;
 	private bool vueEtp = true;
 	private bool _isLoading = false;
 	private List<string> profils = new();   // types distincts (lookup assignment)
 	private List<string> segments = new();
 	private List<DimMatrixRow> rows = new();
 	private List<ConseillerSlot> _slots = new();
+	private List<SegmentationDistributiveData> _segmentationDistributive = new();
+	private List<SegmentationDistributiveData> _segmentationDistributiveFiltree = new();
 
 	// ── Vue détail / consolidée par métier ────────────────────────────────
 	// Métiers présents dans ce set → colonne agrégée (repliée)
@@ -149,10 +154,31 @@ public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 		};
 
 	// ── Lifecycle ─────────────────────────────────────────────────────────
-	protected override void OnInitialized()
+	protected override async Task OnInitializedAsync()
 	{
 		StateService.OnChange += OnReglesChanged;
+		await LoadDataAsync();
 		InitData();
+	}
+
+	private async Task LoadDataAsync()
+	{
+		_isLoading = true;
+		try
+		{
+			_segmentationDistributive = await Http.GetFromJsonAsync<List<SegmentationDistributiveData>>(
+				"api/SegmentationDistributive") ?? new();
+			_segmentationDistributiveFiltree = _segmentationDistributive.ToList();
+			Console.WriteLine($">>> SegmentationDistributive chargée : {_segmentationDistributive.Count} lignes");
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($">>> Erreur chargement SegmentationDistributive : {ex.Message}");
+		}
+		finally
+		{
+			_isLoading = false;
+		}
 	}
 
 	public void Dispose() => StateService.OnChange -= OnReglesChanged;
@@ -189,6 +215,27 @@ public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 	// ── Construction des slots individuels ───────────────────────────────
 	private List<ConseillerSlot> BuildSlots()
 	{
+		// Données réelles si disponibles
+		if (_segmentationDistributiveFiltree is { Count: > 0 })
+		{
+			return _segmentationDistributiveFiltree
+				.Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
+				.Select(x => new ConseillerSlot
+				{
+					Profil = x.TypeConseiller,
+					Label = $"{_profilShort.GetValueOrDefault(x.TypeConseiller, x.TypeConseiller[..Math.Min(3, x.TypeConseiller.Length)].ToUpper())}-{x.MatriculeConseiller}",
+					EtpActuel = x.Etp ?? 0,
+					EtpCible = x.Etp ?? 0,
+					IsActuel = true,
+					IsCible = true
+				})
+				.GroupBy(s => s.Label)
+				.Select(g => g.First())
+				.Reverse()
+				.ToList();
+		}
+
+		// Fallback mock
 		var result = new List<ConseillerSlot>();
 		foreach (var profil in GetProfils())
 		{

@@ -12,6 +12,7 @@ public class SegmentationDistributiveData
     public string LibAgence { get; set; } = "";
     public string MatriculeConseiller { get; set; } = "";
     public string TypeConseiller { get; set; } = "";
+    public double? Etp { get; set; }
 
     public int HDGPremiumPotentiel { get; set; }
     public int HDGPremiumStandard { get; set; }
