@@ -194,38 +194,59 @@ html, body {
     box-shadow: 0 2px 6px rgba(26,78,107,0.30);
 }
 
-/* ── Bouton Aide — même pill que le toggle, positionné à côté ── */
-/* Vert turquoise identique aux en-têtes de section (.ca-section-header) */
+/* ── Bouton Aide — pill "ghost" moderne avec badge icône dégradé ── */
+/* Repos : fond clair discret + contour ; hover : bascule en dégradé plein */
 .ca-page-header .ca-help-btn,
 .ca-help-btn {
     display: inline-flex !important;
     align-items: center;
-    gap: 6px;
-    padding: 6px 16px;
-    border: none !important;
-    border-radius: 20px;
+    gap: 7px;
+    padding: 5px 14px 5px 6px;
+    border: 1.5px solid rgba(0,98,102,0.18) !important;
+    border-radius: 999px;
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    background: linear-gradient(90deg, #006266 0%, #1F6A99 100%) !important;
-    color: white !important;
-    box-shadow: 0 1px 3px rgba(0,98,102,0.28);
-    transition: filter 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+    background: #F3F8F9 !important;
+    color: #00636A !important;
+    box-shadow: 0 1px 2px rgba(16,24,40,0.04);
+    transition: background 0.22s ease, color 0.22s ease, border-color 0.22s ease,
+                box-shadow 0.22s ease, transform 0.15s ease;
     white-space: nowrap;
     line-height: 1;
     appearance: none;
     -webkit-appearance: none;
 }
+.ca-page-header .ca-help-btn .mud-icon-root,
+.ca-help-btn .mud-icon-root {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 1.6em;
+    height: 1.6em;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #006266 0%, #1F6A99 100%);
+    color: white !important;
+    padding: 0.25em;
+    box-sizing: border-box;
+    transition: background 0.22s ease;
+}
 .ca-page-header .ca-help-btn:hover,
 .ca-help-btn:hover {
-    filter: brightness(1.12);
-    box-shadow: 0 4px 12px rgba(0,122,124,0.35);
+    background: linear-gradient(90deg, #006266 0%, #1F6A99 100%) !important;
+    border-color: transparent !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(0,98,102,0.32);
     transform: translateY(-1px);
+}
+.ca-page-header .ca-help-btn:hover .mud-icon-root,
+.ca-help-btn:hover .mud-icon-root {
+    background: rgba(255,255,255,0.25);
 }
 .ca-page-header .ca-help-btn:active,
 .ca-help-btn:active {
     transform: translateY(0);
-    filter: brightness(1.0);
+    filter: brightness(0.98);
 }
 
 /* ============================================================
