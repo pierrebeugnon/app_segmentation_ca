@@ -1443,6 +1443,17 @@
 
         try
         {
+            // La vue est construite pour une seule agence à la fois. Un secteur
+            // "Banque privée" n'a pas de subdivision par agence (allAgences vide) :
+            // dans ce cas on peut rester sans agence. Sinon, une agence doit
+            // toujours être sélectionnée (on retombe sur la première disponible).
+            BuildFilterOptions();
+
+            if (string.IsNullOrEmpty(filtreAgence) && allAgences.Any())
+            {
+                filtreAgence = allAgences.First();
+            }
+
             _segmentationDistributiveFiltree = _segmentationDistributive
                 .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
                 .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
@@ -1458,8 +1469,6 @@
             _chargeATransfererBP.Clear();
             _chargeRecueBP.Clear();
             _chargeATransfererMutualise.Clear();
-
-            BuildFilterOptions();
 
             _slots = BuildSlots();
             rows = BuildRows();
