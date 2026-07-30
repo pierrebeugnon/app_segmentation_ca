@@ -324,7 +324,7 @@
                                         var ecartVol = volActuel - volRef;
                                         <tr style="border-bottom:1px solid #F0F4F8">
                                             <td style="padding:10px 4px 10px 16px;color:#B0BAC5;font-size:14px;text-align:center">↳</td>
-                                            <td style="padding:10px 12px;font-size:13px;color:#2C3E50;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@p.Profil</td>
+                                            <td style="padding:10px 12px;font-size:13px;color:#2C3E50;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@FormatProfilLabelDisplay(p.Profil)</td>
                                             <td style="padding:10px 12px;text-align:center;font-size:13px;color:#4A5568">@GetPartTempsCommercialPctDisplay(p).ToString("F0") %</td>
                                             <td style="padding:10px 12px;text-align:center;font-size:13px;color:#6C7A89">@GetPartTempsNonCommercialPctDisplay(p).ToString("F0") %</td>
                                             <td style="padding:10px 16px 10px 12px;text-align:center;font-size:13px;font-weight:700;color:#1A4E6B">@volActuel.ToString("F1") h</td>
@@ -413,7 +413,7 @@
 
                                     @foreach (var p in optionsPrioritaire)
                                     {
-                                        <MudSelectItem T="string" @key="@($"prio-{segment}-{p}")" Value="@p">@p</MudSelectItem>
+                                        <MudSelectItem T="string" @key="@($"prio-{segment}-{p}")" Value="@p">@FormatProfilLabelDisplay(p)</MudSelectItem>
                                     }
                                 </MudSelect>
                             </MudTd>
@@ -430,7 +430,7 @@
 
                                     @foreach (var p in optionsSecondaire)
                                     {
-                                        <MudSelectItem T="string" @key="@($"sec-{segment}-{p}")" Value="@p">@p</MudSelectItem>
+                                        <MudSelectItem T="string" @key="@($"sec-{segment}-{p}")" Value="@p">@FormatProfilLabelDisplay(p)</MudSelectItem>
                                     }
                                 </MudSelect>
                             </MudTd>
@@ -447,7 +447,7 @@
 
                                     @foreach (var p in optionsTertiaire)
                                     {
-                                        <MudSelectItem T="string" @key="@($"ter-{segment}-{p}")" Value="@p">@p</MudSelectItem>
+                                        <MudSelectItem T="string" @key="@($"ter-{segment}-{p}")" Value="@p">@FormatProfilLabelDisplay(p)</MudSelectItem>
                                     }
                                 </MudSelect>
                             </MudTd>
@@ -496,7 +496,7 @@
                         </MudChip>
                     </div>
 
-                    <MudTable Items="@TaillesCalculees.OrderByDescending(t => CalculService.GetTailleTheoriqueParSegment(model, t.SegmentCouvert)).ToList()"
+                    <MudTable Items="@TaillesCalculees.Where(t => !IsSegmentNonAffectable(t.SegmentCouvert)).OrderByDescending(t => CalculService.GetTailleTheoriqueParSegment(model, t.SegmentCouvert)).ToList()"
                               Dense="true"
                               Hover="true"
                               Elevation="0"

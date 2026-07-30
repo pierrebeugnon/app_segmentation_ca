@@ -507,19 +507,59 @@ public partial class ReglesHypotheses
 
 	// ── Helpers type d'agence ─────────────────────────────────────────────
 
-	private static string FormatTypeAgenceLabel(string lm) =>
-		string.IsNullOrWhiteSpace(lm) ? "" : char.ToUpperInvariant(lm[0]) + lm[1..];
-
-	private static int GetProfilRank(string? profil) => profil?.Trim().ToUpperInvariant() switch
+	private static string FormatTypeAgenceLabel(string lm)
 	{
-		"CONSEILLER COMMERCIAL" => 1,
+		if (string.IsNullOrWhiteSpace(lm))
+			return "";
+
+		if (string.Equals(lm.Trim(), "retail", StringComparison.OrdinalIgnoreCase))
+			return "Agence";
+
+		return char.ToUpperInvariant(lm[0]) + lm[1..];
+	}
+
+	// Normalise un libellé profil pour comparaison (insensible à la casse,
+	// aux accents, points et espaces multiples) afin de matcher de façon
+	// robuste les différentes variantes d'écriture venant de la donnée.
+	private static string NormalizeProfilKey(string? profil)
+	{
+		if (string.IsNullOrWhiteSpace(profil))
+			return "";
+
+		var s = profil.Trim().ToUpperInvariant()
+			.Replace("É", "E").Replace("È", "E").Replace("Ê", "E")
+			.Replace(".", "")
+			.Replace("'", " ");
+
+		while (s.Contains("  "))
+			s = s.Replace("  ", " ");
+
+		return s.Trim();
+	}
+
+	private static string FormatProfilLabelDisplay(string? profil)
+	{
+		return NormalizeProfilKey(profil) switch
+		{
+			"DIR BP" => "Directeur Banque Privée",
+			_ => profil ?? string.Empty
+		};
+	}
+
+	private static int GetProfilRank(string? profil) => NormalizeProfilKey(profil) switch
+	{
+		"CONSEILLER COMMERCIAL" or "CONS COMMER" => 1,
 		"CONSEILLER CLIENTELE" => 2,
-		"RCP" => 3,
-		"RESP. AGENCE" => 4,
-		"CONSEILLER D'ACCUEIL" => 5,
-		"DIR. BP" => 10,
-		"BANQUIER PRIVÉ" => 11,
-		"CGP" => 12,
+		"CH PATRIM" or "RCP" => 3,
+		"CO GESPAT" => 4,
+		"CONS PRIVE" => 5,
+		"RESP AGENCE" => 6,
+		"DIR PATRIMOINE" => 7,
+		"DIR SECTEUR" => 8,
+		"CONSEILLER D ACCUEIL" => 20,
+		"DIR BP" => 21,
+		"BANQUIER PRIVE" => 22,
+		"CGP" => 23,
 		_ => 99
 	};
 
