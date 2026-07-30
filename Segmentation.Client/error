@@ -1,0 +1,79 @@
+Début Module 10 — Table définitive de segmentation
+DATE_CALCUL : 2026-07-30
+26/07/30 16:32:51 WARN  scheduler.DAGScheduler: [dag-scheduler-event-loop]: Broadcasting large task binary with size 1263.2 KiB
+[Stage 14548:==============================================>    (181 + 7) / 200]
+CC segmentation cœur : 657,142
+[Stage 14597:========================================>            (19 + 6) / 25]
+CC segmentation distributive : 657,142
+ERROR:root:KeyboardInterrupt while sending command.                 (0 + 1) / 1]
+Traceback (most recent call last):
+  File "/opt/Anaconda/Anaconda3-2021.05/envs/env_python_3.8/lib/python3.8/site-packages/py4j/java_gateway.py", line 1038, in send_command
+    response = connection.send_command(command)
+  File "/opt/Anaconda/Anaconda3-2021.05/envs/env_python_3.8/lib/python3.8/site-packages/py4j/clientserver.py", line 511, in send_command
+    answer = smart_decode(self.stream.readline()[:-1])
+  File "/opt/Anaconda/Anaconda3-2021.05/envs/env_python_3.8/lib/python3.8/socket.py", line 669, in readinto
+    return self._sock.recv_into(b)
+KeyboardInterrupt
+---------------------------------------------------------------------------
+KeyboardInterrupt                         Traceback (most recent call last)
+Input In [17], in <cell line: 172>()
+    154 w_dm = Window.partitionBy("ID_DWR_CLI_CIAL_JOIN").orderBy(
+    155     F.when(F.col("id_conseiller").isNotNull(), 1).otherwise(0).desc(),
+    156     F.coalesce(F.col("flux_cred_ans_part"), F.lit(0.0)).desc()
+    157 )
+    159 df_dm_cc = (
+    160     df_dm_part
+    161     .withColumn("rn", F.row_number().over(w_dm))
+   (...)
+    169     )
+    170 )
+--> 172 print(f"✓ Datamart brut dédupliqué : {df_dm_cc.count():,} CC", flush=True)
+    175 # ══════════════════════════════════════════════════════════════════
+    176 # 4. EDS — AGENCE, SECTEUR_CC, REGION_CC
+    177 # ══════════════════════════════════════════════════════════════════
+    179 df_eds_raw = lire_csv(FICHIER_EDS_CC)
+
+File /opt/cloudera/parcels/SPARK3/lib//spark3//python/lib/pyspark.zip/pyspark/sql/dataframe.py:804, in DataFrame.count(self)
+    794 def count(self) -> int:
+    795     """Returns the number of rows in this :class:`DataFrame`.
+    796 
+    797     .. versionadded:: 1.3.0
+   (...)
+    802     2
+    803     """
+--> 804     return int(self._jdf.count())
+
+File /opt/Anaconda/Anaconda3-2021.05/envs/env_python_3.8/lib/python3.8/site-packages/py4j/java_gateway.py:1320, in JavaMember.__call__(self, *args)
+   1313 args_command, temp_args = self._build_args(*args)
+   1315 command = proto.CALL_COMMAND_NAME +\
+   1316     self.command_header +\
+   1317     args_command +\
+   1318     proto.END_COMMAND_PART
+-> 1320 answer = self.gateway_client.send_command(command)
+   1321 return_value = get_return_value(
+   1322     answer, self.gateway_client, self.target_id, self.name)
+   1324 for temp_arg in temp_args:
+
+File /opt/Anaconda/Anaconda3-2021.05/envs/env_python_3.8/lib/python3.8/site-packages/py4j/java_gateway.py:1038, in GatewayClient.send_command(self, command, retry, binary)
+   1036 connection = self._get_connection()
+   1037 try:
+-> 1038     response = connection.send_command(command)
+   1039     if binary:
+   1040         return response, self._create_connection_guard(connection)
+
+File /opt/Anaconda/Anaconda3-2021.05/envs/env_python_3.8/lib/python3.8/site-packages/py4j/clientserver.py:511, in ClientServerConnection.send_command(self, command)
+    509 try:
+    510     while True:
+--> 511         answer = smart_decode(self.stream.readline()[:-1])
+    512         logger.debug("Answer received: {0}".format(answer))
+    513         # Happens when a the other end is dead. There might be an empty
+    514         # answer before the socket raises an error.
+
+File /opt/Anaconda/Anaconda3-2021.05/envs/env_python_3.8/lib/python3.8/socket.py:669, in SocketIO.readinto(self, b)
+    667 while True:
+    668     try:
+--> 669         return self._sock.recv_into(b)
+    670     except timeout:
+    671         self._timeout_occurred = True
+
+KeyboardInterrupt: 
