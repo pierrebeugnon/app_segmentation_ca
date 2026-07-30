@@ -140,7 +140,6 @@
             <div class="dash-kpi-value @GetKpiClass(_kpis.TauxCouverture, 100, 90)">
                 @_kpis.TauxCouverture.ToString("F0")<span class="dash-kpi-unit">%</span>
             </div>
-            <div class="dash-kpi-hint">@GetKpiStatusLabel(_kpis.TauxCouverture, 100, 90)</div>
         </div>
 
         <!-- KPI 4 — Ecart effectif cible vs charge ETP -->
@@ -152,7 +151,6 @@
             <div class="dash-kpi-value @GetKpiClass(_kpis.TauxRotationPortefeuille, 10, 20)">
                 @_kpis.TauxRotationPortefeuille.ToString("F0")<span class="dash-kpi-unit">%</span>
             </div>
-            <div class="dash-kpi-hint">@GetKpiStatusLabel(_kpis.TauxRotationPortefeuille, 10, 20)</div>
         </div>
 
         <!-- KPI 5 — Concordance moyenne -->
@@ -164,7 +162,6 @@
             <div class="dash-kpi-value @GetKpiClass(_kpis.Concordance, 80, 60)">
                 @_kpis.Concordance.ToString("F0")<span class="dash-kpi-unit">%</span>
             </div>
-            <div class="dash-kpi-hint">@GetKpiStatusLabel(_kpis.Concordance, 80, 60)</div>
         </div>
 
         <!-- KPI 6 — Taux de pureté des portefeuilles -->
@@ -176,7 +173,6 @@
             <div class="dash-kpi-value @GetKpiClass(_kpis.TauxPurete, 80, 60)">
                 @_kpis.TauxPurete.ToString("F0")<span class="dash-kpi-unit">%</span>
             </div>
-            <div class="dash-kpi-hint">@GetKpiStatusLabel(_kpis.TauxPurete, 80, 60)</div>
         </div>
 
     </div>
@@ -540,13 +536,6 @@
         if (value >= greenThreshold)  return "dash-kpi-icon-good";
         if (value >= orangeThreshold) return "dash-kpi-icon-warn";
         return "dash-kpi-icon-critical";
-    }
-
-    private string GetKpiStatusLabel(double value, double greenThreshold, double orangeThreshold)
-    {
-        if (value >= greenThreshold)  return "Bon niveau";
-        if (value >= orangeThreshold) return "À surveiller";
-        return "Critique";
     }
 
     private string FormatCompact(int value)

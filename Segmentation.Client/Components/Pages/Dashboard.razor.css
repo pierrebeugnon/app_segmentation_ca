@@ -62,7 +62,7 @@
     background: white;
     border-radius: 10px;
     padding: 14px 18px;
-    margin-bottom: 24px;
+    margin-bottom: 32px;
 }
 
 .dash-filters-inner {
@@ -94,6 +94,10 @@
     background: white;
     border-radius: 12px;
     padding: 22px 24px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     box-shadow: 0 1px 3px rgba(16,24,40,0.06);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
@@ -115,10 +119,10 @@
     color: white;
 }
 
-.dash-kpi-icon-neutral  { background: linear-gradient(135deg, #1A4E6B 0%, #4A80B5 100%); }
-.dash-kpi-icon-good     { background: linear-gradient(135deg, #1B5E20 0%, #43A047 100%); }
-.dash-kpi-icon-warn     { background: linear-gradient(135deg, #E65100 0%, #FB8C00 100%); }
-.dash-kpi-icon-critical { background: linear-gradient(135deg, #B71C1C 0%, #E53935 100%); }
+.dash-kpi-icon-neutral  { background: #1A4E6B; }
+.dash-kpi-icon-good     { background: #1B5E20; }
+.dash-kpi-icon-warn     { background: #E65100; }
+.dash-kpi-icon-critical { background: #C62828; }
 
 .dash-kpi-label {
     font-size: 11px;
@@ -141,13 +145,6 @@
     font-weight: 500;
     color: #B0BAC5;
     margin-left: 2px;
-}
-
-.dash-kpi-hint {
-    font-size: 11px;
-    color: #A0AAB8;
-    margin-top: 10px;
-    font-style: italic;
 }
 
 .dash-kpi-good     { color: #1B5E20; }
@@ -230,7 +227,7 @@
    HEATMAP AGENCES — 9 colonnes (avec Taux de pureté)
 ═══════════════════════════════════════════════════════ */
 .dash-heatmap {
-    padding: 20px 24px 0 24px;
+    padding: 22px 24px 20px 24px;
     overflow: hidden;
     margin-bottom: 24px;
 }
@@ -278,8 +275,6 @@
     overflow-y: auto;
     margin-left: -24px;
     margin-right: -24px;
-    padding-left: 24px;
-    padding-right: 24px;
 }
 
 .dash-hm-header,
@@ -287,7 +282,7 @@
     display: grid;
     grid-template-columns: 2fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
     align-items: center;
-    padding: 9px 0;
+    padding: 12px 24px;
     gap: 16px;
 }
 
@@ -302,10 +297,6 @@
     text-transform: uppercase;
     border-bottom: 1px solid #EEF1F5;
     background: #FAFBFC;
-    padding-left: 24px !important;
-    padding-right: 24px !important;
-    margin-left: -24px;
-    margin-right: -24px;
 }
 
 .dash-hm-sortable {
@@ -427,10 +418,10 @@
     background: #DFE7F0 !important;
     border-top: 2px solid #1A4E6B !important;
     border-bottom: none !important;
-    padding-left: 24px !important;
-    padding-right: 24px !important;
     margin-left: -24px;
     margin-right: -24px;
+    padding-left: 24px !important;
+    padding-right: 24px !important;
 }
 
 .dash-hm-total-row:hover {
