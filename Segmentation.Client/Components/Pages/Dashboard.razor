@@ -69,7 +69,7 @@
                 }
             </MudSelect>
 
-            <button type="button" class="dash-btn-primary"
+            <button type="button" class="ca-btn-primary"
                     disabled="@(!HasPendingFilterChanges || _isLoading)"
                     @onclick="ApplyFilters">
                 <MudIcon Icon="@Icons.Material.Filled.Check" Style="font-size:14px" />
@@ -78,7 +78,7 @@
 
             @if (!string.IsNullOrEmpty(filtreRegion) || !string.IsNullOrEmpty(filtreSecteur) || !string.IsNullOrEmpty(filtreAgence))
             {
-                <button type="button" class="dash-btn-ghost" @onclick="ClearFilters">
+                <button type="button" class="ca-btn-ghost" @onclick="ClearFilters">
                     Effacer
                 </button>
             }

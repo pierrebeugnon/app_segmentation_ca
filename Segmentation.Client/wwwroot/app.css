@@ -249,6 +249,60 @@ html, body {
     filter: brightness(0.98);
 }
 
+/* ── Boutons génériques pill "primaire" / "ghost" ──────────────── */
+/* Réutilisables sur n'importe quelle page (filtres, actions, formulaires) */
+.ca-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border: none;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(90deg, #006266 0%, #1F6A99 100%);
+    color: white;
+    box-shadow: 0 1px 3px rgba(0,98,102,0.28);
+    transition: filter 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease, opacity 0.2s ease;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.ca-btn-primary:hover:not(:disabled) {
+    filter: brightness(1.12);
+    box-shadow: 0 4px 12px rgba(0,122,124,0.35);
+    transform: translateY(-1px);
+}
+
+.ca-btn-primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.ca-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 14px;
+    border: 1.5px solid rgba(108,122,137,0.25);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    color: #6C7A89;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.ca-btn-ghost:hover {
+    background: #F0F3F7;
+    color: #1A4E6B;
+    border-color: rgba(26,78,107,0.25);
+}
+
 /* ============================================================
    DIALOGS "AIDE" — header illustré + panneaux thématiques
    ============================================================ */
