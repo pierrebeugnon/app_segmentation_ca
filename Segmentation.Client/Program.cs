@@ -16,6 +16,8 @@ builder.Services.AddSingleton<SegmentationStateService>();
 builder.Services.AddScoped<ReglesHypothesesService>();
 builder.Services.AddScoped<ReferentielService>();
 builder.Services.AddScoped<RepartitionAutomatiqueService>();
+builder.Services.AddScoped<EtpConversionService>();
+builder.Services.AddScoped<DashboardService>();
 builder.Services.AddMudServices();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
