@@ -1,56 +1,125 @@
-using System.Net.Http.Json;
-using Segmentation.Shared.Models;
 
-namespace Segmentation.Client.Services
+using Segmentation.Application.Contracts;
+using Segmentation.Application.Queries.SegmentationDistributive;
+using Segmentation.Application.Responses;
+using Segmentation.Core.Repositories;
+
+namespace Segmentation.Application.Handlers.SegmentationDistributive
 {
-	public class ReferentielService
+	internal class GetReferentielQueryHandler
+		: IQueryHandler<GetReferentielQuery, ReferentielResponse>
 	{
-		private readonly HttpClient _http;
-		private ReferentielData? _cache;
+		private readonly ISegmentationDistributivesRepository _repository;
 
-		public ReferentielService(HttpClient http)
+		// Mapping profil → ligne métier
+		private static readonly Dictionary<string, string> _mappingProfilLigneMetier =
+			new(StringComparer.OrdinalIgnoreCase)
+			{
+				["DIR. BP"] = "banque privée",
+				["BANQUIER PRIVÉ"] = "banque privée",
+				["CGP"] = "banque privée",
+				["RESP. AGENCE"] = "retail",
+				["RCP"] = "retail",
+				["CONSEILLER CLIENTELE"] = "retail",
+				["CONSEILLER COMMERCIAL"] = "retail",
+				["CONSEILLER D'ACCUEIL"] = "retail",
+			};
+
+		// Segments toujours disponibles pour la configuration
+		private static readonly List<string> _segmentsStandards = new()
 		{
-			_http = http;
+			"HDG Premium Potentiel",
+			"HDG Premium Standard",
+			"HDG Potentiel",
+			"HDG Senior Epargnant",
+			"HDG Standard",
+			"CI Potentiel",
+			"CI Standard",
+			"GP Potentiel",
+			"GP Standard",
+			"Non segmenté",
+			"Non classé"
+		};
+
+		// Profils toujours disponibles pour la configuration
+		// (même si absents de SegmentationDistributives)
+		private static readonly List<ReferentielProfilResponse> _profilsStandards = new()
+		{
+			new() { Profil = "DIR. BP",                LigneMetier = "banque privée" },
+			new() { Profil = "BANQUIER PRIVÉ",         LigneMetier = "banque privée" },
+			new() { Profil = "CGP",                    LigneMetier = "banque privée" },
+			new() { Profil = "RESP. AGENCE",           LigneMetier = "retail" },
+			new() { Profil = "RCP",                    LigneMetier = "retail" },
+			new() { Profil = "CONSEILLER CLIENTELE",   LigneMetier = "retail" },
+			new() { Profil = "CONSEILLER COMMERCIAL",  LigneMetier = "retail" },
+		};
+
+		public GetReferentielQueryHandler(
+			ISegmentationDistributivesRepository repository)
+		{
+			_repository = repository;
 		}
 
-		public async Task<ReferentielData> GetAsync(bool forceReload = false)
+		public async Task<ReferentielResponse> Handle(
+			GetReferentielQuery request,
+			CancellationToken cancellationToken)
 		{
-			if (_cache != null && !forceReload)
-				return _cache;
+			var entities = await _repository.GetAllAsync();
+			var data = entities.ToList();
 
-			try
-			{
-				var response = await _http.GetAsync("api/SegmentationDistributive/referentiel");
-				if (!response.IsSuccessStatusCode)
+			// Profils depuis la table (peut être vide ou incomplet)
+			var profilsFromData = data
+				.Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
+				.Select(x => x.TypeConseiller.Trim())
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.Select(profil => new ReferentielProfilResponse
 				{
-					Console.WriteLine($">>> Referentiel : status {response.StatusCode}");
-					_cache = new ReferentielData();
-					return _cache;
-				}
+					Profil = profil,
+					LigneMetier = _mappingProfilLigneMetier.TryGetValue(profil, out var lm)
+						? lm
+						: "retail"
+				})
+				.ToList();
 
-				var content = await response.Content.ReadAsStringAsync();
-				if (string.IsNullOrWhiteSpace(content) || content == "null")
-				{
-					_cache = new ReferentielData();
-					return _cache;
-				}
+			// Union : profils standards + profils trouvés en base
+			// Les profils standards garantissent que BP est toujours configurable
+			var profils = _profilsStandards
+				.Concat(profilsFromData)
+				.GroupBy(p => p.Profil, StringComparer.OrdinalIgnoreCase)
+				.Select(g => g.First())
+				.OrderBy(p => p.LigneMetier)
+				.ThenBy(p => p.Profil)
+				.ToList();
 
-				_cache = await response.Content.ReadFromJsonAsync<ReferentielData>()
-						 ?? new ReferentielData();
+			var regions = data
+				.Where(x => !string.IsNullOrWhiteSpace(x.LibRegion))
+				.Select(x => x.LibRegion.Trim())
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.OrderBy(x => x)
+				.ToList();
 
-				return _cache;
-			}
-			catch (Exception ex)
+			var secteurs = data
+				.Where(x => !string.IsNullOrWhiteSpace(x.LibSecteur))
+				.Select(x => x.LibSecteur.Trim())
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.OrderBy(x => x)
+				.ToList();
+
+			var agences = data
+				.Where(x => !string.IsNullOrWhiteSpace(x.LibAgence))
+				.Select(x => x.LibAgence.Trim())
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.OrderBy(x => x)
+				.ToList();
+
+			return new ReferentielResponse
 			{
-				Console.WriteLine($">>> Erreur chargement Referentiel : {ex.Message}");
-				_cache = new ReferentielData();
-				return _cache;
-			}
-		}
-
-		public void InvalidateCache()
-		{
-			_cache = null;
+				Segments = _segmentsStandards,
+				Profils = profils,
+				Regions = regions,
+				Secteurs = secteurs,
+				Agences = agences
+			};
 		}
 	}
 }
