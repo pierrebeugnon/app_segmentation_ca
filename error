@@ -1,175 +1,73 @@
-using Segmentation.Application.Contracts;
-using Segmentation.Application.Queries.SegmentationDistributive;
-using Segmentation.Application.Responses;
-using Segmentation.Core.Repositories;
-
-namespace Segmentation.Application.Handlers.SegmentationDistributive
+namespace Segmentation.Shared.Referentiels
 {
-	internal class GetReferentielQueryHandler
-		: IQueryHandler<GetReferentielQuery, ReferentielResponse>
-	{
-		private readonly ISegmentationDistributivesRepository _repository;
+    /// <summary>
+    /// Source de vérité UNIQUE de l'ordre métier des segments distributifs.
+    ///
+    /// À utiliser partout où une liste de segments doit être triée
+    /// (page Portefeuille, volets Règles & Hypothèses, Dashboard, handler référentiel…)
+    /// afin de garantir un ordre identique sur tous les écrans.
+    ///
+    /// ⚠️ Ne jamais retrier les segments avec un simple OrderBy(x => x.Segment) :
+    ///    cela produit un ordre ALPHABÉTIQUE (CI avant HDG) qui casse l'ordre métier.
+    ///    Toujours passer par OrdreSegments.IndexDe(...).
+    /// </summary>
+    public static class OrdreSegments
+    {
+        // ═══════════════════════════════════════════════════════════════
+        //   Ordre métier de référence des segments distributifs
+        //   (ordre officiel CA NDF — ne pas trier alphabétiquement)
+        // ═══════════════════════════════════════════════════════════════
+        public static readonly IReadOnlyList<string> Ordre = new List<string>
+        {
+            "HDG Premium Potentiel",
+            "HDG Premium Standard",
+            "HDG Potentiel",
+            "HDG Senior Epargnant",
+            "HDG Standard",
+            "CI Potentiel",
+            "CI Standard",
+            "GP Potentiel",
+            "GP Standard",
+            "Non segmenté",
+            "Non classé"
+        };
 
-		// ═══════════════════════════════════════════════════════════════
-		//   Normalisation des libellés bruts → libellé canonique
-		//   Objectif : fusionner les variantes d'écriture d'un même métier
-		//   (ex : "CONS.COMMERCIAL" et "CONSEILLER COMMERCIAL")
-		// ═══════════════════════════════════════════════════════════════
-		private static readonly Dictionary<string, string> _normalisationProfils =
-			new(StringComparer.OrdinalIgnoreCase)
-			{
-				// Conseiller commercial
-				["CONS.COMMERCIAL"]        = "CONSEILLER COMMERCIAL",
-				["CONS COMMERCIAL"]        = "CONSEILLER COMMERCIAL",
-				["CONSEILLER COMMERCIAL"]  = "CONSEILLER COMMERCIAL",
+        /// <summary>
+        /// Retourne l'index de tri d'un segment selon l'ordre métier de référence.
+        /// Un segment inconnu (non référencé, faute de frappe, nouvelle donnée)
+        /// est renvoyé en FIN de liste plutôt que de casser le tri.
+        /// </summary>
+        /// <param name="segment">Libellé du segment (les espaces de bord sont ignorés).</param>
+        /// <returns>Position dans <see cref="Ordre"/>, ou int.MaxValue si non trouvé.</returns>
+        public static int IndexDe(string? segment)
+        {
+            if (string.IsNullOrWhiteSpace(segment))
+                return int.MaxValue;
 
-				// Conseiller clientèle
-				["CONS.CLIENTELE"]         = "CONSEILLER CLIENTELE",
-				["CONS CLIENTELE"]         = "CONSEILLER CLIENTELE",
-				["CONSEILLER CLIENTELE"]   = "CONSEILLER CLIENTELE",
+            var cible = segment.Trim();
 
-				// Conseiller d'accueil
-				["CONS.ACCUEIL"]           = "CONSEILLER D'ACCUEIL",
-				["CONSEILLER ACCUEIL"]     = "CONSEILLER D'ACCUEIL",
-				["CONSEILLER D'ACCUEIL"]   = "CONSEILLER D'ACCUEIL",
+            for (int i = 0; i < Ordre.Count; i++)
+            {
+                if (string.Equals(Ordre[i], cible, StringComparison.OrdinalIgnoreCase))
+                    return i;
+            }
 
-				// Banquier privé
-				["BANQUIER PRIVE"]         = "BANQUIER PRIVÉ",
-				["BANQUIER PRIVÉ"]         = "BANQUIER PRIVÉ",
+            return int.MaxValue; // segments non référencés à la fin
+        }
 
-				// Directeur BP
-				["DIR.BP"]                 = "DIR. BP",
-				["DIRECTEUR BP"]           = "DIR. BP",
-				["DIR. BP"]                = "DIR. BP",
-
-				// Responsable agence
-				["RESP.AGENCE"]            = "RESP. AGENCE",
-				["RESPONSABLE AGENCE"]     = "RESP. AGENCE",
-				["RESP. AGENCE"]           = "RESP. AGENCE",
-			};
-
-		/// <summary>
-		/// Retourne le libellé canonique d'un profil.
-		/// Si aucune correspondance : renvoie le libellé nettoyé tel quel.
-		/// </summary>
-		private static string NormaliserProfil(string profilBrut)
-		{
-			var trimmed = profilBrut.Trim();
-			return _normalisationProfils.TryGetValue(trimmed, out var canonique)
-				? canonique
-				: trimmed;
-		}
-
-		// Mapping profil → ligne métier
-		private static readonly Dictionary<string, string> _mappingProfilLigneMetier =
-			new(StringComparer.OrdinalIgnoreCase)
-			{
-				["DIR. BP"] = "banque privée",
-				["BANQUIER PRIVÉ"] = "banque privée",
-				["CGP"] = "banque privée",
-				["RESP. AGENCE"] = "retail",
-				["RCP"] = "retail",
-				["CONSEILLER CLIENTELE"] = "retail",
-				["CONSEILLER COMMERCIAL"] = "retail",
-				["CONSEILLER D'ACCUEIL"] = "retail",
-			};
-
-		// Segments toujours disponibles pour la configuration
-		private static readonly List<string> _segmentsStandards = new()
-		{
-			"HDG Premium Potentiel",
-			"HDG Premium Standard",
-			"HDG Potentiel",
-			"HDG Senior Epargnant",
-			"HDG Standard",
-			"CI Potentiel",
-			"CI Standard",
-			"GP Potentiel",
-			"GP Standard",
-			"Non segmenté",
-			"Non classé"
-		};
-
-		// Profils toujours disponibles pour la configuration
-		// (même si absents de SegmentationDistributives)
-		private static readonly List<ReferentielProfilResponse> _profilsStandards = new()
-		{
-			new() { Profil = "DIR. BP",                LigneMetier = "banque privée" },
-			new() { Profil = "BANQUIER PRIVÉ",         LigneMetier = "banque privée" },
-			new() { Profil = "CGP",                    LigneMetier = "banque privée" },
-			new() { Profil = "RESP. AGENCE",           LigneMetier = "retail" },
-			new() { Profil = "RCP",                    LigneMetier = "retail" },
-			new() { Profil = "CONSEILLER CLIENTELE",   LigneMetier = "retail" },
-			new() { Profil = "CONSEILLER COMMERCIAL",  LigneMetier = "retail" },
-		};
-
-		public GetReferentielQueryHandler(
-			ISegmentationDistributivesRepository repository)
-		{
-			_repository = repository;
-		}
-
-		public async Task<ReferentielResponse> Handle(
-			GetReferentielQuery request,
-			CancellationToken cancellationToken)
-		{
-			var entities = await _repository.GetAllAsync();
-			var data = entities.ToList();
-
-			// Profils depuis la table (peut être vide ou incomplet)
-			// ⚠️ On NORMALISE le libellé AVANT le Distinct pour fusionner les doublons
-			var profilsFromData = data
-				.Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
-				.Select(x => NormaliserProfil(x.TypeConseiller))   // ← normalisation ici
-				.Distinct(StringComparer.OrdinalIgnoreCase)
-				.Select(profil => new ReferentielProfilResponse
-				{
-					Profil = profil,
-					LigneMetier = _mappingProfilLigneMetier.TryGetValue(profil, out var lm)
-						? lm
-						: "retail"
-				})
-				.ToList();
-
-			// Union : profils standards + profils trouvés en base
-			// Les profils standards garantissent que BP est toujours configurable
-			var profils = _profilsStandards
-				.Concat(profilsFromData)
-				.GroupBy(p => p.Profil, StringComparer.OrdinalIgnoreCase)
-				.Select(g => g.First())
-				.OrderBy(p => p.LigneMetier)
-				.ThenBy(p => p.Profil)
-				.ToList();
-
-			var regions = data
-				.Where(x => !string.IsNullOrWhiteSpace(x.LibRegion))
-				.Select(x => x.LibRegion.Trim())
-				.Distinct(StringComparer.OrdinalIgnoreCase)
-				.OrderBy(x => x)
-				.ToList();
-
-			var secteurs = data
-				.Where(x => !string.IsNullOrWhiteSpace(x.LibSecteur))
-				.Select(x => x.LibSecteur.Trim())
-				.Distinct(StringComparer.OrdinalIgnoreCase)
-				.OrderBy(x => x)
-				.ToList();
-
-			var agences = data
-				.Where(x => !string.IsNullOrWhiteSpace(x.LibAgence))
-				.Select(x => x.LibAgence.Trim())
-				.Distinct(StringComparer.OrdinalIgnoreCase)
-				.OrderBy(x => x)
-				.ToList();
-
-			return new ReferentielResponse
-			{
-				Segments = _segmentsStandards,
-				Profils = profils,
-				Regions = regions,
-				Secteurs = secteurs,
-				Agences = agences
-			};
-		}
-	}
+        /// <summary>
+        /// Trie une séquence d'éléments selon l'ordre métier des segments.
+        /// Pratique pour éviter de réécrire le OrderBy(x => IndexDe(...)) partout.
+        /// </summary>
+        /// <typeparam name="T">Type des éléments de la séquence.</typeparam>
+        /// <param name="source">Séquence à trier.</param>
+        /// <param name="selecteurSegment">Fonction qui extrait le libellé du segment de chaque élément.</param>
+        /// <returns>Séquence triée selon l'ordre métier de référence.</returns>
+        public static IEnumerable<T> TrierParSegment<T>(
+            IEnumerable<T> source,
+            Func<T, string?> selecteurSegment)
+        {
+            return source.OrderBy(x => IndexDe(selecteurSegment(x)));
+        }
+    }
 }
