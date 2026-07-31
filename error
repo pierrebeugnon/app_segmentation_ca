@@ -1,4 +1,3 @@
-
 using Segmentation.Application.Contracts;
 using Segmentation.Application.Queries.SegmentationDistributive;
 using Segmentation.Application.Responses;
@@ -10,6 +9,56 @@ namespace Segmentation.Application.Handlers.SegmentationDistributive
 		: IQueryHandler<GetReferentielQuery, ReferentielResponse>
 	{
 		private readonly ISegmentationDistributivesRepository _repository;
+
+		// ═══════════════════════════════════════════════════════════════
+		//   Normalisation des libellés bruts → libellé canonique
+		//   Objectif : fusionner les variantes d'écriture d'un même métier
+		//   (ex : "CONS.COMMERCIAL" et "CONSEILLER COMMERCIAL")
+		// ═══════════════════════════════════════════════════════════════
+		private static readonly Dictionary<string, string> _normalisationProfils =
+			new(StringComparer.OrdinalIgnoreCase)
+			{
+				// Conseiller commercial
+				["CONS.COMMERCIAL"]        = "CONSEILLER COMMERCIAL",
+				["CONS COMMERCIAL"]        = "CONSEILLER COMMERCIAL",
+				["CONSEILLER COMMERCIAL"]  = "CONSEILLER COMMERCIAL",
+
+				// Conseiller clientèle
+				["CONS.CLIENTELE"]         = "CONSEILLER CLIENTELE",
+				["CONS CLIENTELE"]         = "CONSEILLER CLIENTELE",
+				["CONSEILLER CLIENTELE"]   = "CONSEILLER CLIENTELE",
+
+				// Conseiller d'accueil
+				["CONS.ACCUEIL"]           = "CONSEILLER D'ACCUEIL",
+				["CONSEILLER ACCUEIL"]     = "CONSEILLER D'ACCUEIL",
+				["CONSEILLER D'ACCUEIL"]   = "CONSEILLER D'ACCUEIL",
+
+				// Banquier privé
+				["BANQUIER PRIVE"]         = "BANQUIER PRIVÉ",
+				["BANQUIER PRIVÉ"]         = "BANQUIER PRIVÉ",
+
+				// Directeur BP
+				["DIR.BP"]                 = "DIR. BP",
+				["DIRECTEUR BP"]           = "DIR. BP",
+				["DIR. BP"]                = "DIR. BP",
+
+				// Responsable agence
+				["RESP.AGENCE"]            = "RESP. AGENCE",
+				["RESPONSABLE AGENCE"]     = "RESP. AGENCE",
+				["RESP. AGENCE"]           = "RESP. AGENCE",
+			};
+
+		/// <summary>
+		/// Retourne le libellé canonique d'un profil.
+		/// Si aucune correspondance : renvoie le libellé nettoyé tel quel.
+		/// </summary>
+		private static string NormaliserProfil(string profilBrut)
+		{
+			var trimmed = profilBrut.Trim();
+			return _normalisationProfils.TryGetValue(trimmed, out var canonique)
+				? canonique
+				: trimmed;
+		}
 
 		// Mapping profil → ligne métier
 		private static readonly Dictionary<string, string> _mappingProfilLigneMetier =
@@ -68,9 +117,10 @@ namespace Segmentation.Application.Handlers.SegmentationDistributive
 			var data = entities.ToList();
 
 			// Profils depuis la table (peut être vide ou incomplet)
+			// ⚠️ On NORMALISE le libellé AVANT le Distinct pour fusionner les doublons
 			var profilsFromData = data
 				.Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
-				.Select(x => x.TypeConseiller.Trim())
+				.Select(x => NormaliserProfil(x.TypeConseiller))   // ← normalisation ici
 				.Distinct(StringComparer.OrdinalIgnoreCase)
 				.Select(profil => new ReferentielProfilResponse
 				{
