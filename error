@@ -1,2 +1,10 @@
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS1501	Aucune surcharge pour la méthode 'Add' n'accepte les arguments 3	Segmentation.Client	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\ReglesHypotheses.razor.cs	271	
+		Snackbar.Add(
+			"Simulation réinitialisée avec les valeurs de référence.",
+			Severity.Info);
+			cfg =>
+			{
+				cfg.Icon = Icons.Material.Filled.Restore;
+				cfg.VisibleStateDuration = 3000;
+			}
+		);
+	}
