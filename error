@@ -1,3 +1,19 @@
+
+	private void ToggleModeSimulation()
+	{
+		modeSimulation = !modeSimulation;
+
+		if (snapshotInitial == null)
+			snapshotInitial = CreateSnapshot();
+	}
+
+	private void ReinitialiserSimulation()
+	{
+		if (snapshotInitial == null || model == null)
+			return;
+
+		RestoreSnapshot(snapshotInitial);
+
 		Snackbar.Add(
 			"Simulation réinitialisée avec les valeurs de référence.",
 			Severity.Info);
@@ -8,3 +24,28 @@
 			}
 		);
 	}
+
+	private SimulationSnapshot CreateSnapshot()
+	{
+		var snapshot = new SimulationSnapshot();
+
+		if (model == null)
+			return snapshot;
+
+		snapshot.HeuresParSemaine = model.HeuresParSemaine;
+		snapshot.NbSemainesParAn = model.NbSemainesParAn;
+
+		foreach (var segment in model.SegmentsIntensite)
+		{
+			var key = NormalizeKey(segment.Segment);
+
+			if (!snapshot.Segments.ContainsKey(key))
+			{
+				snapshot.Segments[key] = new SegmentSnapshot
+				{
+					Segment = segment.Segment ?? string.Empty,
+					NombreRdvParAn = segment.NombreRdvParAn,
+					DureeRdvHeures = segment.DureeRdvHeures
+				};
+			}
+		}
