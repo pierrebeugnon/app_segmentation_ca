@@ -1,16 +1,11 @@
-using Segmentation.Application.Contracts;
-using Segmentation.Shared.Models.DimensionnementPortefeuille;
+using MediatR;
+using Segmentation.Shared.Models;
 
 namespace Segmentation.Application.Commands.DimensionnementPortefeuille;
 
 public class SaveDimensionnementPortefeuilleEtpCommand
     : ICommand<bool>
 {
-    public SaveDimensionnementPortefeuilleEtpRequest Request { get; }
-
-    public SaveDimensionnementPortefeuilleEtpCommand(
-        SaveDimensionnementPortefeuilleEtpRequest request)
-    {
-        Request = request;
-    }
+    public SaveDimensionnementPortefeuilleEtpData Data { get; set; }
+        = new();
 }
