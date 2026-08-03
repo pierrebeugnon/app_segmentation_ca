@@ -1,9 +1,70 @@
-public DbSet<DimensionnementPortefeuilleEtp> DimensionnementsPortefeuilleEtp
-2
-=> Set<DimensionnementPortefeuilleEtp>();
-3
- 
-4
-public DbSet<DimensionnementPortefeuilleEtpCharge> DimensionnementsPortefeuilleEtpCharges
-5
-=> Set<DimensionnementPortefeuilleEtpCharge>();
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Segmentation.Core.Entities;
+using Segmentation.Infrastructure.Repositories;
+using System.Reflection;
+
+namespace Segmentation.Infrastructure.Data
+{
+    /// <summary>
+    /// DbContext
+    /// </summary>
+    public partial class SegmentationContext : DbContext
+    {
+        #region DbSet
+        public DbSet<Regions> Regions { get; set; }
+		#endregion
+		public DbSet<SegmentationDistributives> SegmentationDistributives { get; set; }
+		public DbSet<SegmentsIntensite> SegmentsIntensite { get; set; }
+		public DbSet<ConseillersProfils> ConseillersProfils { get; set; }
+		public DbSet<ReglesAffectationSegments> ReglesAffectationSegments { get; set; }
+		public DbSet<ParametresGeneraux> ParametresGenerauxes { get; set; }
+		#region constructors
+		/// <summary>
+		/// Constructeur paramétré
+		/// </summary>
+		/// <param name="options">Options du DbContext</param>
+		public SegmentationContext(DbContextOptions<SegmentationContext> options) : base(options)
+        {
+
+        }
+        #endregion
+
+        #region publics methods
+        /// <summary>
+        /// Sauvegarde des données de manière asynchrone
+        /// </summary>
+        /// <param name="cancellationToken">Token d'annulation</param>
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            foreach (var entry in ChangeTracker.Entries<EntityBase>())
+            {
+                switch (entry.State)
+                {
+                    case EntityState.Added:
+                        entry.Entity.CreatedDate = DateTime.Now;
+                        break;
+                    case EntityState.Modified:
+                        entry.Entity.UpdatedDate = DateTime.Now;
+                        break;
+                    case EntityState.Deleted:
+                        entry.Entity.DeletedDate = DateTime.Now;
+                        entry.Entity.IsDeleted = true;
+                        break;
+                }
+            }
+            return base.SaveChangesAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.HasDefaultSchema("dbo");
+            OnModelCreatingPartial(modelBuilder);
+            modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+        }
+
+        partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
+        #endregion
+    }
+}
