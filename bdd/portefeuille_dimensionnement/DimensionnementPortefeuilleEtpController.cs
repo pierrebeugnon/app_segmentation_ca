@@ -1,6 +1,6 @@
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Segmentation.Application.Commands.DimensionnementPortefeuille;
-using Segmentation.Application.Contracts;
 using Segmentation.Shared.Models.DimensionnementPortefeuille;
 
 namespace Segmentation.Server.Controllers;
@@ -9,13 +9,18 @@ namespace Segmentation.Server.Controllers;
 [Route("api/[controller]")]
 public class DimensionnementPortefeuilleEtpController : ControllerBase
 {
-    private readonly ICommandDispatcher _dispatcher;
+    private readonly IMediator _mediator;
 
-    public DimensionnementPortefeuilleEtpController(ICommandDispatcher dispatcher)
+    public DimensionnementPortefeuilleEtpController(
+        IMediator mediator)
     {
-        _dispatcher = dispatcher;
+        _mediator = mediator;
     }
 
+    /// <summary>
+    /// Sauvegarde du dimensionnement ETP d'une agence.
+    /// La sauvegarde écrase les données déjà présentes pour l'agence.
+    /// </summary>
     [HttpPost]
     public async Task<ActionResult<bool>> Save(
         [FromBody] SaveDimensionnementPortefeuilleEtpRequest request,
@@ -29,9 +34,9 @@ public class DimensionnementPortefeuilleEtpController : ControllerBase
 
         var command = new SaveDimensionnementPortefeuilleEtpCommand(request);
 
-        var result = await _dispatcher.Dispatch<
-            SaveDimensionnementPortefeuilleEtpCommand,
-            bool>(command, cancellationToken);
+        var result = await _mediator.Send(
+            command,
+            cancellationToken);
 
         return Ok(result);
     }
