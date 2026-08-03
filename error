@@ -12,30 +12,51 @@ namespace Segmentation.Infrastructure.Data
     public partial class SegmentationContext : DbContext
     {
         #region DbSet
-        public DbSet<Regions> Regions { get; set; }
-		#endregion
-		public DbSet<SegmentationDistributives> SegmentationDistributives { get; set; }
-		public DbSet<SegmentsIntensite> SegmentsIntensite { get; set; }
-		public DbSet<ConseillersProfils> ConseillersProfils { get; set; }
-		public DbSet<ReglesAffectationSegments> ReglesAffectationSegments { get; set; }
-		public DbSet<ParametresGeneraux> ParametresGenerauxes { get; set; }
-		#region constructors
-		/// <summary>
-		/// Constructeur paramétré
-		/// </summary>
-		/// <param name="options">Options du DbContext</param>
-		public SegmentationContext(DbContextOptions<SegmentationContext> options) : base(options)
-        {
 
+        public DbSet<Regions> Regions { get; set; }
+
+        public DbSet<SegmentationDistributives> SegmentationDistributives { get; set; }
+
+        public DbSet<SegmentsIntensite> SegmentsIntensite { get; set; }
+
+        public DbSet<ConseillersProfils> ConseillersProfils { get; set; }
+
+        public DbSet<ReglesAffectationSegments> ReglesAffectationSegments { get; set; }
+
+        public DbSet<ParametresGeneraux> ParametresGenerauxes { get; set; }
+
+        // ==========================================================
+        // Dimensionnement Portefeuille ETP
+        // ==========================================================
+
+        public DbSet<DimensionnementPortefeuilleEtp> DimensionnementPortefeuilleEtps { get; set; }
+
+        public DbSet<DimensionnementPortefeuilleEtpCharge> DimensionnementPortefeuilleEtpCharges { get; set; }
+
+        #endregion
+
+        #region constructors
+
+        /// <summary>
+        /// Constructeur paramétré
+        /// </summary>
+        /// <param name="options">Options du DbContext</param>
+        public SegmentationContext(
+            DbContextOptions<SegmentationContext> options)
+            : base(options)
+        {
         }
+
         #endregion
 
         #region publics methods
+
         /// <summary>
         /// Sauvegarde des données de manière asynchrone
         /// </summary>
         /// <param name="cancellationToken">Token d'annulation</param>
-        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        public override Task<int> SaveChangesAsync(
+            CancellationToken cancellationToken = default)
         {
             foreach (var entry in ChangeTracker.Entries<EntityBase>())
             {
@@ -44,27 +65,36 @@ namespace Segmentation.Infrastructure.Data
                     case EntityState.Added:
                         entry.Entity.CreatedDate = DateTime.Now;
                         break;
+
                     case EntityState.Modified:
                         entry.Entity.UpdatedDate = DateTime.Now;
                         break;
+
                     case EntityState.Deleted:
                         entry.Entity.DeletedDate = DateTime.Now;
                         entry.Entity.IsDeleted = true;
                         break;
                 }
             }
+
             return base.SaveChangesAsync(cancellationToken);
         }
 
         /// <inheritdoc/>
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        protected override void OnModelCreating(
+            ModelBuilder modelBuilder)
         {
             modelBuilder.HasDefaultSchema("dbo");
+
             OnModelCreatingPartial(modelBuilder);
-            modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
+            modelBuilder.ApplyConfigurationsFromAssembly(
+                Assembly.GetExecutingAssembly());
         }
 
-        partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
+        partial void OnModelCreatingPartial(
+            ModelBuilder modelBuilder);
+
         #endregion
     }
 }
