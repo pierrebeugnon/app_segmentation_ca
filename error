@@ -1,15 +1,1 @@
-private async Task InitData()
-{
-    profils = GetProfils();
-    segments = GetSegments();
-    _slots = BuildSlots();
-    Console.WriteLine($">>> Profils : {profils.Count}");
-    Console.WriteLine($">>> Segments : {segments.Count}");
-    Console.WriteLine($">>> Slots : {_slots.Count}");
-    Console.WriteLine($">>> SegmentationDistributiveFiltree : {_segmentationDistributiveFiltree.Count}");
-    rows = BuildRows();
-    RecalcTotal();
-    InitEffectifs();
-    BuildFilterOptions();
-    await ApplyFilters();
-}
+>>> Erreur DimensionnementPortefeuilleEtp SaveAsync : DeserializeUnableToConvertValue, System.Boolean Path: $ | LineNumber: 0 | BytePositionInLine: 1.
