@@ -32,7 +32,7 @@ public class DimensionnementPortefeuilleEtpService
 		try
 		{
 			var response = await _http.PostAsJsonAsync(
-				"api/DimensionnementPortefeuilleEtp",
+				"api/DimensionnementPortefeuilleEtpDetail",
 				request,
 				cancellationToken);
 
@@ -72,6 +72,70 @@ public class DimensionnementPortefeuilleEtpService
 				$"{ex.Message}");
 
 			return false;
+		}
+	}
+
+	/// <summary>
+	/// Récupère la sauvegarde ETP existante pour une agence.
+	/// Retourne null si aucune sauvegarde n'existe (204),
+	/// ou en cas d'erreur.
+	/// </summary>
+	public async Task<SaveDimensionnementPortefeuilleEtpRequest?> GetAsync(
+		string libAgence,
+		CancellationToken cancellationToken = default)
+	{
+		if (string.IsNullOrWhiteSpace(libAgence))
+			return null;
+
+		try
+		{
+			var url =
+				$"api/DimensionnementPortefeuilleEtpDetail/{Uri.EscapeDataString(libAgence)}";
+
+			var response = await _http.GetAsync(url, cancellationToken);
+
+			if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+			{
+				// Aucune sauvegarde existante pour cette agence.
+				return null;
+			}
+
+			if (!response.IsSuccessStatusCode)
+			{
+				var errorContent =
+					await response.Content.ReadAsStringAsync(
+						cancellationToken);
+
+				Console.WriteLine(
+					$">>> DimensionnementPortefeuilleEtp GetAsync " +
+					$"status : {response.StatusCode}");
+
+				Console.WriteLine(
+					$">>> Réponse API : {errorContent}");
+
+				return null;
+			}
+
+			var result = await response.Content
+				.ReadFromJsonAsync<SaveDimensionnementPortefeuilleEtpRequest>(
+					cancellationToken: cancellationToken);
+
+			return result;
+		}
+		catch (OperationCanceledException)
+		{
+			Console.WriteLine(
+				">>> Chargement du dimensionnement ETP annulé.");
+
+			return null;
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine(
+				$">>> Erreur DimensionnementPortefeuilleEtp GetAsync : " +
+				$"{ex.Message}");
+
+			return null;
 		}
 	}
 }
