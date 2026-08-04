@@ -1,22 +1,13 @@
-namespace Segmentation.Core.Entities;
-
-public class DimensionnementPortefeuilleEtpCharge
+namespace Segmentation.Shared.Models
 {
-    public int Id { get; set; }
+    public class DimensionnementPortefeuilleEtpChargeData
+    {
+        public string Segment { get; set; } = "";
 
-    public string? LibRegion { get; set; }
+        public double? ChargeATransfererBP { get; set; }
 
-    public string? LibSecteur { get; set; }
+        public double? ChargeRecueBP { get; set; }
 
-    public string LibAgence { get; set; } = string.Empty;
-
-    public string Segment { get; set; } = string.Empty;
-
-    public double? ChargeATransfererBP { get; set; }
-
-    public double? ChargeRecueBP { get; set; }
-
-    public double? ChargeATransfererMutualise { get; set; }
-
-    public DateTime DateMaj { get; set; }
+        public double? ChargeATransfererMutualise { get; set; }
+    }
 }
