@@ -1,0 +1,146 @@
+using System.Net.Http.Json;
+
+namespace Segmentation.Client.Services;
+
+public class DimensionnementPortefeuilleEtpService
+{
+	private readonly HttpClient _http;
+
+	public DimensionnementPortefeuilleEtpService(
+		HttpClient http)
+	{
+		_http = http;
+	}
+
+	/// <summary>
+	/// Enregistre le dimensionnement ETP d'une agence.
+	/// La sauvegarde remplace les données précédemment
+	/// enregistrées pour cette agence.
+	/// </summary>
+	public async Task<bool> SaveAsync(
+		SaveDimensionnementPortefeuilleEtpRequest request,
+		CancellationToken cancellationToken = default)
+	{
+		if (request == null)
+			throw new ArgumentNullException(nameof(request));
+
+		if (string.IsNullOrWhiteSpace(request.LibAgence))
+			throw new ArgumentException(
+				"L'agence est obligatoire.",
+				nameof(request.LibAgence));
+
+		try
+		{
+			var response = await _http.PostAsJsonAsync(
+				"api/DimensionnementPortefeuilleEtp",
+				request,
+				cancellationToken);
+
+			if (!response.IsSuccessStatusCode)
+			{
+				var errorContent =
+					await response.Content.ReadAsStringAsync(
+						cancellationToken);
+
+				Console.WriteLine(
+					$">>> DimensionnementPortefeuilleEtp SaveAsync " +
+					$"status : {response.StatusCode}");
+
+				Console.WriteLine(
+					$">>> Réponse API : {errorContent}");
+
+				return false;
+			}
+
+			var result = await response.Content
+				.ReadFromJsonAsync<bool>(
+					cancellationToken: cancellationToken);
+
+			return result;
+		}
+		catch (OperationCanceledException)
+		{
+			Console.WriteLine(
+				">>> Enregistrement du dimensionnement ETP annulé.");
+
+			return false;
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine(
+				$">>> Erreur DimensionnementPortefeuilleEtp SaveAsync : " +
+				$"{ex.Message}");
+
+			return false;
+		}
+	}
+}
+
+/// <summary>
+/// Contrat envoyé par le Client à l'API.
+///
+/// Les noms des propriétés doivent rester identiques à ceux
+/// de SaveDimensionnementPortefeuilleEtpCommand côté Application,
+/// afin que la désérialisation JSON du Controller fonctionne.
+/// </summary>
+public class SaveDimensionnementPortefeuilleEtpRequest
+{
+	public string? LibRegion { get; set; }
+
+	public string? LibSecteur { get; set; }
+
+	public string LibAgence { get; set; } = string.Empty;
+
+	public List<SaveDimensionnementPortefeuilleEtpLigneRequest> Lignes
+	{
+		get;
+		set;
+	} = new();
+
+	public List<SaveDimensionnementPortefeuilleEtpChargeRequest> Charges
+	{
+		get;
+		set;
+	} = new();
+}
+
+/// <summary>
+/// Ligne de répartition ETP correspondant à une cellule :
+/// segment × conseiller.
+/// </summary>
+public class SaveDimensionnementPortefeuilleEtpLigneRequest
+{
+	public string Segment { get; set; } = string.Empty;
+
+	public string ProfilConseiller { get; set; } = string.Empty;
+
+	public string? MatriculeConseiller { get; set; }
+
+	public string SlotLabel { get; set; } = string.Empty;
+
+	public bool IsActuel { get; set; }
+
+	public bool IsCible { get; set; }
+
+	public double? EtpExistant { get; set; }
+
+	public double? EtpCible { get; set; }
+
+	public double CapaciteEtpActuel { get; set; }
+
+	public double CapaciteEtpCible { get; set; }
+}
+
+/// <summary>
+/// Charges manuelles enregistrées au niveau d'un segment.
+/// </summary>
+public class SaveDimensionnementPortefeuilleEtpChargeRequest
+{
+	public string Segment { get; set; } = string.Empty;
+
+	public double? ChargeATransfererBP { get; set; }
+
+	public double? ChargeRecueBP { get; set; }
+
+	public double? ChargeATransfererMutualise { get; set; }
+}
