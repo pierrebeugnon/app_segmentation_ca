@@ -1,743 +1,931 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 using MudBlazor;
-using Segmentation.Client.Components.Dialogs;
 using Segmentation.Client.Models;
 using Segmentation.Client.Services;
+using Segmentation.Shared.Models;
+using System.Globalization;
+using System.Text;
 
-namespace Segmentation.Client.Components.Pages;
+namespace Segmentation.Client.Pages;
 
-/// <summary>Logique et état de la page Dimensionnement des Portefeuilles.</summary>
-public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
+public partial class ReglesHypotheses
 {
-	[Inject] private SegmentationStateService StateService { get; set; } = default!;
-	[Inject] private IDialogService DialogService { get; set; } = default!;
-	[Inject] private ISnackbar Snackbar { get; set; } = default!;
-	[Inject] private RepartitionAutomatiqueService RepartitionService { get; set; } = default!;
-	private bool vueEtp = true;
-	private List<string> profils = new();   // types distincts (lookup assignment)
-	private List<string> segments = new();
-	private List<DimMatrixRow> rows = new();
-	private List<ConseillerSlot> _slots = new();
+	private ReglesHypothesesModel? model;
+	private bool modeSimulation = false;
+	private SimulationSnapshot? snapshotInitial;
+	private Dictionary<string, double> _tempsCommerciauxParType = new();
 
-	// ── Vue détail / consolidée par métier ────────────────────────────────
-	// Métiers présents dans ce set → colonne agrégée (repliée)
-	private HashSet<string> _collapsedProfils = new();
+	// Référentiel dynamique chargé au démarrage
+	private ReferentielData? _referentiel;
 
-	private void ToggleProfil(string profil)
-	{
-		if (!_collapsedProfils.Remove(profil))
-			_collapsedProfils.Add(profil);
-	}
+	// Section 4 : calculée dynamiquement à partir des Sections 1 et 2
+	private List<TailleTheoriqueRow> TaillesCalculees =>
+		CalculService.BuildTaillesCalculees(model);
 
-	// Ordre d'affichage des conseillers d'un métier dans le tableau 2 (inversé)
-	private IEnumerable<ConseillerSlot> SlotsForProfil(string profil) =>
-		_slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)).Reverse();
+	// ═══════════════════════════════════════════════════════════════
+	//   Listes dérivées du référentiel (plus aucun hardcode !)
+	// ═══════════════════════════════════════════════════════════════
 
-	// Nombre total de colonnes "slots" visibles (pour les cellules colspan/count)
-	private int VisibleSlotColumnCount =>
-		profils.Sum(p => _collapsedProfils.Contains(p)
-			? 1
-			: _slots.Count(s => s.Profil.Equals(p, StringComparison.OrdinalIgnoreCase)));
-
-	// ETP existant agrégé pour un profil sur une ligne
-	private double? GetAggregateExistantForProfil(DimMatrixRow row, string profil)
-	{
-		var vals = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase))
-						 .Select(s => row.EtpParProfil.GetValueOrDefault(s.Id))
-						 .Where(v => v.HasValue).ToList();
-		return vals.Any() ? vals.Sum(v => v!.Value) : null;
-	}
-
-	// ETP cible saisi agrégé pour un profil sur une ligne
-	private double? GetAggregateCibleForProfil(DimMatrixRow row, string profil)
-	{
-		var vals = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible)
-						 .Select(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id))
-						 .Where(v => v.HasValue).ToList();
-		return vals.Any() ? vals.Sum(v => v!.Value) : null;
-	}
-
-	// Code couleur du taux de remplissage (% de la capacité effectivement chargée)
-	// ~100% = vert (bien rempli) · < 100% = rouge (sous-chargé) · > 100% = orange (surchargé)
-	private static string RemplissageColor(double? pct) =>
-		!pct.HasValue ? "color:white" :
-		Math.Abs(pct.Value - 100) < 1 ? "color:#A5D6A7;font-weight:700" :
-		pct.Value < 100 ? "color:#EF9A9A;font-weight:700" :
-								  "color:#FFD54F;font-weight:700";
-
-	// KPI agrégés par profil : taux de remplissage CIBLE (charge cible ÷ capacité cible × 100)
-	private double? GetRemplissageForProfil(string profil)
-	{
-		var slotsOfProfil = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
-		var totalCap = slotsOfProfil.Sum(s => s.EtpCible);
-		if (totalCap <= 0) return null;
-		var totalCharge = slotsOfProfil.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
-		return totalCharge / totalCap * 100.0;
-	}
-
-	private double? GetRemplissageTotal()
-	{
-		var slotsCible = _slots.Where(s => s.IsCible).ToList();
-		var totalCap = slotsCible.Sum(s => s.EtpCible);
-		if (totalCap <= 0) return null;
-		var totalCharge = slotsCible.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
-		return totalCharge / totalCap * 100.0;
-	}
-
-	// Taux de remplissage EXISTANT (pour comparaison) : charge existante ÷ effectif existant × 100
-	private double? GetRemplissageExistantForProfil(string profil)
-	{
-		var slotsOfProfil = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsActuel).ToList();
-		var totalCap = slotsOfProfil.Sum(s => s.EtpActuel);
-		if (totalCap <= 0) return null;
-		var totalCharge = slotsOfProfil.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
-		return totalCharge / totalCap * 100.0;
-	}
-
-	private double? GetRemplissageExistantTotal()
-	{
-		var slotsActuel = _slots.Where(s => s.IsActuel).ToList();
-		var totalCap = slotsActuel.Sum(s => s.EtpActuel);
-		if (totalCap <= 0) return null;
-		var totalCharge = slotsActuel.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
-		return totalCharge / totalCap * 100.0;
-	}
-
-	private double GetEvolutionForProfil(string profil) =>
-		_slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase))
-			  .Sum(s => GetEvolutionForSlot(s));
-
-	private double? GetEtpCibleSaisieTotalForProfil(string profil)
-	{
-		var vals = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase))
-						 .Select(s => GetEtpCibleSaisieTotal(s.Id))
-						 .Where(v => v.HasValue).ToList();
-		return vals.Any() ? vals.Sum(v => v!.Value) : null;
-	}
-
-	// ── KPI — Indicateurs agrégés par profil ──────────────────────────────
-	private Dictionary<string, double?> _tauxRotation = new();
-	private Dictionary<string, double?> _tauxEntree = new();
-
-	// ── Filtres ───────────────────────────────────────────────────────────
-	private string? filtreRegion = null;
-	private string? filtreSecteur = null;
-	private string? filtreAgence = null;
-
-	private List<string> allRegions = new();
-	private List<string> allSecteurs = new();
-	private List<string> allAgences = new();
-
-	private List<DimMatrixRow> filteredRows = new();
-
-	// ── Labels courts par profil ──────────────────────────────────────────
-	private static readonly Dictionary<string, string> _profilShort =
-		new(StringComparer.OrdinalIgnoreCase)
-		{
-			["DIR. BP"] = "DIR",
-			["BANQUIER PRIVÉ"] = "BP",
-			["CGP"] = "CGP",
-			["RESP. AGENCE"] = "RA",
-			["RCP"] = "RCP",
-			["CONSEILLER CLIENTELE"] = "CC",
-			["CONSEILLER COMMERCIAL"] = "COM",
-		};
-
-	// ── Lifecycle ─────────────────────────────────────────────────────────
-	protected override void OnInitialized()
-	{
-		StateService.OnChange += OnReglesChanged;
-		InitData();
-	}
-
-	public void Dispose() => StateService.OnChange -= OnReglesChanged;
-
-	private void OnReglesChanged()
-	{
-		profils = GetProfils();
-		segments = GetSegments();
-		// Ajouter des slots si de nouveaux profils apparaissent
-		foreach (var p in profils.Where(p => !_slots.Any(s => s.Profil.Equals(p, StringComparison.OrdinalIgnoreCase))))
-		{
-			var prefix = _profilShort.GetValueOrDefault(p, p[..Math.Min(3, p.Length)].ToUpper());
-			var newSlot = new ConseillerSlot { Profil = p, Label = prefix + "-1", IsActuel = true, IsCible = true };
-			_slots.Add(newSlot);
-			foreach (var row in rows) { row.EtpParProfil[newSlot.Id] = null; row.EtpCibleSaisieParProfil[newSlot.Id] = null; }
-		}
-		BuildFilterOptions();
-		RecalcTotal();
-		InvokeAsync(StateHasChanged);
-	}
-
-	private void InitData()
-	{
-		profils = GetProfils();
-		segments = GetSegments();
-		_slots = BuildSlots();
-		rows = BuildRows();
-		RecalcTotal();
-		InitEffectifs();
-		BuildFilterOptions();
-		ApplyFilters();
-	}
-
-	// ── Construction des slots individuels ───────────────────────────────
-	private List<ConseillerSlot> BuildSlots()
-	{
-		var result = new List<ConseillerSlot>();
-		foreach (var profil in GetProfils())
-		{
-			var count = (int)(_mockEffectifActuel.TryGetValue(profil, out var cnt) ? cnt : 1);
-			var prefix = _profilShort.GetValueOrDefault(profil, profil[..Math.Min(3, profil.Length)].ToUpper());
-			for (int i = 1; i <= count; i++)
-			{
-				result.Add(new ConseillerSlot
-				{
-					Profil = profil,
-					Label = count > 1 ? $"{prefix}-{i}" : prefix,
-					IsActuel = true,
-					IsCible = true
-				});
-			}
-		}
-		return result;
-	}
-
-	// ── Gestion des slots ─────────────────────────────────────────────────
-	private void AddSlot(string profilType)
-	{
-		var prefix = _profilShort.GetValueOrDefault(profilType, profilType[..Math.Min(3, profilType.Length)].ToUpper());
-		var num = _slots.Count(s => s.Profil.Equals(profilType, StringComparison.OrdinalIgnoreCase)) + 1;
-		var slot = new ConseillerSlot { Profil = profilType, Label = $"{prefix}-{num}", IsActuel = false, IsCible = true };
-		_slots.Add(slot);
-		foreach (var row in rows)
-		{
-			row.EtpParProfil[slot.Id] = null;
-			row.EtpCibleSaisieParProfil[slot.Id] = null;
-		}
-		RecalcTotal();
-	}
-
-	// Suppression définitive d'un slot "Nouveau" (IsActuel=false)
-	private void RemoveNewSlot(ConseillerSlot slot)
-	{
-		_slots.Remove(slot);
-		foreach (var row in rows)
-		{
-			row.EtpParProfil.Remove(slot.Id);
-			row.EtpCibleSaisieParProfil.Remove(slot.Id);
-		}
-		RecalcTotal();
-	}
-
-	// Retire un effectif EXISTANT de la répartition cible (il reste dans l'existant, grisé).
-	// La modale de redistribution ne se déclenche que si le conseiller porte une charge sur
-	// la CIBLE (EtpCibleSaisieParProfil) — l'existant (EtpParProfil) n'entre jamais en compte
-	// dans cette décision, puisqu'on ne fait que le retirer de la répartition cible.
-	private async Task RemoveCibleForExistingSlot(ConseillerSlot slot)
-	{
-		var chargeRows = rows.Where(r => !r.IsTotal && (r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0) > 0.001).ToList();
-
-		if (chargeRows.Any())
-		{
-			var autreConseillerExiste = _slots.Any(s => s.Id != slot.Id && s.IsCible);
-			if (!autreConseillerExiste)
-			{
-				var totalCharge = chargeRows.Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0);
-				Snackbar.Add(
-					$"Impossible de retirer {slot.Label} de la cible : {totalCharge:F2} ETP sont encore répartis sur {chargeRows.Count} segment(s) " +
-					"et aucun autre conseiller n'est disponible pour reprendre cette charge.",
-					Severity.Warning);
-				return;
-			}
-
-			var parameters = new DialogParameters<RedistribuerChargeDialog>
-			{
-				{ x => x.SlotToRemove, slot },
-				{ x => x.ChargeRows, chargeRows },
-				{ x => x.AllRows, rows },
-				{ x => x.AllSlots, _slots },
-				{ x => x.Regles, StateService.Regles.ReglesAffectationSegments },
-			};
-			var dialogRef = await DialogService.ShowAsync<RedistribuerChargeDialog>(
-				$"Répartir la charge cible de {slot.Label} avant suppression",
-				parameters,
-				new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true });
-			var result = await dialogRef.Result;
-			if (result is null || result.Canceled) return;
-
-			// Garde-fou : si un reliquat de charge subsiste malgré tout, on bloque le retrait
-			var reliquat = rows.Where(r => !r.IsTotal).Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0);
-			if (reliquat > 0.001)
-			{
-				Snackbar.Add($"{reliquat:F2} ETP n'ont pas pu être réattribués : {slot.Label} reste dans la répartition cible.", Severity.Warning);
-				return;
-			}
-		}
-
-		slot.IsCible = false;
-		RecalcTotal();
-	}
-
-	// Réintègre un effectif existant précédemment retiré de la cible
-	private void RestoreCible(ConseillerSlot slot)
-	{
-		slot.IsCible = true;
-		RecalcTotal();
-	}
-
-	// ── Filtres ───────────────────────────────────────────────────────────
-	private void BuildFilterOptions()
-	{
-		var si = StateService.Regles.SegmentsIntensite;
-		allRegions = si.Select(s => s.Region).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x).ToList();
-		allSecteurs = si.Select(s => s.Secteur).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x).ToList();
-		allAgences = si.Select(s => s.Agence).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x).ToList();
-	}
-
-	private void ApplyFilters()
-	{
-		var si = StateService.Regles.SegmentsIntensite;
-		var segsFiltres = si
-			.Where(s => (string.IsNullOrEmpty(filtreRegion) || s.Region == filtreRegion)
-					 && (string.IsNullOrEmpty(filtreSecteur) || s.Secteur == filtreSecteur)
-					 && (string.IsNullOrEmpty(filtreAgence) || s.Agence == filtreAgence))
-			.Select(s => s.Segment)
-			.ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-		filteredRows = segsFiltres.Any()
-			? rows.Where(r => r.IsTotal || segsFiltres.Contains(r.Segment)).ToList()
-			: rows.ToList();
-	}
-
-	private void ClearFilters()
-	{
-		filtreRegion = filtreAgence = filtreSecteur = null;
-		ApplyFilters();
-	}
-
-	// ── Sources de données ────────────────────────────────────────────────
-	// Ordre d'affichage inversé : du conseiller commercial (COM) au directeur (DIR),
-	// utilisé pour les deux tableaux (Effectifs et Répartition des charges)
-	private List<string> GetProfils() =>
-		StateService.Regles.ConseillersProfils
+	private List<string> ProfilsBanquePrivee =>
+		_referentiel?.Profils
+			.Where(p => string.Equals(p.LigneMetier, "banque privée", StringComparison.OrdinalIgnoreCase))
 			.Select(p => p.Profil)
-			.Where(p => !string.IsNullOrWhiteSpace(p))
-			.Distinct().Reverse().ToList();
+			.ToList()
+		?? new List<string>();
 
-	private List<string> GetSegments() =>
-		StateService.Regles.SegmentsIntensite
-			.Select(s => s.Segment)
-			.Where(s => !string.IsNullOrWhiteSpace(s))
-			.Distinct().ToList();
+	private List<string> ProfilsRetail =>
+		_referentiel?.Profils
+			.Where(p => string.Equals(p.LigneMetier, "retail", StringComparison.OrdinalIgnoreCase))
+			.Select(p => p.Profil)
+			.ToList()
+		?? new List<string>();
 
-	// ── Construction de la table (keyed by slot.Id) ───────────────────────
-
-	// Mock ETP existants par segment × profil
-	private static readonly Dictionary<string, Dictionary<string, double>> _mockEtpExistant =
-		new(StringComparer.OrdinalIgnoreCase)
+	private List<string> ProfilsRetailAvecAccueil
+	{
+		get
 		{
-			["HDG Premium Potentiel"] = new(StringComparer.OrdinalIgnoreCase) { ["BANQUIER PRIVÉ"] = 0.30, ["DIR. BP"] = 0.10 },
-			["HDG Premium Standard"] = new(StringComparer.OrdinalIgnoreCase) { ["CGP"] = 0.85, ["BANQUIER PRIVÉ"] = 0.20 },
-			["HDG Potentiel"] = new(StringComparer.OrdinalIgnoreCase) { ["RESP. AGENCE"] = 1.20, ["RCP"] = 0.35 },
-			["HDG Senior Epargnant"] = new(StringComparer.OrdinalIgnoreCase) { ["RCP"] = 1.50, ["RESP. AGENCE"] = 0.40 },
-			["HDG Standard"] = new(StringComparer.OrdinalIgnoreCase) { ["RESP. AGENCE"] = 2.10, ["CONSEILLER CLIENTELE"] = 0.80 },
-			["CI Potentiel"] = new(StringComparer.OrdinalIgnoreCase) { ["CONSEILLER CLIENTELE"] = 3.60, ["RCP"] = 0.50 },
-			["CI Standard"] = new(StringComparer.OrdinalIgnoreCase) { ["CONSEILLER CLIENTELE"] = 7.80, ["CONSEILLER COMMERCIAL"] = 2.40 },
-			["GP Potentiel"] = new(StringComparer.OrdinalIgnoreCase) { ["CONSEILLER CLIENTELE"] = 3.90 },
-			["GP Standard"] = new(StringComparer.OrdinalIgnoreCase) { ["CONSEILLER COMMERCIAL"] = 11.50, ["CONSEILLER CLIENTELE"] = 3.10 },
-			["Non segmenté"] = new(StringComparer.OrdinalIgnoreCase) { ["CONSEILLER COMMERCIAL"] = 4.80 },
-		};
-
-	// Mock effectifs actuel par profil (nb conseillers en poste)
-	private static readonly Dictionary<string, double> _mockEffectifActuel =
-		new(StringComparer.OrdinalIgnoreCase)
-		{
-			["DIR. BP"] = 1,
-			["BANQUIER PRIVÉ"] = 3,
-			["CGP"] = 2,
-			["RESP. AGENCE"] = 2,
-			["RCP"] = 4,
-			["CONSEILLER CLIENTELE"] = 6,
-			["CONSEILLER COMMERCIAL"] = 5,
-		};
-
-	private List<DimMatrixRow> BuildRows()
-	{
-		var dataRows = segments.Select(s => new DimMatrixRow
-		{
-			Segment = s,
-			EtpParProfil = _slots.ToDictionary(sl => sl.Id, sl => GetMockEtpForSlot(s, sl)),
-			EtpCibleSaisieParProfil = _slots.ToDictionary(sl => sl.Id, _ => (double?)null)
-		}).ToList();
-
-		dataRows.Add(new DimMatrixRow
-		{
-			Segment = "Charge totale ETP par portefeuille",
-			IsTotal = true,
-			EtpParProfil = _slots.ToDictionary(sl => sl.Id, _ => (double?)null),
-			EtpCibleSaisieParProfil = _slots.ToDictionary(sl => sl.Id, _ => (double?)null)
-		});
-		return dataRows;
-	}
-
-	// ETP existant par slot = total profil / nombre de slots du même profil
-	private double? GetMockEtpForSlot(string segment, ConseillerSlot slot)
-	{
-		if (!_mockEtpExistant.TryGetValue(segment, out var segDict)) return null;
-		if (!segDict.TryGetValue(slot.Profil, out var totalEtp)) return null;
-		var count = _slots.Count(s => s.Profil.Equals(slot.Profil, StringComparison.OrdinalIgnoreCase));
-		return count > 0 ? Math.Round(totalEtp / count, 3) : null;
-	}
-
-	// ── Affectation depuis ReglesHypotheses ───────────────────────────────
-	private int GetAssignmentLevel(string segment, string profil)
-	{
-		if (string.IsNullOrWhiteSpace(segment) || string.IsNullOrWhiteSpace(profil)) return 0;
-		var r = StateService.Regles.ReglesAffectationSegments
-			.FirstOrDefault(x => x.Segment?.Trim().Equals(segment.Trim(), StringComparison.OrdinalIgnoreCase) == true);
-		if (r == null) return 0;
-		if (r.ConseillerPrioritaire?.Trim().Equals(profil.Trim(), StringComparison.OrdinalIgnoreCase) == true) return 1;
-		if (r.ConseillerSecondaire?.Trim().Equals(profil.Trim(), StringComparison.OrdinalIgnoreCase) == true) return 2;
-		if (r.ConseillerTertiaire?.Trim().Equals(profil.Trim(), StringComparison.OrdinalIgnoreCase) == true) return 3;
-		return 0;
-	}
-
-	// Style de fond de la cellule (affectation + grisé si slot retiré de la cible)
-	private static string GetMergedCellStyle(int level, bool isTotal, bool isGreyed = false)
-	{
-		if (isGreyed) return "background:#ECECEC;opacity:0.5";
-		if (isTotal) return "";
-		return level switch
-		{
-			1 => "background:#1A6B3C;color:white",
-			2 => "background:#52A86B;color:white",
-			3 => "background:#C3E6CB;color:#1A4E6B",
-			_ => ""
-		};
-	}
-
-	// ── Distribution automatique R&H ─────────────────────────────────────
-	private void AutoDistribuerCible()
-	{
-		var segmentsIncomplets = RepartitionService.DistribuerAutomatiquement(
-			rows, _slots, StateService.Regles.ReglesAffectationSegments);
-
-		RecalcTotal();
-
-		if (segmentsIncomplets == 0)
-			Snackbar.Add("Distribution R&H appliquée — toute la charge a été placée sur les conseillers prioritaires.", Severity.Success);
-		else
-			Snackbar.Add($"Distribution R&H appliquée — {segmentsIncomplets} segment(s) n'ont pas pu être entièrement couverts (capacité insuffisante).", Severity.Warning);
-	}
-
-	// ── Mutations ─────────────────────────────────────────────────────────
-	private void SetEtpCible(DimMatrixRow row, string slotId, double? value)
-	{
-		row.EtpCibleSaisieParProfil[slotId] = value;
-		RecalcTotal();
-	}
-
-	private void RecalcTotal()
-	{
-		var totalRow = rows.LastOrDefault(r => r.IsTotal);
-		if (totalRow == null) return;
-		foreach (var slot in _slots)
-		{
-			var valsExist = rows.Where(r => !r.IsTotal).Select(r => r.EtpParProfil.GetValueOrDefault(slot.Id)).ToList();
-			var valsCible = rows.Where(r => !r.IsTotal).Select(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id)).ToList();
-			totalRow.EtpParProfil[slot.Id] = valsExist.Any(v => v.HasValue) ? valsExist.Sum(v => v ?? 0) : null;
-			totalRow.EtpCibleSaisieParProfil[slot.Id] = valsCible.Any(v => v.HasValue) ? valsCible.Sum(v => v ?? 0) : null;
-		}
-		ApplyFilters();
-	}
-
-	// ── Code couleur existant — toujours orange ───────────────────────────
-	private static string GetExistantColor(double? existant, double? _ = null) =>
-		(!existant.HasValue || existant.Value <= 0) ? "color:#9AA5B1" : "color:#E65100;font-weight:600";
-
-	// ── Couverture : différence entre ETP distribué et charge ETP ────────
-	// Résultat = totalCible − totalExist
-	//   = 0   → couverture complète (vert)
-	//   < 0   → sous-couverture (rouge)   — il manque des ETP assignés
-	//   > 0   → sur-répartition (orange)  — plus assigné que la charge
-	private double? GetCoverageDiff(DimMatrixRow row)
-	{
-		if (row.IsTotal) return null;
-		var activeSlots = _slots.Where(s => s.IsCible).ToList();
-		var totalCible = activeSlots.Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-		var totalExist = _slots.Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
-		if (totalCible <= 0 && totalExist <= 0) return null;
-		return totalCible - totalExist;
-	}
-
-	// ── Concordance : % ETP assigné à un type DÉSIGNÉ dans R&H ───────────
-	// Concordant  = type de conseiller de niveau 1, 2 ou 3 pour ce segment
-	// Non-concordant = type absent des R&H pour ce segment (niveau 0)
-	// 100% = toute la répartition est dans des types désignés
-	// Ex. : 0.80 dans prio/sec/tert + 0.20 hors R&H → 80%
-	private (double? pct, string color, string tooltip) GetConcordance(DimMatrixRow row)
-	{
-		if (row.IsTotal) return (null, "", "");
-		var activeSlots = _slots.Where(s => s.IsCible).ToList();
-		var totalCible = activeSlots.Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-		if (totalCible <= 0) return (null, "", "Aucune saisie");
-
-		// ETP dans les types DÉSIGNÉS (niveaux 1, 2 ou 3 dans R&H)
-		var etpDesigne = activeSlots
-			.Where(s => GetAssignmentLevel(row.Segment, s.Profil) > 0)
-			.Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-		var etpHorsRH = totalCible - etpDesigne;
-
-		// Détail par niveau (pour le tooltip)
-		var etpPrio = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 1).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-		var etpSec = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 2).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-		var etpTert = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 3).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-
-		var pct = etpDesigne / totalCible * 100.0;
-		var color = pct >= 99.9 ? "color:#2E7D32;font-weight:700" :
-					pct >= 80 ? "color:#E65100;font-weight:700" :
-								  "color:#C62828;font-weight:700";
-
-		var tooltip = $"Concordance : {pct:F0}% dans les types R&H\n" +
-					  $"  ▸ Prioritaire  : {etpPrio:F2} ETP\n" +
-					  $"  ▸ Secondaire   : {etpSec:F2} ETP\n" +
-					  $"  ▸ Tertiaire    : {etpTert:F2} ETP\n" +
-					  $"  ✗ Hors R&H     : {etpHorsRH:F2} ETP";
-
-		return (pct, color, tooltip);
-	}
-
-	// ── ETP CIBLE calculé depuis ReglesHypothèses ─────────────────────────
-	private double? GetEtpCible(string segment, string profil)
-	{
-		var si = StateService.Regles.SegmentsIntensite
-			.FirstOrDefault(s => s.Segment?.Trim().Equals(segment.Trim(), StringComparison.OrdinalIgnoreCase) == true);
-		if (si == null || si.NombreClients <= 0) return null;
-		var intensite = si.IntensiteRelationnelle;
-		if (intensite <= 0) return null;
-		var cp = StateService.Regles.ConseillersProfils
-			.FirstOrDefault(p => p.Profil?.Trim().Equals(profil.Trim(), StringComparison.OrdinalIgnoreCase) == true);
-		if (cp == null) return null;
-		var heuresAn = StateService.Regles.HeuresTravailParAn;
-		var volumeHoraire = heuresAn * cp.PartTempsCommercialPct / 100.0;
-		if (volumeHoraire <= 0) return null;
-		var tailleTheorique = volumeHoraire / intensite;
-		return tailleTheorique > 0 ? Math.Round(si.NombreClients / tailleTheorique, 2) : null;
-	}
-
-	// ── Totaux ────────────────────────────────────────────────────────────
-	private double? GetEtpCibleSaisieTotal(string slotId)
-	{
-		var vals = rows.Where(r => !r.IsTotal)
-					   .Select(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slotId))
-					   .Where(v => v.HasValue).ToList();
-		return vals.Any() ? vals.Sum(v => v!.Value) : null;
-	}
-
-	private double? GetRowCibleTotal(DimMatrixRow row)
-	{
-		var vals = _slots.Select(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id))
-						 .Where(v => v.HasValue).ToList();
-		return vals.Any() ? vals.Sum(v => v!.Value) : null;
-	}
-
-	private double? GetRowExistantTotal(DimMatrixRow row)
-	{
-		var vals = _slots.Select(s => row.EtpParProfil.GetValueOrDefault(s.Id))
-						 .Where(v => v.HasValue).ToList();
-		return vals.Any() ? vals.Sum(v => v!.Value) : null;
-	}
-
-	// Taux de rotation par segment = (cible − existant) / cible × 100
-	private double? GetTauxRotationForRow(DimMatrixRow row)
-	{
-		if (row.IsTotal) return null;
-		var cible = Math.Round(GetRowCibleTotal(row) ?? 0, 2);
-		if (cible <= 0) return null;
-		var exist = Math.Round(GetRowExistantTotal(row) ?? 0, 2);
-		return Math.Round(cible - exist, 2) / cible * 100.0;
-	}
-
-	// ── KPI : init taux (rotation/entrée keyed par slot.Id, mock null) ────
-	private void InitEffectifs()
-	{
-		foreach (var slot in _slots)
-		{
-			_tauxRotation.TryAdd(slot.Id, null);
-			_tauxEntree.TryAdd(slot.Id, null);
+			var list = ProfilsRetail.ToList();
+			const string accueil = "CONSEILLER D'ACCUEIL";
+			if (!list.Contains(accueil, StringComparer.OrdinalIgnoreCase))
+				list.Add(accueil);
+			return list;
 		}
 	}
 
-	// Code couleur commun des scores de concordance (%)
-	private static string ConcordanceColor(double? pct) =>
-		!pct.HasValue ? "color:white" :
-		pct.Value >= 99.9 ? "color:#A5D6A7;font-weight:700" :
-		pct.Value >= 80 ? "color:#FFD54F;font-weight:700" :
-							"color:#EF9A9A;font-weight:700";
+	// Un segment est BP si son nom contient "Premium"
+	// (règle métier : les segments HDG Premium relèvent toujours de la Banque Privée)
+	private HashSet<string> SegmentsBanquePrivee =>
+		_referentiel?.Segments
+			.Where(s => s.Contains("Premium", StringComparison.OrdinalIgnoreCase))
+			.ToHashSet(StringComparer.OrdinalIgnoreCase)
+		?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-	// ── KPI concordance par slot ──────────────────────────────────────────
-	// % de l'ETP cible attribué à ce slot qui provient de segments où son
-	// profil est désigné dans R&H (niveaux 1, 2 ou 3)
-	private (double? pct, string color) GetConcordanceForSlot(ConseillerSlot slot)
+	// ═══════════════════════════════════════════════════════════════
+	//   LIFECYCLE — Chargement depuis la BDD + référentiel
+	// ═══════════════════════════════════════════════════════════════
+
+	protected override async Task OnInitializedAsync()
 	{
-		var totalCible = GetEtpCibleSaisieTotal(slot.Id);
-		if (!totalCible.HasValue || totalCible.Value <= 0) return (null, "color:white");
+		try
+		{
+			// 1. Charge les 4 tables R&H
+			var bundle = await ReglesService.LoadAllAsync();
+			model = BuildModelFromBundle(bundle);
 
-		var etpDesigne = rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, slot.Profil) > 0)
-							 .Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0);
-		var pct = etpDesigne / totalCible.Value * 100.0;
-		return (pct, ConcordanceColor(pct));
+			// 2. Charge le référentiel (segments/profils venus de SegmentationDistributives)
+			_referentiel = await ReferentielService.GetAsync();
+
+			// 3. Auto-initialise les tables vides depuis le référentiel
+			AutoInitFromReferentiel(model, _referentiel);
+
+			// 4. Alimente le StateService pour les autres pages
+			StateService.UpdateRegles(model);
+
+			Console.WriteLine($">>> R&H chargées : {model.SegmentsIntensite.Count} segments, " +
+							  $"{model.ConseillersProfils.Count} profils, " +
+							  $"{model.ReglesAffectationSegments.Count} règles");
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Erreur chargement R&H : {ex.Message}");
+			model = new ReglesHypothesesModel();
+		}
+
+		snapshotInitial = CreateSnapshot();
+		InitTempsCommerciauxParType();
+
+		StateHasChanged();
 	}
 
-	private (double? pct, string color) GetConcordanceForProfil(string profil)
+	// ── Conversion Bundle API → Model UI ──────────────────────────────
+	private ReglesHypothesesModel BuildModelFromBundle(ReglesHypothesesBundle bundle)
 	{
-		var slots = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
-		var totalCible = slots.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
-		if (totalCible <= 0) return (null, "color:white");
+		return new ReglesHypothesesModel
+		{
+			HeuresParSemaine = bundle.Parametres?.HeuresParSemaine ?? 0,
+			NbSemainesParAn = bundle.Parametres?.NbSemainesParAn ?? 0,
 
-		var etpDesigne = slots.Sum(s =>
-			rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, s.Profil) > 0)
-				.Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0));
-		var pct = etpDesigne / totalCible * 100.0;
-		return (pct, ConcordanceColor(pct));
+			SegmentsIntensite = bundle.Segments.Select(x => new SegmentIntensite
+			{
+				LigneMetier = x.LigneMetier,
+				Segment = x.Segment,
+				NombreRdvParAn = x.NombreRdvParAn,
+				DureeRdvHeures = x.DureeRdvHeures
+			}).ToList(),
+
+			ConseillersProfils = bundle.Profils.Select(x => new ConseillerTempsProfil
+			{
+				LigneMetier = x.LigneMetier,
+				Profil = x.Profil,
+				PartTempsCommercialPct = x.PartTempsCommercialPct
+			}).ToList(),
+
+			ReglesAffectationSegments = bundle.Regles.Select(x => new RegleAffectationSegment
+			{
+				Segment = x.Segment,
+				ConseillerPrioritaire = x.ConseillerPrioritaire,
+				ConseillerSecondaire = x.ConseillerSecondaire,
+				ConseillerTertiaire = x.ConseillerTertiaire
+			}).ToList()
+		};
 	}
 
-	// ── Concordance calculée sur la répartition EXISTANTE (pour comparaison) ──
-	private (double? pct, string color) GetConcordanceExistantForSlot(ConseillerSlot slot)
+	// ── Auto-initialisation depuis le référentiel ──────────────────────
+	private void AutoInitFromReferentiel(
+		ReglesHypothesesModel model,
+		ReferentielData? referentiel)
 	{
-		var totalExist = GetTotalEtpExistantForSlot(slot.Id);
-		if (!totalExist.HasValue || totalExist.Value <= 0) return (null, "color:white");
+		if (referentiel == null)
+			return;
 
-		var etpDesigne = rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, slot.Profil) > 0)
-							 .Sum(r => r.EtpParProfil.GetValueOrDefault(slot.Id) ?? 0);
-		var pct = etpDesigne / totalExist.Value * 100.0;
-		return (pct, ConcordanceColor(pct));
+		// ── Section 1 : segments d'intensité ──
+		var segmentsAjoutes = 0;
+		foreach (var segment in referentiel.Segments)
+		{
+			var existe = model.SegmentsIntensite.Any(s =>
+				string.Equals(s.Segment?.Trim(), segment.Trim(), StringComparison.OrdinalIgnoreCase));
+
+			if (!existe)
+			{
+				model.SegmentsIntensite.Add(new SegmentIntensite
+				{
+					LigneMetier = DetermineLigneMetierForSegment(segment),
+					Segment = segment,
+					NombreRdvParAn = 0,
+					DureeRdvHeures = 0
+				});
+				segmentsAjoutes++;
+			}
+		}
+		if (segmentsAjoutes > 0)
+			Console.WriteLine($">>> Auto-init : {segmentsAjoutes} segments ajoutés depuis le référentiel");
+
+		// ── Section 2 : profils conseillers ──
+		var profilsAjoutes = 0;
+		foreach (var profil in referentiel.Profils)
+		{
+			var existe = model.ConseillersProfils.Any(p =>
+				string.Equals(p.Profil?.Trim(), profil.Profil.Trim(), StringComparison.OrdinalIgnoreCase));
+
+			if (!existe)
+			{
+				model.ConseillersProfils.Add(new ConseillerTempsProfil
+				{
+					LigneMetier = profil.LigneMetier,
+					Profil = profil.Profil,
+					PartTempsCommercialPct = 0
+				});
+				profilsAjoutes++;
+			}
+		}
+		if (profilsAjoutes > 0)
+			Console.WriteLine($">>> Auto-init : {profilsAjoutes} profils ajoutés depuis le référentiel");
+
+		// ── Section 3 : règles d'affectation ──
+		var reglesAjoutees = 0;
+		foreach (var segment in referentiel.Segments)
+		{
+			var existe = model.ReglesAffectationSegments.Any(r =>
+				string.Equals(r.Segment?.Trim(), segment.Trim(), StringComparison.OrdinalIgnoreCase));
+
+			if (!existe)
+			{
+				model.ReglesAffectationSegments.Add(new RegleAffectationSegment
+				{
+					Segment = segment,
+					ConseillerPrioritaire = "",
+					ConseillerSecondaire = "",
+					ConseillerTertiaire = ""
+				});
+				reglesAjoutees++;
+			}
+		}
+		if (reglesAjoutees > 0)
+			Console.WriteLine($">>> Auto-init : {reglesAjoutees} règles ajoutées depuis le référentiel");
+
+		// ── Paramètres généraux : valeurs par défaut si non renseignés ──
+		if (model.HeuresParSemaine <= 0)
+			model.HeuresParSemaine = 37.3;
+
+		if (model.NbSemainesParAn <= 0)
+			model.NbSemainesParAn = 42.5;
 	}
 
-	private (double? pct, string color) GetConcordanceExistantForProfil(string profil)
+	private string DetermineLigneMetierForSegment(string segment)
 	{
-		var slots = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)).ToList();
-		var totalExist = slots.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
-		if (totalExist <= 0) return (null, "color:white");
-
-		var etpDesigne = slots.Sum(s =>
-			rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, s.Profil) > 0)
-				.Sum(r => r.EtpParProfil.GetValueOrDefault(s.Id) ?? 0));
-		var pct = etpDesigne / totalExist * 100.0;
-		return (pct, ConcordanceColor(pct));
+		return SegmentsBanquePrivee.Contains(segment)
+			? "banque privée"
+			: "retail";
 	}
 
-	// ── KPI taux de rotation par slot ─────────────────────────────────────
-	// (Cible − Existant) / Cible × 100
-	// Arrondi à 2 décimales pour éviter les écarts de précision
-	// (valeurs affichées F2 ≠ valeurs internes brutes)
-	private double? GetTauxRotation(ConseillerSlot slot)
+	private void InitTempsCommerciauxParType()
 	{
-		var cible = Math.Round(GetEtpCibleSaisieTotal(slot.Id) ?? 0, 2);
-		if (cible <= 0) return null;
-		var exist = Math.Round(GetTotalEtpExistantForSlot(slot.Id) ?? 0, 2);
-		var diff = Math.Round(cible - exist, 2);
-		return diff / cible * 100.0;
+		_tempsCommerciauxParType.Clear();
+		if (model?.ConseillersProfils == null)
+			return;
+
+		var lignesMetier = model.ConseillersProfils
+			.Where(p => !string.IsNullOrWhiteSpace(p.LigneMetier))
+			.Select(p => p.LigneMetier!)
+			.Distinct(StringComparer.OrdinalIgnoreCase)
+			.ToList();
+
+		foreach (var ligneMetier in lignesMetier)
+		{
+			// Prend la première valeur > 0 trouvée pour cette ligne métier
+			var pct = model.ConseillersProfils
+				.Where(p => string.Equals(p.LigneMetier, ligneMetier, StringComparison.OrdinalIgnoreCase))
+				.Select(p => GetPartTempsCommercialPctDisplay(p))
+				.FirstOrDefault(v => v > 0);
+
+			_tempsCommerciauxParType[ligneMetier] = pct;
+
+			// Propage cette valeur à tous les profils de la ligne métier
+			if (pct > 0)
+			{
+				foreach (var p in model.ConseillersProfils
+					.Where(x => string.Equals(x.LigneMetier, ligneMetier, StringComparison.OrdinalIgnoreCase)))
+				{
+					SetPartTempsCommercialPctFromDisplay(p, pct);
+				}
+			}
+		}
 	}
 
-	private double? GetTauxRotationForProfil(string profil)
+	private void ToggleModeSimulation()
 	{
-		var slots = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
-		var totalCible = Math.Round(slots.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2);
-		if (totalCible <= 0) return null;
-		var totalExist = Math.Round(slots.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0), 2);
-		var diff = Math.Round(totalCible - totalExist, 2);
-		return diff / totalCible * 100.0;
+		modeSimulation = !modeSimulation;
+
+		if (snapshotInitial == null)
+			snapshotInitial = CreateSnapshot();
 	}
 
-	// ── KPI entrées dans le portefeuille par slot ─────────────────────────
-	// Entrées = somme, PAR SEGMENT, de max(0, cible − existant) — arrondi à 2 décimales.
-	// Le calcul se fait cellule par cellule (segment × conseiller) et non sur les totaux
-	// agrégés : un ETP existant réaffecté d'un segment vers un autre pour le même
-	// conseiller compte comme une nouvelle entrée dans le segment de destination
-	// (l'existant n'y était pas déjà distribué), même si le volume total du
-	// conseiller ne change pas.
-	// Ex. : Existant HDG P-BP 0.4 / Cible HDG P-BP 0 + Cible GP Standard 0.4
-	//       → 0 (retrait) + 0.4 (nouvelle entrée) = 0.4 point de nouvelles entrées.
-	private double GetEntreesCell(DimMatrixRow row, string slotId)
+	private void ReinitialiserSimulation()
 	{
-		var c = Math.Round(row.EtpCibleSaisieParProfil.GetValueOrDefault(slotId) ?? 0, 2);
-		var e = Math.Round(row.EtpParProfil.GetValueOrDefault(slotId) ?? 0, 2);
-		return Math.Max(0, c - e);
+		if (snapshotInitial == null || model == null)
+			return;
+
+		RestoreSnapshot(snapshotInitial);
+
+		Snackbar.Add(
+			"Simulation réinitialisée avec les valeurs de référence.",
+			Severity.Info,
+			cfg =>
+			{
+				cfg.Icon = Icons.Material.Filled.Restore;
+				cfg.VisibleStateDuration = 3000;
+			}
+		);
 	}
 
-	private double? GetTauxEntreeSlot(ConseillerSlot slot)
+	private SimulationSnapshot CreateSnapshot()
 	{
-		var cible = Math.Round(GetEtpCibleSaisieTotal(slot.Id) ?? 0, 2);
-		if (cible <= 0) return null;
-		var entrees = rows.Where(r => !r.IsTotal).Sum(r => GetEntreesCell(r, slot.Id));
-		return Math.Round(entrees, 2);
+		var snapshot = new SimulationSnapshot();
+
+		if (model == null)
+			return snapshot;
+
+		snapshot.HeuresParSemaine = model.HeuresParSemaine;
+		snapshot.NbSemainesParAn = model.NbSemainesParAn;
+
+		foreach (var segment in model.SegmentsIntensite)
+		{
+			var key = NormalizeKey(segment.Segment);
+
+			if (!snapshot.Segments.ContainsKey(key))
+			{
+				snapshot.Segments[key] = new SegmentSnapshot
+				{
+					Segment = segment.Segment ?? string.Empty,
+					NombreRdvParAn = segment.NombreRdvParAn,
+					DureeRdvHeures = segment.DureeRdvHeures
+				};
+			}
+		}
+
+		foreach (var profil in model.ConseillersProfils)
+		{
+			var key = NormalizeKey(profil.Profil);
+
+			if (!snapshot.PartsCommerciales.ContainsKey(key))
+				snapshot.PartsCommerciales[key] = profil.PartTempsCommercialPct;
+		}
+
+		foreach (var regle in model.ReglesAffectationSegments)
+		{
+			var key = NormalizeKey(regle.Segment);
+
+			if (!snapshot.Affectations.ContainsKey(key))
+			{
+				snapshot.Affectations[key] = new AffectationSnapshot
+				{
+					Segment = regle.Segment ?? string.Empty,
+					ConseillerPrioritaire = regle.ConseillerPrioritaire ?? string.Empty,
+					ConseillerSecondaire = regle.ConseillerSecondaire ?? string.Empty,
+					ConseillerTertiaire = regle.ConseillerTertiaire ?? string.Empty
+				};
+			}
+		}
+
+		return snapshot;
 	}
 
-	private double? GetTauxEntreeForProfil(string profil)
+	private void RestoreSnapshot(SimulationSnapshot snapshot)
 	{
-		var slots = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
-		var totalCible = Math.Round(slots.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2);
-		if (totalCible <= 0) return null;
-		var entrees = rows.Where(r => !r.IsTotal).Sum(r => slots.Sum(s => GetEntreesCell(r, s.Id)));
-		return Math.Round(entrees, 2);
+		if (model == null)
+			return;
+
+		model.HeuresParSemaine = snapshot.HeuresParSemaine;
+		model.NbSemainesParAn = snapshot.NbSemainesParAn;
+
+		foreach (var segment in model.SegmentsIntensite)
+		{
+			var key = NormalizeKey(segment.Segment);
+
+			if (snapshot.Segments.TryGetValue(key, out var saved))
+			{
+				segment.NombreRdvParAn = saved.NombreRdvParAn;
+				segment.DureeRdvHeures = saved.DureeRdvHeures;
+			}
+		}
+
+		foreach (var profil in model.ConseillersProfils)
+		{
+			var key = NormalizeKey(profil.Profil);
+
+			if (snapshot.PartsCommerciales.TryGetValue(key, out var savedPart))
+				profil.PartTempsCommercialPct = savedPart;
+		}
+
+		foreach (var regle in model.ReglesAffectationSegments)
+		{
+			var key = NormalizeKey(regle.Segment);
+
+			if (snapshot.Affectations.TryGetValue(key, out var saved))
+			{
+				regle.ConseillerPrioritaire = saved.ConseillerPrioritaire;
+				regle.ConseillerSecondaire = saved.ConseillerSecondaire;
+				regle.ConseillerTertiaire = saved.ConseillerTertiaire;
+			}
+		}
 	}
 
-	private double GetTauxEntreeTotal()
+	// ═══════════════════════════════════════════════════════════════
+	//   Options profils par segment (recalculées à chaque appel,
+	//   pour que le comportement dynamique fonctionne)
+	// ═══════════════════════════════════════════════════════════════
+
+	private List<string> BuildOptionsProfilsForSegment(string segment)
 	{
-		var activeSlots = _slots.Where(s => s.IsCible).ToList();
-		var entrees = rows.Where(r => !r.IsTotal).Sum(r => activeSlots.Sum(s => GetEntreesCell(r, s.Id)));
-		return Math.Round(entrees, 2);
+		if (IsSegmentNonAffectable(segment))
+			return new List<string>();
+
+		if (SegmentsBanquePrivee.Contains(segment))
+			return ProfilsBanquePrivee.ToList();
+
+		if (IsGpStandard(segment))
+			return ProfilsRetailAvecAccueil.ToList();
+
+		return ProfilsRetail.ToList();
 	}
 
-	// ── KPI par slot individuel ───────────────────────────────────────────
-
-	// Total ETP existant pour un slot (somme sur tous les segments)
-	private double? GetTotalEtpExistantForSlot(string slotId)
+	private IReadOnlyList<string> GetOptionsProfilsPourSegment(string segment)
 	{
-		var vals = rows.Where(r => !r.IsTotal)
-					   .Select(r => r.EtpParProfil.GetValueOrDefault(slotId))
-					   .Where(v => v.HasValue).ToList();
-		return vals.Any() ? vals.Sum(v => v!.Value) : null;
+		return BuildOptionsProfilsForSegment(segment?.Trim() ?? string.Empty);
 	}
 
-	// Taux de remplissage CIBLE par slot, en % = charge ETP cible saisie ÷ EtpCible du conseiller × 100
-	// 100% = portefeuille cible parfaitement chargé · < 100% = sous-chargé · > 100% = surchargé
-	private double? GetRemplissageForSlot(ConseillerSlot slot)
+	private static IReadOnlyList<string> GetOptionsFiltered(
+		IReadOnlyList<string> allOptions,
+		params string?[] exclude)
 	{
-		if (!slot.IsCible || slot.EtpCible <= 0) return null;
-		var etp = GetEtpCibleSaisieTotal(slot.Id);
-		return etp.HasValue ? etp.Value / slot.EtpCible * 100.0 : null;
+		var excluded = exclude
+			.Where(e => !string.IsNullOrWhiteSpace(e))
+			.Select(e => e!.Trim())
+			.ToHashSet(StringComparer.OrdinalIgnoreCase);
+		return allOptions.Where(p => !excluded.Contains(p.Trim())).ToList();
 	}
 
-	// Taux de remplissage EXISTANT par slot (pour comparaison) = charge ETP existante ÷ EtpActuel × 100
-	private double? GetRemplissageExistantForSlot(ConseillerSlot slot)
+	private static bool IsGpStandard(string? segment)
 	{
-		if (!slot.IsActuel || slot.EtpActuel <= 0) return null;
-		var etp = GetTotalEtpExistantForSlot(slot.Id);
-		return etp.HasValue ? etp.Value / slot.EtpActuel * 100.0 : null;
+		return string.Equals(segment?.Trim(), "GP Standard", StringComparison.OrdinalIgnoreCase);
 	}
 
-	// Evolution par slot : +1 si nouveau planifié, -1 si retiré, 0 si stable
-	private static double GetEvolutionForSlot(ConseillerSlot slot) =>
-		slot.IsCible ? (slot.IsActuel ? 0.0 : 1.0) : (slot.IsActuel ? -1.0 : 0.0);
+	private static bool IsSegmentNonAffectable(string? segment)
+	{
+		var s = segment?.Trim();
 
-	// ── Formatage ─────────────────────────────────────────────────────────
-	private static string FormatDiff(double? v, string suffix = "") =>
-		v.HasValue ? (v.Value >= 0 ? $"+{v.Value:F2}{suffix}" : $"{v.Value:F2}{suffix}") : "—";
+		return string.IsNullOrWhiteSpace(s)
+			   || string.Equals(s, "Non segmenté", StringComparison.OrdinalIgnoreCase)
+			   || string.Equals(s, "Non classé", StringComparison.OrdinalIgnoreCase)
+			   || s == "?";
+	}
 
-	private static string FormatDiff(double v, string suffix = "") =>
-		v >= 0 ? $"+{v:F0}{suffix}" : $"{v:F0}{suffix}";
+	private static bool IsSegmentNonRenseigne(string? segment)
+	{
+		return string.IsNullOrWhiteSpace(segment) || segment.Trim() == "?";
+	}
 
-	private static string DiffColor(double? v, bool positifBon = true) =>
-		!v.HasValue ? "color:white" :
-		v.Value > 0 ? (positifBon ? "color:#A5D6A7;font-weight:700" : "color:#EF9A9A;font-weight:700") :
-		v.Value < 0 ? (positifBon ? "color:#EF9A9A;font-weight:700" : "color:#A5D6A7;font-weight:700") :
-		"color:rgba(255,255,255,0.6);font-weight:600";
+	private static string NormalizeKey(string? value)
+	{
+		return value?.Trim() ?? string.Empty;
+	}
 
-	private static string DiffColor(double v, bool positifBon = true) =>
-		v > 0 ? (positifBon ? "color:#A5D6A7;font-weight:700" : "color:#EF9A9A;font-weight:700") :
-		v < 0 ? (positifBon ? "color:#EF9A9A;font-weight:700" : "color:#A5D6A7;font-weight:700") :
-		"color:rgba(255,255,255,0.6);font-weight:600";
+	// ═══════════════════════════════════════════════════════════════
+	//   Wrappers vers ReglesHypothesesCalculService
+	// ═══════════════════════════════════════════════════════════════
+
+	private double GetIntensite(SegmentIntensite segment)
+	{
+		return CalculService.GetIntensite(segment);
+	}
+
+	private double GetHeuresTravailParAn()
+	{
+		return CalculService.GetHeuresTravailParAn(model);
+	}
+
+	private double GetPartTempsCommercialRatio(ConseillerTempsProfil profil)
+	{
+		return CalculService.GetPartTempsCommercialRatio(profil);
+	}
+
+	private double ConvertPartTempsCommercialToRatio(double valeur)
+	{
+		return CalculService.ConvertPartTempsCommercialToRatio(valeur);
+	}
+
+	private double GetPartTempsCommercialPctDisplay(ConseillerTempsProfil profil)
+	{
+		return CalculService.GetPartTempsCommercialPctDisplay(profil);
+	}
+
+	private double GetPartTempsNonCommercialPctDisplay(ConseillerTempsProfil profil)
+	{
+		return CalculService.GetPartTempsNonCommercialPctDisplay(profil);
+	}
+
+	private void SetPartTempsCommercialPctFromDisplay(ConseillerTempsProfil profil, double valeurPct)
+	{
+		CalculService.SetPartTempsCommercialPctFromDisplay(profil, valeurPct);
+	}
+
+	private double GetVolumeHoraire(ConseillerTempsProfil profil)
+	{
+		return CalculService.GetVolumeHoraire(model, profil);
+	}
+
+	private double GetVolumeHoraireByProfil(string profil)
+	{
+		return CalculService.GetVolumeHoraireByProfil(model, profil);
+	}
+
+	private double GetIntensiteBySegment(string segment)
+	{
+		return CalculService.GetIntensiteBySegment(model, segment);
+	}
+
+	private double GetTailleTheoriqueCalculee(string? profil, string? segment)
+	{
+		return CalculService.GetTailleTheoriqueCalculee(model, profil, segment);
+	}
+
+	private double GetVolumeMoyen()
+	{
+		return CalculService.GetVolumeMoyen(model);
+	}
+
+	private double GetIntensiteMoyenne()
+	{
+		return CalculService.GetIntensiteMoyenne(model);
+	}
+
+	private double GetCapaciteMoyenne()
+	{
+		return CalculService.GetCapaciteMoyenne(model);
+	}
+
+	// ── Helpers type d'agence ─────────────────────────────────────────────
+
+	private static string FormatTypeAgenceLabel(string lm)
+	{
+		if (string.IsNullOrWhiteSpace(lm))
+			return "";
+
+		if (string.Equals(lm.Trim(), "retail", StringComparison.OrdinalIgnoreCase))
+			return "Agence";
+
+		return char.ToUpperInvariant(lm[0]) + lm[1..];
+	}
+
+	// Normalise un libellé profil pour comparaison (insensible à la casse,
+	// aux accents, points et espaces multiples) afin de matcher de façon
+	// robuste les différentes variantes d'écriture venant de la donnée.
+	private static string NormalizeProfilKey(string? profil)
+	{
+		if (string.IsNullOrWhiteSpace(profil))
+			return "";
+
+		var s = profil.Trim().ToUpperInvariant()
+			.Replace("É", "E").Replace("È", "E").Replace("Ê", "E")
+			.Replace(".", "")
+			.Replace("'", " ");
+
+		while (s.Contains("  "))
+			s = s.Replace("  ", " ");
+
+		return s.Trim();
+	}
+
+	private static string FormatProfilLabelDisplay(string? profil)
+	{
+		return NormalizeProfilKey(profil) switch
+		{
+			"DIR BP" => "DIRECTEUR BANQUE PRIVEE",
+			_ => profil ?? string.Empty
+		};
+	}
+
+	private static int GetProfilRank(string? profil) => NormalizeProfilKey(profil) switch
+	{
+		"CONSEILLER COMMERCIAL" or "CONS COMMER" => 1,
+		"CONSEILLER CLIENTELE" => 2,
+		"CH PATRIM" or "RCP" => 3,
+		"CO GESPAT" => 4,
+		"CONS PRIVE" => 5,
+		"RESP AGENCE" => 6,
+		"DIR PATRIMOINE" => 7,
+		"DIR SECTEUR" => 8,
+		"CONSEILLER D ACCUEIL" => 20,
+		"DIR BP" => 21,
+		"BANQUIER PRIVE" => 22,
+		"CGP" => 23,
+		_ => 99
+	};
+
+	private double GetTempsCommercialByType(string ligneMetier)
+	{
+		var p = model?.ConseillersProfils
+			.FirstOrDefault(x => x.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true);
+		return p != null ? GetPartTempsCommercialPctDisplay(p) : 0;
+	}
+
+	private void SetTempsCommercialByType(string ligneMetier, double pct)
+	{
+		if (model == null) return;
+		_tempsCommerciauxParType[ligneMetier] = pct;
+		foreach (var p in model.ConseillersProfils
+			.Where(x => x.LigneMetier?.Equals(ligneMetier, StringComparison.OrdinalIgnoreCase) == true))
+		{
+			SetPartTempsCommercialPctFromDisplay(p, pct);
+		}
+	}
+
+	private void SetTempsCommercialByTypeSafe(string ligneMetier, string? val)
+	{
+		if (double.TryParse(val, System.Globalization.NumberStyles.Any,
+				System.Globalization.CultureInfo.InvariantCulture, out var d))
+			SetTempsCommercialByType(ligneMetier, Math.Clamp(d, 0, 100));
+	}
+
+	// ═══════════════════════════════════════════════════════════════
+	//   BASELINE / SIMULATION
+	// ═══════════════════════════════════════════════════════════════
+
+	private double GetBaselineHeuresTravailParAn()
+	{
+		if (snapshotInitial == null)
+			return 0;
+
+		return snapshotInitial.HeuresParSemaine * snapshotInitial.NbSemainesParAn;
+	}
+
+	private double GetBaselineIntensiteBySegment(string? segment)
+	{
+		if (snapshotInitial == null || string.IsNullOrWhiteSpace(segment))
+			return 0;
+
+		var key = NormalizeKey(segment);
+
+		if (!snapshotInitial.Segments.TryGetValue(key, out var saved))
+			return 0;
+
+		return saved.NombreRdvParAn * saved.DureeRdvHeures;
+	}
+
+	private double GetBaselinePartCommercialeRatioByProfil(string? profil)
+	{
+		if (snapshotInitial == null || string.IsNullOrWhiteSpace(profil))
+			return 0;
+
+		var key = NormalizeKey(profil);
+
+		if (!snapshotInitial.PartsCommerciales.TryGetValue(key, out var saved))
+			return 0;
+
+		return ConvertPartTempsCommercialToRatio(saved);
+	}
+
+	private double GetBaselineVolumeHoraireByProfil(string? profil)
+	{
+		if (string.IsNullOrWhiteSpace(profil))
+			return 0;
+
+		return Math.Round(GetBaselineHeuresTravailParAn() * GetBaselinePartCommercialeRatioByProfil(profil), 1);
+	}
+
+	private double GetBaselineTailleTheorique(string? profil, string? segment)
+	{
+		if (snapshotInitial == null || string.IsNullOrWhiteSpace(profil) || IsSegmentNonRenseigne(segment))
+			return 0;
+
+		var intensite = GetBaselineIntensiteBySegment(segment);
+		var volume = GetBaselineVolumeHoraireByProfil(profil);
+
+		return intensite > 0 ? volume / intensite : 0;
+	}
+
+	private double GetBaselineVolumeMoyen()
+	{
+		if (model == null || snapshotInitial == null || model.ConseillersProfils == null || !model.ConseillersProfils.Any())
+			return 0;
+
+		return model.ConseillersProfils.Average(c => GetBaselineVolumeHoraireByProfil(c.Profil));
+	}
+
+	private double GetBaselineIntensiteMoyenne()
+	{
+		if (snapshotInitial == null || !snapshotInitial.Segments.Any())
+			return 0;
+
+		var valeurs = snapshotInitial.Segments.Values
+			.Select(s => s.NombreRdvParAn * s.DureeRdvHeures)
+			.Where(v => v > 0)
+			.ToList();
+
+		return valeurs.Any() ? valeurs.Average() : 0;
+	}
+
+	private double GetBaselineCapaciteMoyenne()
+	{
+		if (model == null || snapshotInitial == null)
+			return 0;
+
+		var valeurs = TaillesCalculees
+			.Where(t => !IsSegmentNonRenseigne(t.SegmentCouvert))
+			.Select(t => GetBaselineTailleTheorique(t.Profil, t.SegmentCouvert))
+			.Where(v => v > 0)
+			.ToList();
+
+		return valeurs.Any() ? valeurs.Average() : 0;
+	}
+
+	private double GetDeltaHeuresTravailParAn()
+	{
+		return GetHeuresTravailParAn() - GetBaselineHeuresTravailParAn();
+	}
+
+	private double GetDeltaVolumeMoyen()
+	{
+		return GetVolumeMoyen() - GetBaselineVolumeMoyen();
+	}
+
+	private double GetDeltaIntensiteMoyenne()
+	{
+		return GetIntensiteMoyenne() - GetBaselineIntensiteMoyenne();
+	}
+
+	private double GetDeltaCapaciteMoyenne()
+	{
+		return GetCapaciteMoyenne() - GetBaselineCapaciteMoyenne();
+	}
+
+	private bool IsAffectationModifiee(string? segment, string? conseillerPrioritaire, string? conseillerSecondaire, string? conseillerTertiaire = null)
+	{
+		if (snapshotInitial == null || string.IsNullOrWhiteSpace(segment))
+			return false;
+
+		var key = NormalizeKey(segment);
+
+		if (!snapshotInitial.Affectations.TryGetValue(key, out var saved))
+			return false;
+
+		return !string.Equals(saved.ConseillerPrioritaire?.Trim(), conseillerPrioritaire?.Trim(), StringComparison.OrdinalIgnoreCase)
+			   || !string.Equals(saved.ConseillerSecondaire?.Trim(), conseillerSecondaire?.Trim(), StringComparison.OrdinalIgnoreCase)
+			   || !string.Equals(saved.ConseillerTertiaire?.Trim(), conseillerTertiaire?.Trim(), StringComparison.OrdinalIgnoreCase);
+	}
+
+	private string FormatDelta(double delta, string unite)
+	{
+		if (Math.Abs(delta) < 0.0001)
+			return "0";
+
+		var prefix = delta > 0 ? "+" : "";
+		var suffix = string.IsNullOrWhiteSpace(unite) ? "" : $" {unite}";
+
+		return $"{prefix}{delta:F2}{suffix}";
+	}
+
+	private string GetDeltaStyle(double delta)
+	{
+		if (Math.Abs(delta) < 0.0001)
+			return "color:#6C7A89;font-weight:600";
+
+		if (delta > 0)
+			return "color:#1B5E20;font-weight:700";
+
+		return "color:#B71C1C;font-weight:700";
+	}
+
+	private string GetDeltaCellStyle(double delta)
+	{
+		var baseStyle = "text-align:center;font-weight:700;";
+
+		if (Math.Abs(delta) < 0.0001)
+			return baseStyle + "background:#F5F7FA;color:#6C7A89";
+
+		if (delta > 0)
+			return baseStyle + "background:#E8F5E9;color:#1B5E20";
+
+		return baseStyle + "background:#FDECEA;color:#B71C1C";
+	}
+
+	private string GetPortefeuilleCellStyle(double taille, bool segmentNonRenseigne)
+	{
+		var baseStyle = "text-align:center;font-weight:700;font-size:15px;";
+
+		if (segmentNonRenseigne || taille <= 0)
+			return baseStyle + "background:#E8EDF2;color:#6C7A89";
+
+		if (taille < 150)
+			return baseStyle + "background:#FDECEA;color:#B71C1C";
+
+		if (taille < 300)
+			return baseStyle + "background:#FFF3E0;color:#E65100";
+
+		return baseStyle + "background:#E8F5E9;color:#1B5E20";
+	}
+
+	// ═══════════════════════════════════════════════════════════════
+	//   ENREGISTRER
+	// ═══════════════════════════════════════════════════════════════
+
+	private async Task Enregistrer()
+	{
+		if (model == null)
+			return;
+
+		try
+		{
+			var bundle = new ReglesHypothesesBundle
+			{
+				Parametres = new ParametresGenerauxData
+				{
+					HeuresParSemaine = model.HeuresParSemaine,
+					NbSemainesParAn = model.NbSemainesParAn
+				},
+
+				Segments = model.SegmentsIntensite.Select(x => new SegmentIntensiteData
+				{
+					LigneMetier = x.LigneMetier,
+					Segment = x.Segment,
+					NombreRdvParAn = x.NombreRdvParAn,
+					DureeRdvHeures = x.DureeRdvHeures,
+					IntensiteRelationnelle = x.IntensiteRelationnelle
+				}).ToList(),
+
+				Profils = model.ConseillersProfils.Select(x => new ConseillerProfilData
+				{
+					LigneMetier = x.LigneMetier,
+					Profil = x.Profil,
+					PartTempsCommercialPct = x.PartTempsCommercialPct
+				}).ToList(),
+
+				Regles = model.ReglesAffectationSegments.Select(x => new RegleAffectationSegmentData
+				{
+					Segment = x.Segment,
+					ConseillerPrioritaire = x.ConseillerPrioritaire,
+					ConseillerSecondaire = x.ConseillerSecondaire,
+					ConseillerTertiaire = x.ConseillerTertiaire
+				}).ToList()
+			};
+
+			var result = await ReglesService.SaveAllAsync(bundle);
+
+			StateService.UpdateRegles(model);
+			snapshotInitial = CreateSnapshot();
+
+			Snackbar.Add(
+				$"Modifications enregistrées en base : " +
+				$"{result.SegmentsSaved} segments, " +
+				$"{result.ProfilsSaved} profils, " +
+				$"{result.ReglesSaved} règles.",
+				Severity.Success,
+				cfg =>
+				{
+					cfg.Icon = Icons.Material.Filled.CheckCircle;
+					cfg.VisibleStateDuration = 4000;
+				}
+			);
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Erreur sauvegarde R&H : {ex.Message}");
+
+			Snackbar.Add(
+				$"Erreur lors de l'enregistrement : {ex.Message}",
+				Severity.Error,
+				cfg =>
+				{
+					cfg.Icon = Icons.Material.Filled.Error;
+					cfg.VisibleStateDuration = 5000;
+				}
+			);
+		}
+	}
+
+	// ── Helpers formatage (non static car dépendent du référentiel) ──
+	private bool IsBanquePriveeSegment(string? segment) =>
+		SegmentsBanquePrivee.Contains(segment?.Trim() ?? string.Empty);
+
+	private string FormatSegmentLabel(string? segment) =>
+		IsBanquePriveeSegment(segment) ? $"{segment} (Banque Privée)" : (segment ?? string.Empty);
+
+	private string FormatProfilLabel(string? profil) =>
+		ProfilsBanquePrivee.Contains(profil ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+			? $"{profil} (Banque Privée)"
+			: (profil ?? string.Empty);
+
+	private async Task ExportExcel()
+	{
+		if (model == null) return;
+
+		var sb = new System.Text.StringBuilder();
+
+		sb.AppendLine("INTENSITÉ RELATIONNELLE");
+		sb.AppendLine("Segment;Nb RDV/an;Durée RDV (h);Intensité");
+		foreach (var s in model.SegmentsIntensite)
+			sb.AppendLine($"{FormatSegmentLabel(s.Segment)};{s.NombreRdvParAn:F2};{s.DureeRdvHeures:F2};{GetIntensite(s):F2}");
+
+		sb.AppendLine();
+		sb.AppendLine("TEMPS CONSEILLER");
+		sb.AppendLine("Profil;Part tps commercial (%);Volume horaire (h)");
+		foreach (var p in model.ConseillersProfils)
+			sb.AppendLine($"{p.Profil};{GetPartTempsCommercialPctDisplay(p):F0};{GetVolumeHoraire(p):F1}");
+
+		sb.AppendLine();
+		sb.AppendLine("RÈGLES D'AFFECTATION");
+		sb.AppendLine("Segment;Conseiller Prioritaire;Conseiller Secondaire;Conseiller Tertiaire");
+		foreach (var r in model.ReglesAffectationSegments)
+			sb.AppendLine($"{FormatSegmentLabel(r.Segment)};{r.ConseillerPrioritaire};{r.ConseillerSecondaire};{r.ConseillerTertiaire}");
+
+		sb.AppendLine();
+		sb.AppendLine("PORTEFEUILLE THÉORIQUE");
+		sb.AppendLine("Segment;Intensité;Volume horaire;Taille théorique");
+		foreach (var t in TaillesCalculees)
+		{
+			var intensite = IsSegmentNonRenseigne(t.SegmentCouvert) ? 0 : GetIntensiteBySegment(t.SegmentCouvert);
+			var volume = CalculService.GetVolumeHoraireByTypeAgence(model, t.LigneMetier);
+			var taille = intensite > 0 ? volume / intensite : 0;
+			sb.AppendLine($"{FormatSegmentLabel(t.SegmentCouvert)};{intensite:F2};{volume:F1};{(taille > 0 ? taille.ToString("N0") : "—")}");
+		}
+
+		var csv = sb.ToString();
+		var fileName = $"parametres_CA_{DateTime.Now:yyyyMMdd_HHmm}.csv";
+		await JS.InvokeVoidAsync("downloadCsvFile", fileName, csv);
+	}
+
+	// ═══════════════════════════════════════════════════════════════
+	//   Classes internes pour le snapshot de simulation
+	// ═══════════════════════════════════════════════════════════════
+
+	private sealed class SimulationSnapshot
+	{
+		public double HeuresParSemaine { get; set; }
+		public double NbSemainesParAn { get; set; }
+
+		public Dictionary<string, SegmentSnapshot> Segments { get; set; } =
+			new(StringComparer.OrdinalIgnoreCase);
+
+		public Dictionary<string, double> PartsCommerciales { get; set; } =
+			new(StringComparer.OrdinalIgnoreCase);
+
+		public Dictionary<string, AffectationSnapshot> Affectations { get; set; } =
+			new(StringComparer.OrdinalIgnoreCase);
+	}
+
+	private sealed class SegmentSnapshot
+	{
+		public string Segment { get; set; } = string.Empty;
+		public double NombreRdvParAn { get; set; }
+		public double DureeRdvHeures { get; set; }
+	}
+
+	private sealed class AffectationSnapshot
+	{
+		public string Segment { get; set; } = string.Empty;
+		public string ConseillerPrioritaire { get; set; } = string.Empty;
+		public string ConseillerSecondaire { get; set; } = string.Empty;
+		public string ConseillerTertiaire { get; set; } = string.Empty;
+	}
 }
