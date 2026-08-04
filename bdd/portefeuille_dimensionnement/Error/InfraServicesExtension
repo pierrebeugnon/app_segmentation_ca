@@ -1,0 +1,35 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
+using Segmentation.Core.Repositories;
+using Segmentation.Infrastructure.Data;
+using Segmentation.Infrastructure.Repositories;
+
+namespace Segmentation.Infrastructure.Extensions
+{
+    /// <summary>
+    /// Classe d'extension des services relatifs à l'infrastructure
+    /// </summary>
+    public static class InfraServicesExtension
+    {
+        /// <summary>
+        /// Ajout des services de l'infrastructure dans la collection de services
+        /// </summary>
+        /// <param name="services">Collection de service</param>
+        /// <param name="configuration">Configuration</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IServiceCollection AddInfraServices(this IServiceCollection services, IConfiguration configuration)
+        {
+            services.AddDbContext<SegmentationContext>(optionsAction: options => options.UseSqlServer(configuration["DB_DEFAULT_CONNECTION_STRINGS"]));
+            services.AddScoped(serviceType: typeof(IAsyncRepository<>), implementationType: typeof(BaseRepository<>));
+			//TODO : Ajouter aux services les scopes des repository
+			services.AddScoped<IRegionsRepository, RegionsRepository>();
+			services.AddScoped<ISegmentationDistributivesRepository,SegmentationDistributivesRepository>();
+			services.AddScoped<ISegmentsIntensitesRepository,SegmentsIntensitesRepository>();
+			services.AddScoped<IConseillersProfilsRepository, ConseillersProfilsRepository>();
+			services.AddScoped<IReglesAffectationSegmentsRepository, ReglesAffectationSegmentsRepository>();
+			services.AddScoped<IParametresGenerauxRepository, ParametresGenerauxRepository>();
+			return services;
+        }
+    }
+}
