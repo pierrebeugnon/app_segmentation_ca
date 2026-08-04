@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Segmentation.Core.Repositories;
 using Segmentation.Infrastructure.Data;
 using Segmentation.Infrastructure.Repositories;
-
 namespace Segmentation.Infrastructure.Extensions
 {
     /// <summary>
@@ -29,6 +28,7 @@ namespace Segmentation.Infrastructure.Extensions
 			services.AddScoped<IConseillersProfilsRepository, ConseillersProfilsRepository>();
 			services.AddScoped<IReglesAffectationSegmentsRepository, ReglesAffectationSegmentsRepository>();
 			services.AddScoped<IParametresGenerauxRepository, ParametresGenerauxRepository>();
+			services.AddScoped<IDimensionnementPortefeuilleEtpRepository, DimensionnementPortefeuilleEtpRepository>();
 			return services;
         }
     }
