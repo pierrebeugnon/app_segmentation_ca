@@ -1,6 +1,8 @@
 Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0234	Le nom de type ou d'espace de noms 'Services' n'existe pas dans l'espace de noms 'Segmentation.Client' (vous manque-t-il une référence d'assembly ?)	Segmentation.Application	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Commands\DimensionnementPortefeuille\PortefeuilleDimensionnement.razor.cs	5	
-
+Erreur (active)	CS0234	Le nom de type ou d'espace de noms 'Shared' n'existe pas dans l'espace de noms 'Segmentation' (vous manque-t-il une référence d'assembly ?)	Segmentation.Application	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Handlers\DimensionnementPortefeuille\GetDimensionnementPortefeuilleEtpQueryHandler.cs	4	
 
 Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'SegmentationStateService' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Application	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Commands\DimensionnementPortefeuille\PortefeuilleDimensionnement.razor.cs	12	
+Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'SaveDimensionnementPortefeuilleEtpData' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Application	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Handlers\DimensionnementPortefeuille\GetDimensionnementPortefeuilleEtpQueryHandler.cs	9	
+
+Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
+Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'SaveDimensionnementPortefeuilleEtpData' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Application	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation.Application\Handlers\DimensionnementPortefeuille\GetDimensionnementPortefeuilleEtpQueryHandler.cs	19	
