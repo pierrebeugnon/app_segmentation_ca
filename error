@@ -1,5 +1,27 @@
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS4033	L'opérateur 'await' peut seulement être utilisé dans une méthode async. Marquez cette méthode avec le modificateur 'async' et changez son type de retour en 'Task'.		C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\PortefeuilleDimensionnement.razor	1302	
+        _segmentationDistributiveFiltree = _segmentationDistributive
+            .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
+            .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
+            .Where(x => string.IsNullOrEmpty(filtreAgence) || x.LibAgence == filtreAgence)
+            .ToList();
 
-Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
-Erreur (active)	CS4008	Impossible d'attendre 'void'		C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\PortefeuilleDimensionnement.razor	1252	
+        filtreRegionApplique = filtreRegion;
+        filtreSecteurApplique = filtreSecteur;
+        filtreAgenceApplique = filtreAgence;
+
+        BuildFilterOptions();
+        await InitData();
+
+        Console.WriteLine($">>> Agence par défaut : {filtreAgence}");
+        Console.WriteLine($">>> Lignes filtrées : {_segmentationDistributiveFiltree.Count}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur chargement Portefeuille : {ex.Message}");
+    }
+    finally
+    {
+        _isLoading = false;
+    }
+}
+
+public void Dispose() => StateService.OnChange -= OnReglesChanged;
