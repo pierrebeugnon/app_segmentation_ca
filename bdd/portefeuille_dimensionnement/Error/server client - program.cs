@@ -48,6 +48,7 @@ builder.Services.AddScoped<ReglesHypothesesService>();
 builder.Services.AddScoped<ReglesHypothesesCalculService>();
 builder.Services.AddScoped<ReferentielService>();
 builder.Services.AddScoped<DashboardService>();
+builder.Services.AddScoped<DimensionnementPortefeuilleEtpService>();
 builder.Services.AddMudServices();
 
 
