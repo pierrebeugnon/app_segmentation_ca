@@ -1,73 +1,129 @@
-using CANDF.Kosmos.Foundations.Client.Services.Annuaire;
-using CANDF.Kosmos.Foundations.Client.Services.Habilitations;
-using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.AspNetCore.Components.Web;
-using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using Microsoft.JSInterop;
-using MudBlazor.Services;
-using Segmentation.Client;
-using Segmentation.Client.Services;
-using Segmentation.Client.Services.Application;
-using Segmentation.Client.Shared;
-using Segmentation.Client.Shared.Notifications;
-using Segmentation.Client.Shared.Request;
-using System.Globalization;
-using Telerik.Blazor.Services;
+using CANDF.Kosmos.Dependencies.Extensions;
+using CANDF.Kosmos.Dependencies.Filters;
+using CANDF.Kosmos.Dependencies.Services;
+using CANDF.Kosmos.Dependencies.Validators;
+using CANDF.Kosmos.Foundations.Extensions;
+using CANDF.Kosmos.Tools.Services;
+using CatsLogger.Configuration;
+using HealthChecks.UI.Client;
+using Mapster;
+using MapsterMapper;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using System.Reflection;
+using System.Text.Json.Serialization;
+using Segmentation.Application.Extensions;
+using Segmentation.Infrastructure.Extensions;
+using Segmentation.Server.Extensions;
+using Segmentation.Server.Middleware;
 
-var builder = WebAssemblyHostBuilder.CreateDefault(args);
-builder.RootComponents.Add<App>("#app");
-builder.RootComponents.Add<HeadOutlet>("head::after");
+var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddLocalization();
+// Add configuration
+builder.Configuration.
+    SetBasePath(builder.Environment.ContentRootPath).
+    AddJsonFile("appsettings.json").
+#if DEBUG
+	AddJsonFile($"appsettings.{Environments.Development}.json", optional: true, reloadOnChange: true).
+#endif
+    AddEnvironmentVariables();
 
-builder.Services.AddOptions();
-builder.Services.AddAuthorizationCore();
+//Ajout du service d'authentification X-Connect
+builder.Services.AddAuthentificationService(builder.Configuration);
 
-builder.Services.AddSingleton<AuthenticationStateProvider, HostAuthenticationStateProvider>();
-builder.Services.AddScoped<CookieHandler>();
+//Ajout du service Redis
+builder.Services.AddRedisService(builder.Configuration);
 
-builder.Services.AddHttpClient("default", client => client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress));
-builder.Services.AddHttpClient("Segmentation.Server", client => client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)).AddHttpMessageHandler<CookieHandler>();
-builder.Services.AddSingleton(sp => (HostAuthenticationStateProvider)sp.GetRequiredService<AuthenticationStateProvider>());
-builder.Services.AddTransient(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("default"));
-builder.Services.AddSingleton<AppState>();
-builder.Services.AddSingleton<RequestState>();
-builder.Services.AddSingleton<NotificationQueue>();
+//Ajout du service S3
+builder.Services.AddBucketS3Service(builder.Configuration);
 
-builder.Services.AddSingleton<IS3Service, S3Service>();
-builder.Services.AddSingleton<IHabilitationsService, HabilitationsService>();
-builder.Services.AddSingleton<IUsersExtendedService, UsersExtendedService>();
-builder.Services.AddSingleton<IUnitsExtendedService, UnitsExtendedService>();
-builder.Services.AddSingleton<IUsersService, UsersService>();
-builder.Services.AddSingleton<IUnitsService, UnitsService>();
-builder.Services.AddSingleton<IHierarchiesService, HierarchiesService>();
-builder.Services.AddScoped<EtpConversionService>();
-builder.Services.AddScoped<RepartitionAutomatiqueService>();
-builder.Services.AddScoped<SegmentationStateService>();
-builder.Services.AddScoped<ReglesHypothesesService>();
-builder.Services.AddScoped<ReglesHypothesesCalculService>();
-builder.Services.AddScoped<ReferentielService>();
-builder.Services.AddScoped<DashboardService>();
-builder.Services.AddMudServices();
+//Ajout des logs
+builder.Services.AddLogService();
 
+//Ajout FileServer
+builder.Services.AddFileServer(builder.Configuration);
 
-builder.Services.AddTelerikBlazor();
-builder.Services.AddSingleton(typeof(ITelerikStringLocalizer), typeof(ResxLocalizer));
+//Ajout de HealthCheck
+builder.Services.AddHealthCheckService();
 
-var host = builder.Build();
+builder.Services.AddApplicationServices();
+builder.Services.AddInfraServices(builder.Configuration);
+builder.Services.AddTransient<ExceptionHandlingMiddleware>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IS3Service, S3Service>();
+builder.Services.AddScoped<IRedisService, RedisService>();
+builder.Services.AddScoped<IUsurpationService, UsurpationService>();
 
-const string defaultCulture = "fr-FR";
+builder.Services.AddSingleton<ApiKeyAuthorizationFilter>();
+builder.Services.AddSingleton<IApiKeyValidator, ApiKeyValidator>();
+builder.Services.AddSingleton<IEmailService, EmailService>();
 
-var js = host.Services.GetRequiredService<IJSRuntime>();
-var result = await js.InvokeAsync<string>("blazorCulture.get");
-var culture = CultureInfo.GetCultureInfo(result ?? defaultCulture);
+builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 
-if (result == null)
+var typeAdapterConfig = TypeAdapterConfig.GlobalSettings;
+typeAdapterConfig.Scan(Assembly.GetExecutingAssembly());
+var mapperConfig = new Mapper(typeAdapterConfig);
+builder.Services.AddSingleton<IMapper>(mapperConfig);
+
+// Add services to the container.
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.SuppressConsumesConstraintForFormFileParameters = true;
+        options.SuppressInferBindingSourcesForParameters = true;
+        options.SuppressModelStateInvalidFilter = true;
+        options.SuppressMapClientErrors = true;
+    })
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.MaxDepth = 10;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+        options.JsonSerializerOptions.PropertyNamingPolicy = null;
+    });
+
+builder.Host.SetCatsLoggerHost();
+
+builder.Services.AddAuthorizationService();
+builder.Services.AddKosmosFoundationService();
+
+var app = builder.Build();
+
+// à décommenter pour activer la migration automatique EF core
+app.MigrateDatabase();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
 {
-	await js.InvokeVoidAsync("blazorCulture.set", defaultCulture);
+    app.UseWebAssemblyDebugging();
+}
+else
+{
+    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    app.UseHsts();
 }
 
-CultureInfo.DefaultThreadCurrentCulture = culture;
-CultureInfo.DefaultThreadCurrentUICulture = culture;
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseHttpsRedirection();
 
-await host.RunAsync();
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+app.MapFallbackToFile("index.html");
+
+app.MapHealthChecks("/health/liveness", new HealthCheckOptions
+{
+    Predicate = reg => reg.Tags.Contains("liveness"),
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+app.MapHealthChecks("/health/readiness", new HealthCheckOptions
+{
+    Predicate = reg => reg.Tags.Contains("readiness"),
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+
+app.Run();
