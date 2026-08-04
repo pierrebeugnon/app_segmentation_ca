@@ -1,1 +1,57 @@
->>> Erreur DimensionnementPortefeuilleEtp SaveAsync : DeserializeUnableToConvertValue, System.Boolean Path: $ | LineNumber: 0 | BytePositionInLine: 1.
+public async Task<bool> SaveAsync(
+    SaveDimensionnementPortefeuilleEtpRequest request,
+    CancellationToken cancellationToken = default)
+{
+    if (request == null)
+        throw new ArgumentNullException(nameof(request));
+
+    if (string.IsNullOrWhiteSpace(request.LibAgence))
+        throw new ArgumentException(
+            "L'agence est obligatoire.",
+            nameof(request.LibAgence));
+
+    try
+    {
+        var response = await _http.PostAsJsonAsync(
+            "api/DimensionnementPortefeuilleEtpDetail",
+            request,
+            cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent =
+                await response.Content.ReadAsStringAsync(
+                    cancellationToken);
+
+            Console.WriteLine(
+                $">>> DimensionnementPortefeuilleEtp SaveAsync " +
+                $"status : {response.StatusCode}");
+
+            Console.WriteLine(
+                $">>> Réponse API : {errorContent}");
+
+            return false;
+        }
+
+        var result = await response.Content
+            .ReadFromJsonAsync<SaveDimensionnementPortefeuilleEtpResponse>(
+                cancellationToken: cancellationToken);
+
+        return result?.Saved ?? false;
+    }
+    catch (OperationCanceledException)
+    {
+        Console.WriteLine(
+            ">>> Enregistrement du dimensionnement ETP annulé.");
+
+        return false;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(
+            $">>> Erreur DimensionnementPortefeuilleEtp SaveAsync : " +
+            $"{ex.Message}");
+
+        return false;
+    }
+}
