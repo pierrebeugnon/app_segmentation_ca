@@ -1,0 +1,16 @@
+using MediatR;
+using Segmentation.Shared.Models;
+
+namespace Segmentation.Application.Queries.DimensionnementPortefeuille
+{
+	public class GetDimensionnementPortefeuilleEtpQuery
+		: IRequest<SaveDimensionnementPortefeuilleEtpData?>
+	{
+		public string LibAgence { get; set; } = string.Empty;
+
+		public GetDimensionnementPortefeuilleEtpQuery(string libAgence)
+		{
+			LibAgence = libAgence;
+		}
+	}
+}
