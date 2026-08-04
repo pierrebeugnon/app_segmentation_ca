@@ -1,4 +1,6 @@
-        _segmentationDistributiveFiltree = _segmentationDistributive
+vers lignes 1252
+
+_segmentationDistributiveFiltree = _segmentationDistributive
             .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
             .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
             .Where(x => string.IsNullOrEmpty(filtreAgence) || x.LibAgence == filtreAgence)
@@ -25,3 +27,62 @@
 }
 
 public void Dispose() => StateService.OnChange -= OnReglesChanged;
+
+vers lignes 1302
+
+private void InitData()
+{
+    profils = GetProfils();
+    segments = GetSegments();
+    _slots = BuildSlots();
+
+    Console.WriteLine($">>> Profils : {profils.Count}");
+    Console.WriteLine($">>> Segments : {segments.Count}");
+    Console.WriteLine($">>> Slots : {_slots.Count}");
+    Console.WriteLine($">>> SegmentationDistributiveFiltree : {_segmentationDistributiveFiltree.Count}");
+
+    rows = BuildRows();
+
+    RecalcTotal();
+    InitEffectifs();
+
+    BuildFilterOptions();
+    await ApplyFilters();
+}
+
+// ── Construction des slots individuels ───────────────────────────────
+private List<ConseillerSlot> BuildSlots()
+{
+    if (_segmentationDistributiveFiltree == null || !_segmentationDistributiveFiltree.Any())
+        return new List<ConseillerSlot>();
+
+    return _segmentationDistributiveFiltree
+        .Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
+        .Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
+        .GroupBy(x => new
+        {
+            x.MatriculeConseiller,
+            x.TypeConseiller
+        })
+        .Select(g =>
+        {
+            var profil = g.Key.TypeConseiller;
+            var prefix = _profilShort.GetValueOrDefault(
+                profil,
+                profil[..Math.Min(3, profil.Length)].ToUpper()
+            );
+
+            return new ConseillerSlot
+            {
+                Profil = profil,
+                Label = $"{prefix}-{g.Key.MatriculeConseiller}",
+                IsActuel = true,
+                IsCible = true
+            };
+        })
+        .OrderBy(x => x.Profil)
+        .ThenBy(x => x.Label)
+        .ToList();
+}
+
+
