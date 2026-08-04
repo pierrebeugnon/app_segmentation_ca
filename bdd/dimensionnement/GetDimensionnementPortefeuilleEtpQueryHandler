@@ -74,3 +74,4 @@ namespace Segmentation.Application.Handlers.DimensionnementPortefeuille
 		}
 	}
 }
+
