@@ -12,6 +12,7 @@
 @using Segmentation.Shared.Referentiels
 @using System.Net.Http.Json
 @inject HttpClient Http
+@inject DimensionnementPortefeuilleEtpService DimensionnementEtpService
 
 <PageTitle>Dimensionnement Portefeuilles — CA Segmentation</PageTitle>
 
@@ -34,6 +35,7 @@
          En-tête + toggle ETP / Volume
     ══════════════════════════════════════════════════════════ -->
     <div class="ca-page-header">
+
         <div>
             <MudText Typo="Typo.h5" Class="ca-page-title">Dimensionnement des Portefeuilles</MudText>
             <MudText Typo="Typo.caption" Class="ca-page-subtitle">
