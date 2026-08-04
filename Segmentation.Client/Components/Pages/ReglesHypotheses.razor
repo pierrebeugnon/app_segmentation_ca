@@ -3,20 +3,21 @@
 @using Segmentation.Client.Models
 @using Segmentation.Client.Services
 @using Segmentation.Shared.Models
+@using Segmentation.Shared.Referentiels
 @inject ISnackbar Snackbar
 @inject SegmentationStateService StateService
 @inject ReglesHypothesesService ReglesService
-@inject ReglesHypothesesCalculService CalculService-
+@inject ReglesHypothesesCalculService CalculService
 @inject ReferentielService ReferentielService
 @inject IJSRuntime JS
 
-<PageTitle>Règles & Hypothèses — CA Segmentation</PageTitle>
+<PageTitle>Règles &amp; Hypothèses — CA Segmentation</PageTitle>
 
 <div class="ca-page">
 
     <div class="ca-page-header">
         <div>
-            <MudText Typo="Typo.h5" Class="ca-page-title">Règles & Hypothèses</MudText>
+            <MudText Typo="Typo.h5" Class="ca-page-title">Règles &amp; Hypothèses</MudText>
             <MudText Typo="Typo.caption" Class="ca-page-subtitle">
                 Configuration des paramètres de dimensionnement du réseau
             </MudText>
@@ -88,7 +89,7 @@
                         Segments et intensité relationnelle
                     </div>
 
-                    <MudTable Items="@model.SegmentsIntensite.Where(s => !IsSegmentNonAffectable(s.Segment)).ToList()"
+                    <MudTable Items="@model.SegmentsIntensite.Where(s => !IsSegmentNonAffectable(s.Segment)).OrderBy(s => OrdreSegments.IndexDe(s.Segment)).ToList()"
                               Dense="true"
                               Hover="true"
                               Elevation="0"
@@ -360,7 +361,7 @@
                         Règles d'affectation des conseillers par segment de clientèle
                     </div>
 
-                    <MudTable Items="@model.ReglesAffectationSegments.Where(r => !IsSegmentNonAffectable(r.Segment)).ToList()"
+                    <MudTable Items="@model.ReglesAffectationSegments.Where(r => !IsSegmentNonAffectable(r.Segment)).OrderBy(r => OrdreSegments.IndexDe(r.Segment)).ToList()"
                               Dense="true"
                               Hover="true"
                               Elevation="0"
@@ -496,7 +497,7 @@
                         </MudChip>
                     </div>
 
-                    <MudTable Items="@TaillesCalculees.Where(t => !IsSegmentNonAffectable(t.SegmentCouvert)).OrderByDescending(t => CalculService.GetTailleTheoriqueParSegment(model, t.SegmentCouvert)).ToList()"
+                    <MudTable Items="@TaillesCalculees.Where(t => !IsSegmentNonAffectable(t.SegmentCouvert)).OrderBy(t => OrdreSegments.IndexDe(t.SegmentCouvert)).ToList()"
                               Dense="true"
                               Hover="true"
                               Elevation="0"
@@ -514,6 +515,9 @@
                             </MudTh>
                             <MudTh Style="text-align:center;background:#E8EDF2;color:#1A4E6B">
                                 Taille théorique de portefeuille par segment
+                            </MudTh>
+                            <MudTh Style="text-align:center;background:#DDE9F5;color:#1A4E6B">
+                                Charge ETP théorique par segment (vision cible)
                             </MudTh>
 
                             @if (modeSimulation)
@@ -545,6 +549,14 @@
 
                                 var tailleReference = GetBaselineTailleTheorique(context.Profil, context.SegmentCouvert);
                                 var ecartTaille = tailleActuelle - tailleReference;
+
+                                // ── Charge ETP théorique (vision cible) = nb clients du segment ÷ taille théorique ──
+                                var nbClientsSegment = model.SegmentsIntensite
+                                .FirstOrDefault(s => string.Equals(s.Segment?.Trim(), context.SegmentCouvert?.Trim(), StringComparison.OrdinalIgnoreCase))
+                                ?.NombreClients ?? 0;
+                                var chargeEtpTheorique = (!segmentNonRenseigne && tailleActuelle > 0)
+                                ? nbClientsSegment / tailleActuelle
+                                : 0;
                             }
 
                             <MudTd Style="font-weight:600;color:#1A4E6B">
@@ -560,13 +572,17 @@
                             </MudTd>
 
                             <MudTd Style="text-align:center;background:#E8EDF2;font-weight:700;color:#1A4E6B;font-style:italic">
-                                @(segmentNonRenseigne || tailleActuelle <= 0 ? "—" : tailleActuelle.ToString("N2"))
+                                @(segmentNonRenseigne || tailleActuelle <= 0 ? "—" : tailleActuelle.ToString("N0"))
+                            </MudTd>
+
+                            <MudTd Style="text-align:center;background:#DDE9F5;font-weight:700;color:#1A4E6B">
+                                @(segmentNonRenseigne || chargeEtpTheorique <= 0 ? "—" : chargeEtpTheorique.ToString("F2"))
                             </MudTd>
 
                             @if (modeSimulation)
                             {
                                 <MudTd Style="text-align:center;background:#F5F7FA;color:#6C7A89">
-                                    @(segmentNonRenseigne || tailleReference == 0 ? "—" : tailleReference.ToString("N2"))
+                                    @(segmentNonRenseigne || tailleReference == 0 ? "—" : tailleReference.ToString("N0"))
                                 </MudTd>
 
                                 <MudTd Style="@GetDeltaCellStyle(ecartTaille)">
@@ -574,6 +590,34 @@
                                 </MudTd>
                             }
                         </RowTemplate>
+
+                        <FooterContent>
+                            @{
+                                // ── Total réseau de la charge ETP théorique (somme des segments affectables) ──
+                                double totalChargeEtp = 0;
+                                foreach (var t in TaillesCalculees.Where(x => !IsSegmentNonAffectable(x.SegmentCouvert)))
+                                {
+                                    if (IsSegmentNonRenseigne(t.SegmentCouvert)) continue;
+                                    var tailleT = CalculService.GetTailleTheoriqueParSegment(model, t.SegmentCouvert);
+                                    var nbT = model.SegmentsIntensite
+                                    .FirstOrDefault(s => string.Equals(s.Segment?.Trim(), t.SegmentCouvert?.Trim(), StringComparison.OrdinalIgnoreCase))
+                                    ?.NombreClients ?? 0;
+                                    if (tailleT > 0) totalChargeEtp += nbT / tailleT;
+                                }
+                            }
+                            <MudTd Style="font-weight:700;color:#1A4E6B;background:#EEF3FA">Total</MudTd>
+                            <MudTd Style="background:#EEF3FA"></MudTd>
+                            <MudTd Style="background:#EEF3FA"></MudTd>
+                            <MudTd Style="text-align:center;background:#EEF3FA;color:#9AA5B1">—</MudTd>
+                            <MudTd Style="text-align:center;background:#D6E8F7;font-weight:700;color:#1A4E6B">
+                                @totalChargeEtp.ToString("F2")
+                            </MudTd>
+                            @if (modeSimulation)
+                            {
+                                <MudTd Style="background:#EEF3FA"></MudTd>
+                                <MudTd Style="background:#EEF3FA"></MudTd>
+                            }
+                        </FooterContent>
                     </MudTable>
                 </MudPaper>
             </MudTabPanel>
