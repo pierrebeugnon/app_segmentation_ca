@@ -1,8 +1,2 @@
-/// <summary>
-/// Correspond au format { "saved": bool } renvoyé par le Controller
-/// (Ok(new { saved })).
-/// </summary>
-public class SaveDimensionnementPortefeuilleEtpResponse
-{
-    public bool Saved { get; set; }
-}
+Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
+Erreur (active)	CS0246	Le nom de type ou d'espace de noms 'SaveDimensionnementPortefeuilleEtpResponse' est introuvable (vous manque-t-il une directive using ou une référence d'assembly ?)	Segmentation.Client	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Services\DimensionnementPortefeuilleEtpService.cs	56	
