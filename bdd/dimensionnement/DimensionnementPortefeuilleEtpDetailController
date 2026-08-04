@@ -1,0 +1,78 @@
+using MapsterMapper;
+using MediatR;
+using Microsoft.AspNetCore.Mvc;
+using Segmentation.Application.Commands.DimensionnementPortefeuille;
+using Segmentation.Shared.Models;
+
+namespace Segmentation.Server.Controllers
+{
+	public class DimensionnementPortefeuilleEtpDetailController
+		: SegmentationBaseController
+	{
+		public DimensionnementPortefeuilleEtpDetailController(
+			IMediator mediator,
+			IMapper mapper)
+			: base(mediator, mapper)
+		{
+		}
+
+		/// <summary>
+		/// Sauvegarde le dimensionnement ETP d'une agence.
+		/// La sauvegarde remplace intégralement les données
+		/// déjà enregistrées pour cette agence.
+		/// </summary>
+		[HttpPost(Name = "SaveDimensionnementPortefeuilleEtpDetail")]
+		public async Task<IActionResult> SaveDimensionnementPortefeuilleEtp(
+			[FromBody] SaveDimensionnementPortefeuilleEtpData data)
+		{
+			if (data is null)
+			{
+				return BadRequest(
+					"Les données de sauvegarde sont vides.");
+			}
+			if (string.IsNullOrWhiteSpace(data.LibAgence))
+			{
+				return BadRequest(
+					"L'agence est obligatoire pour enregistrer le dimensionnement.");
+			}
+			var command = new SaveDimensionnementPortefeuilleEtpCommand
+			{
+				LibRegion = data.LibRegion,
+				LibSecteur = data.LibSecteur,
+				LibAgence = data.LibAgence,
+				Lignes = (data.Lignes ?? new())
+					.Select(x => new SaveDimensionnementPortefeuilleEtpItem
+					{
+						Segment = x.Segment,
+						ProfilConseiller = x.ProfilConseiller,
+						MatriculeConseiller = x.MatriculeConseiller,
+						SlotLabel = x.SlotLabel,
+						IsActuel = x.IsActuel,
+						IsCible = x.IsCible,
+						EtpExistant = x.EtpExistant,
+						EtpCible = x.EtpCible,
+						CapaciteEtpActuel = x.CapaciteEtpActuel,
+						CapaciteEtpCible = x.CapaciteEtpCible
+					})
+					.ToList(),
+				Charges = (data.Charges ?? new())
+					.Select(x => new SaveDimensionnementPortefeuilleEtpChargeItem
+					{
+						Segment = x.Segment,
+						ChargeATransfererBP =
+							x.ChargeATransfererBP,
+						ChargeRecueBP =
+							x.ChargeRecueBP,
+						ChargeATransfererMutualise =
+							x.ChargeATransfererMutualise
+					})
+					.ToList()
+			};
+			var saved = await _mediator.Send(command);
+			return Ok(new
+			{
+				saved
+			});
+		}
+	}
+}
