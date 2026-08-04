@@ -2,6 +2,7 @@ using MapsterMapper;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Segmentation.Application.Commands.DimensionnementPortefeuille;
+using Segmentation.Application.Queries.DimensionnementPortefeuille;
 using Segmentation.Shared.Models;
 
 namespace Segmentation.Server.Controllers
@@ -73,6 +74,62 @@ namespace Segmentation.Server.Controllers
 			{
 				saved
 			});
+		}
+
+		/// <summary>
+		/// Récupère le dimensionnement ETP sauvegardé pour une agence.
+		/// Retourne null (204) si aucune sauvegarde n'existe.
+		/// </summary>
+		[HttpGet("{libAgence}", Name = "GetDimensionnementPortefeuilleEtpDetail")]
+		public async Task<IActionResult> GetDimensionnementPortefeuilleEtp(
+			string libAgence)
+		{
+			if (string.IsNullOrWhiteSpace(libAgence))
+			{
+				return BadRequest(
+					"L'agence est obligatoire pour récupérer le dimensionnement.");
+			}
+
+			var query = new GetDimensionnementPortefeuilleEtpQuery(libAgence);
+			var result = await _mediator.Send(query);
+
+			if (result is null)
+			{
+				return NoContent();
+			}
+
+			var data = new SaveDimensionnementPortefeuilleEtpData
+			{
+				LibRegion = result.LibRegion,
+				LibSecteur = result.LibSecteur,
+				LibAgence = result.LibAgence,
+				Lignes = result.Lignes
+					.Select(x => new DimensionnementPortefeuilleEtpData
+					{
+						Segment = x.Segment,
+						ProfilConseiller = x.ProfilConseiller,
+						MatriculeConseiller = x.MatriculeConseiller,
+						SlotLabel = x.SlotLabel,
+						IsActuel = x.IsActuel,
+						IsCible = x.IsCible,
+						EtpExistant = x.EtpExistant,
+						EtpCible = x.EtpCible,
+						CapaciteEtpActuel = x.CapaciteEtpActuel,
+						CapaciteEtpCible = x.CapaciteEtpCible
+					})
+					.ToList(),
+				Charges = result.Charges
+					.Select(x => new DimensionnementPortefeuilleEtpChargeData
+					{
+						Segment = x.Segment,
+						ChargeATransfererBP = x.ChargeATransfererBP,
+						ChargeRecueBP = x.ChargeRecueBP,
+						ChargeATransfererMutualise = x.ChargeATransfererMutualise
+					})
+					.ToList()
+			};
+
+			return Ok(data);
 		}
 	}
 }
