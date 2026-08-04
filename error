@@ -166,15 +166,15 @@ public class SaveDimensionnementPortefeuilleEtpRequest
 		get;
 		set;
 	} = new();
+}
 
-	/// <summary>
-	/// Correspond au format { "saved": bool } renvoyé par le Controller
-	/// (Ok(new { saved })).
-	/// </summary>
-	public class SaveDimensionnementPortefeuilleEtpResponse
-	{
-		public bool Saved { get; set; }
-	}
+/// <summary>
+/// Correspond au format { "saved": bool } renvoyé par le Controller
+/// (Ok(new { saved })).
+/// </summary>
+public class SaveDimensionnementPortefeuilleEtpResponse
+{
+	public bool Saved { get; set; }
 }
 
 /// <summary>
