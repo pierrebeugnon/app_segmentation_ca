@@ -541,7 +541,7 @@ public partial class ReglesHypotheses
 	{
 		return NormalizeProfilKey(profil) switch
 		{
-			"DIR BP" => "Directeur Banque Privée",
+			"DIR BP" => "DIRECTEUR BANQUE PRIVEE",
 			_ => profil ?? string.Empty
 		};
 	}
