@@ -1,0 +1,77 @@
+using MediatR;
+using Segmentation.Application.Queries.DimensionnementPortefeuille;
+using Segmentation.Core.Repositories;
+using Segmentation.Shared.Models;
+
+namespace Segmentation.Application.Handlers.DimensionnementPortefeuille
+{
+	internal class GetDimensionnementPortefeuilleEtpQueryHandler
+		: IRequestHandler<GetDimensionnementPortefeuilleEtpQuery, SaveDimensionnementPortefeuilleEtpData?>
+	{
+		private readonly IDimensionnementPortefeuilleEtpRepository _repository;
+
+		public GetDimensionnementPortefeuilleEtpQueryHandler(
+			IDimensionnementPortefeuilleEtpRepository repository)
+		{
+			_repository = repository;
+		}
+
+		public async Task<SaveDimensionnementPortefeuilleEtpData?> Handle(
+			GetDimensionnementPortefeuilleEtpQuery request,
+			CancellationToken cancellationToken)
+		{
+			if (string.IsNullOrWhiteSpace(request.LibAgence))
+			{
+				return null;
+			}
+
+			var agence = request.LibAgence.Trim();
+
+			var lignes = await _repository.GetByAgenceAsync(agence, cancellationToken);
+			var charges = await _repository.GetChargesAsync(agence, cancellationToken);
+
+			if (lignes.Count == 0 && charges.Count == 0)
+			{
+				// Aucune sauvegarde existante pour cette agence :
+				// on laisse Portefeuille.razor garder sa proposition calculée.
+				return null;
+			}
+
+			var premiereLigne = lignes.FirstOrDefault();
+			var premiereCharge = charges.FirstOrDefault();
+
+			return new SaveDimensionnementPortefeuilleEtpData
+			{
+				LibRegion = premiereLigne?.LibRegion ?? premiereCharge?.LibRegion,
+				LibSecteur = premiereLigne?.LibSecteur ?? premiereCharge?.LibSecteur,
+				LibAgence = agence,
+
+				Lignes = lignes
+					.Select(l => new DimensionnementPortefeuilleEtpData
+					{
+						Segment = l.Segment,
+						ProfilConseiller = l.ProfilConseiller,
+						MatriculeConseiller = l.MatriculeConseiller,
+						SlotLabel = l.SlotLabel,
+						IsActuel = l.IsActuel,
+						IsCible = l.IsCible,
+						EtpExistant = l.EtpExistant,
+						EtpCible = l.EtpCible,
+						CapaciteEtpActuel = l.CapaciteEtpActuel,
+						CapaciteEtpCible = l.CapaciteEtpCible
+					})
+					.ToList(),
+
+				Charges = charges
+					.Select(c => new DimensionnementPortefeuilleEtpChargeData
+					{
+						Segment = c.Segment,
+						ChargeATransfererBP = c.ChargeATransfererBP,
+						ChargeRecueBP = c.ChargeRecueBP,
+						ChargeATransfererMutualise = c.ChargeATransfererMutualise
+					})
+					.ToList()
+			};
+		}
+	}
+}
