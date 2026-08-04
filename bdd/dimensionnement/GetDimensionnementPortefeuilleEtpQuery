@@ -1,10 +1,9 @@
 using MediatR;
-using Segmentation.Shared.Models;
 
 namespace Segmentation.Application.Queries.DimensionnementPortefeuille
 {
 	public class GetDimensionnementPortefeuilleEtpQuery
-		: IRequest<SaveDimensionnementPortefeuilleEtpData?>
+		: IRequest<GetDimensionnementPortefeuilleEtpResult?>
 	{
 		public string LibAgence { get; set; } = string.Empty;
 
@@ -12,5 +11,54 @@ namespace Segmentation.Application.Queries.DimensionnementPortefeuille
 		{
 			LibAgence = libAgence;
 		}
+	}
+
+	public class GetDimensionnementPortefeuilleEtpResult
+	{
+		public string? LibRegion { get; set; }
+
+		public string? LibSecteur { get; set; }
+
+		public string LibAgence { get; set; } = "";
+
+		public List<GetDimensionnementPortefeuilleEtpItem> Lignes { get; set; }
+			= new();
+
+		public List<GetDimensionnementPortefeuilleEtpChargeItem> Charges { get; set; }
+			= new();
+	}
+
+	public class GetDimensionnementPortefeuilleEtpItem
+	{
+		public string Segment { get; set; } = "";
+
+		public string ProfilConseiller { get; set; } = "";
+
+		public string? MatriculeConseiller { get; set; }
+
+		public string SlotLabel { get; set; } = "";
+
+		public bool IsActuel { get; set; }
+
+		public bool IsCible { get; set; }
+
+		public double? EtpExistant { get; set; }
+
+		public double? EtpCible { get; set; }
+
+		public double CapaciteEtpActuel { get; set; }
+
+		public double CapaciteEtpCible { get; set; }
+	}
+
+	public class GetDimensionnementPortefeuilleEtpChargeItem
+	{
+		public string Segment { get; set; } = "";
+
+		public double? ChargeATransfererBP { get; set; }
+
+		public double? ChargeRecueBP { get; set; }
+
+		public double? ChargeATransfererMutualise { get; set; }
 	}
 }
