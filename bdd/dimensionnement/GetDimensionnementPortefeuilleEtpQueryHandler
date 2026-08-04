@@ -1,12 +1,11 @@
 using MediatR;
 using Segmentation.Application.Queries.DimensionnementPortefeuille;
 using Segmentation.Core.Repositories;
-using Segmentation.Shared.Models;
 
 namespace Segmentation.Application.Handlers.DimensionnementPortefeuille
 {
 	internal class GetDimensionnementPortefeuilleEtpQueryHandler
-		: IRequestHandler<GetDimensionnementPortefeuilleEtpQuery, SaveDimensionnementPortefeuilleEtpData?>
+		: IRequestHandler<GetDimensionnementPortefeuilleEtpQuery, GetDimensionnementPortefeuilleEtpResult?>
 	{
 		private readonly IDimensionnementPortefeuilleEtpRepository _repository;
 
@@ -16,7 +15,7 @@ namespace Segmentation.Application.Handlers.DimensionnementPortefeuille
 			_repository = repository;
 		}
 
-		public async Task<SaveDimensionnementPortefeuilleEtpData?> Handle(
+		public async Task<GetDimensionnementPortefeuilleEtpResult?> Handle(
 			GetDimensionnementPortefeuilleEtpQuery request,
 			CancellationToken cancellationToken)
 		{
@@ -33,21 +32,21 @@ namespace Segmentation.Application.Handlers.DimensionnementPortefeuille
 			if (lignes.Count == 0 && charges.Count == 0)
 			{
 				// Aucune sauvegarde existante pour cette agence :
-				// on laisse Portefeuille.razor garder sa proposition calculée.
+				// Portefeuille.razor garde sa proposition calculée.
 				return null;
 			}
 
 			var premiereLigne = lignes.FirstOrDefault();
 			var premiereCharge = charges.FirstOrDefault();
 
-			return new SaveDimensionnementPortefeuilleEtpData
+			return new GetDimensionnementPortefeuilleEtpResult
 			{
 				LibRegion = premiereLigne?.LibRegion ?? premiereCharge?.LibRegion,
 				LibSecteur = premiereLigne?.LibSecteur ?? premiereCharge?.LibSecteur,
 				LibAgence = agence,
 
 				Lignes = lignes
-					.Select(l => new DimensionnementPortefeuilleEtpData
+					.Select(l => new GetDimensionnementPortefeuilleEtpItem
 					{
 						Segment = l.Segment,
 						ProfilConseiller = l.ProfilConseiller,
@@ -63,7 +62,7 @@ namespace Segmentation.Application.Handlers.DimensionnementPortefeuille
 					.ToList(),
 
 				Charges = charges
-					.Select(c => new DimensionnementPortefeuilleEtpChargeData
+					.Select(c => new GetDimensionnementPortefeuilleEtpChargeItem
 					{
 						Segment = c.Segment,
 						ChargeATransfererBP = c.ChargeATransfererBP,
