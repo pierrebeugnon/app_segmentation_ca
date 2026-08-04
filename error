@@ -1,116 +1,164 @@
-@if (vueEtp)
-    {
-        <MudButton Variant="Variant.Filled"
-                   Color="Color.Primary"
-                   Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.Save"
-                   Disabled="@_isSaving"
-                   OnClick="EnregistrerDimensionnementEtp">
-            @(_isSaving ? "Enregistrement..." : "Enregistrer")
-        </MudButton>
-    }
-
-
-
-private bool _isLoading = false;
-private bool _isSaving = false;
-
-
-
-private async Task EnregistrerDimensionnementEtp()
+private async Task ApplyFilters()
 {
-    if (string.IsNullOrWhiteSpace(filtreAgence))
-    {
-        Snackbar.Add("Sélectionnez une agence avant d'enregistrer.", Severity.Warning);
-        return;
-    }
-
-    _isSaving = true;
+    _isLoading = true;
     StateHasChanged();
+
+    await Task.Delay(1);
 
     try
     {
-        var request = new SaveDimensionnementPortefeuilleEtpRequest
+        BuildFilterOptions();
+
+        if (string.IsNullOrEmpty(filtreAgence) && allAgences.Any())
         {
-            LibRegion = filtreRegion,
-            LibSecteur = filtreSecteur,
-            LibAgence = filtreAgence,
-            Lignes = BuildLignesRequest(),
-            Charges = BuildChargesRequest()
-        };
+            filtreAgence = allAgences.First();
+        }
 
-        var success = await DimensionnementEtpService.SaveAsync(request);
+        _segmentationDistributiveFiltree = _segmentationDistributive
+            .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
+            .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
+            .Where(x => string.IsNullOrEmpty(filtreAgence) || x.LibAgence == filtreAgence)
+            .ToList();
 
-        Snackbar.Add(
-            success
-                ? "Dimensionnement ETP enregistré avec succès."
-                : "Erreur lors de l'enregistrement du dimensionnement ETP.",
-            success ? Severity.Success : Severity.Error);
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($">>> Erreur EnregistrerDimensionnementEtp : {ex.Message}");
-        Snackbar.Add("Une erreur inattendue est survenue lors de l'enregistrement.", Severity.Error);
+        filtreRegionApplique = filtreRegion;
+        filtreSecteurApplique = filtreSecteur;
+        filtreAgenceApplique = filtreAgence;
+
+        // Reset des charges manuelles quand on change d'agence
+        _chargeATransfererBP.Clear();
+        _chargeRecueBP.Clear();
+        _chargeATransfererMutualise.Clear();
+
+        _slots = BuildSlots();
+        rows = BuildRows();
+
+        RecalcTotal();
+
+        // Tente de restaurer une sauvegarde existante pour cette agence.
+        await RestaurerSauvegardeEtp();
+
+        filteredRows = rows.ToList();
     }
     finally
     {
-        _isSaving = false;
+        _isLoading = false;
         StateHasChanged();
     }
 }
 
-private List<SaveDimensionnementPortefeuilleEtpLigneRequest> BuildLignesRequest()
+/// <summary>
+/// Recherche une sauvegarde ETP existante pour l'agence sélectionnée.
+/// Si aucune sauvegarde n'existe, la proposition calculée automatiquement
+/// (déjà construite par BuildSlots/BuildRows) est conservée telle quelle.
+/// Si une sauvegarde existe, restaure les conseillers ajoutés/retirés,
+/// les états IsActuel/IsCible, les capacités et les valeurs cibles saisies,
+/// ainsi que les charges manuelles.
+/// </summary>
+private async Task RestaurerSauvegardeEtp()
 {
-    var lignes = new List<SaveDimensionnementPortefeuilleEtpLigneRequest>();
+    if (string.IsNullOrWhiteSpace(filtreAgence))
+        return;
 
-    foreach (var row in rows.Where(r => !r.IsTotal))
+    var sauvegarde = await DimensionnementEtpService.GetAsync(filtreAgence);
+
+    if (sauvegarde is null)
     {
-        foreach (var slot in _slots)
+        // Aucune sauvegarde : on garde la proposition calculée.
+        return;
+    }
+
+    // ── Restauration des conseillers (slots) ────────────────────────────
+    // Regroupe les lignes sauvegardées par conseiller (Matricule+Profil,
+    // ou SlotLabel en clé de secours pour les ajouts manuels sans matricule).
+    var lignesParConseiller = sauvegarde.Lignes
+        .GroupBy(l => GetCleConseiller(l.MatriculeConseiller, l.ProfilConseiller, l.SlotLabel))
+        .ToList();
+
+    foreach (var groupe in lignesParConseiller)
+    {
+        var premiereLigne = groupe.First();
+
+        var slotExistant = _slots.FirstOrDefault(s =>
+            GetCleConseiller(GetMatriculeForSlot(s), s.Profil, s.Label) == groupe.Key);
+
+        if (slotExistant != null)
         {
-            lignes.Add(new SaveDimensionnementPortefeuilleEtpLigneRequest
+            // Conseiller déjà présent dans la proposition calculée :
+            // on restaure simplement ses états et capacités.
+            slotExistant.IsActuel = premiereLigne.IsActuel;
+            slotExistant.IsCible = premiereLigne.IsCible;
+            slotExistant.EtpActuel = premiereLigne.CapaciteEtpActuel;
+            slotExistant.EtpCible = premiereLigne.CapaciteEtpCible;
+        }
+        else
+        {
+            // Conseiller absent de la proposition calculée (ex. ajouté
+            // manuellement lors d'une sauvegarde précédente, ou retiré
+            // depuis de la source SegmentationDistributive) : on le recrée.
+            var nouveauSlot = new ConseillerSlot
             {
-                Segment = row.Segment,
-                ProfilConseiller = slot.Profil,
-                MatriculeConseiller = GetMatriculeForSlot(slot),
-                SlotLabel = slot.Label,
-                IsActuel = slot.IsActuel,
-                IsCible = slot.IsCible,
-                EtpExistant = row.EtpParProfil.GetValueOrDefault(slot.Id),
-                EtpCible = row.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id),
-                CapaciteEtpActuel = slot.EtpActuel,
-                CapaciteEtpCible = slot.EtpCible
-            });
+                Profil = premiereLigne.ProfilConseiller,
+                Label = premiereLigne.SlotLabel,
+                IsActuel = premiereLigne.IsActuel,
+                IsCible = premiereLigne.IsCible,
+                EtpActuel = premiereLigne.CapaciteEtpActuel,
+                EtpCible = premiereLigne.CapaciteEtpCible
+            };
+
+            _slots.Add(nouveauSlot);
+
+            foreach (var row in rows)
+            {
+                row.EtpParProfil[nouveauSlot.Id] = null;
+                row.EtpCibleSaisieParProfil[nouveauSlot.Id] = null;
+            }
         }
     }
 
-    return lignes;
-}
+    // ── Restauration des valeurs par segment × conseiller ───────────────
+    foreach (var ligne in sauvegarde.Lignes)
+    {
+        var cle = GetCleConseiller(ligne.MatriculeConseiller, ligne.ProfilConseiller, ligne.SlotLabel);
 
-private List<SaveDimensionnementPortefeuilleEtpChargeRequest> BuildChargesRequest()
-{
-    return segments
-        .Select(s => new SaveDimensionnementPortefeuilleEtpChargeRequest
-        {
-            Segment = s,
-            ChargeATransfererBP = _chargeATransfererBP.GetValueOrDefault(s),
-            ChargeRecueBP = _chargeRecueBP.GetValueOrDefault(s),
-            ChargeATransfererMutualise = _chargeATransfererMutualise.GetValueOrDefault(s)
-        })
-        .ToList();
+        var slot = _slots.FirstOrDefault(s =>
+            GetCleConseiller(GetMatriculeForSlot(s), s.Profil, s.Label) == cle);
+
+        if (slot is null)
+            continue;
+
+        var row = rows.FirstOrDefault(r => !r.IsTotal &&
+            r.Segment.Equals(ligne.Segment, StringComparison.OrdinalIgnoreCase));
+
+        if (row is null)
+            continue;
+
+        row.EtpCibleSaisieParProfil[slot.Id] = ligne.EtpCible;
+    }
+
+    // ── Restauration des charges manuelles ──────────────────────────────
+    foreach (var charge in sauvegarde.Charges)
+    {
+        if (charge.ChargeATransfererBP.HasValue)
+            _chargeATransfererBP[charge.Segment] = charge.ChargeATransfererBP;
+
+        if (charge.ChargeRecueBP.HasValue)
+            _chargeRecueBP[charge.Segment] = charge.ChargeRecueBP;
+
+        if (charge.ChargeATransfererMutualise.HasValue)
+            _chargeATransfererMutualise[charge.Segment] = charge.ChargeATransfererMutualise;
+    }
+
+    RecalcTotal();
 }
 
 /// <summary>
-/// Récupère le matricule d'un conseiller pour la clé de persistance,
-/// uniquement s'il correspond à un vrai matricule présent dans la source
-/// (et non un numéro de slot ajouté manuellement, ex. "COM-3").
+/// Clé d'identification d'un conseiller pour le rapprochement sauvegarde/proposition.
+/// Priorité : Matricule + Profil. Clé de secours : SlotLabel (pour un conseiller
+/// ajouté manuellement sans matricule, ex. un nouveau poste non pourvu).
 /// </summary>
-private string? GetMatriculeForSlot(ConseillerSlot slot)
+private static string GetCleConseiller(string? matricule, string profil, string slotLabel)
 {
-    var candidate = ExtractMatriculeFromSlotLabel(slot.Label);
-
-    var existeDansSource = _segmentationDistributiveFiltree.Any(x =>
-        x.TypeConseiller.Equals(slot.Profil, StringComparison.OrdinalIgnoreCase) &&
-        x.MatriculeConseiller == candidate);
-
-    return existeDansSource ? candidate : null;
+    return !string.IsNullOrWhiteSpace(matricule)
+        ? $"M:{matricule}|{profil}".ToUpperInvariant()
+        : $"L:{slotLabel}".ToUpperInvariant();
 }
