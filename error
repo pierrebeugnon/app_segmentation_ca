@@ -1,80 +1,57 @@
-using Segmentation.Client.Models;
-
-namespace Segmentation.Client.Services;
-
-public class SegmentationStateService
+/// <summary>
+/// S'assure que les Règles & Hypothèses sont chargées depuis la base
+/// avant que la page Portefeuille les utilise. Nécessaire quand
+/// l'utilisateur arrive directement sur /portefeuille sans être
+/// passé par /regles-hypotheses au préalable.
+/// </summary>
+private async Task EnsureReglesLoadedAsync()
 {
-	public event Action? OnChange;
+    if (StateService.IsLoaded)
+        return;
 
-	public ReglesHypothesesModel Regles { get; private set; }
-	public bool IsLoaded { get; private set; } = false;
-	public List<TaillePortefeuille> TaillesPortefeuilles { get; private set; } = new();
-	public int TotalConseillersCible { get; private set; }
-	public int TaillePortefeuilleMoyenne { get; private set; }
-	public List<DimensionnementEtpRow> EtpCibleRows { get; private set; } = new();
+    try
+    {
+        var bundle = await ReglesService.LoadAllAsync();
 
-	public SegmentationStateService()
-	{
-		Regles = BuildEmptyRegles();
-		Recalculer();
-	}
+        var reglesModel = new ReglesHypothesesModel
+        {
+            HeuresParSemaine = bundle.Parametres?.HeuresParSemaine ?? 0,
+            NbSemainesParAn = bundle.Parametres?.NbSemainesParAn ?? 0,
 
-	public void UpdateRegles(ReglesHypothesesModel regles)
-	{
-		Regles = regles;
-		IsLoaded = true;
-		Recalculer();
-		OnChange?.Invoke();
-	}
+            SegmentsIntensite = bundle.Segments.Select(x => new SegmentIntensite
+            {
+                LigneMetier = x.LigneMetier,
+                Segment = x.Segment,
+                NombreRdvParAn = x.NombreRdvParAn,
+                DureeRdvHeures = x.DureeRdvHeures
+            }).ToList(),
 
-	// ── État vide par défaut, en attendant le chargement des vraies données ──
-	private static ReglesHypothesesModel BuildEmptyRegles() => new()
-	{
-		SegmentsIntensite = new List<SegmentIntensite>(),
-		HeuresParSemaine = 0,
-		NbSemainesParAn = 0,
-		ConseillersProfils = new List<ConseillerTempsProfil>(),
-		ReglesAffectationSegments = new List<RegleAffectationSegment>(),
-		TaillesTheoretiques = new List<TailleTheoriqueRow>(),
-		PartTempsCommercial = 0,
-		PortefeuillesTheoriques = new List<PortefeuilleTheoriqueCard>(),
-	};
+            ConseillersProfils = bundle.Profils.Select(x => new ConseillerTempsProfil
+            {
+                LigneMetier = x.LigneMetier,
+                Profil = x.Profil,
+                PartTempsCommercialPct = x.PartTempsCommercialPct
+            }).ToList(),
 
-	// ── Helpers de calcul (inchangés) ─────────────────────────────────────
-	private double GetVolumeHoraire(string profil) =>
-		Regles.ConseillersProfils.FirstOrDefault(p => p.Profil == profil) is { } cp
-			? Math.Round(Regles.HeuresTravailParAn * cp.PartTempsCommercialPct / 100.0, 1)
-			: 0;
+            ReglesAffectationSegments = bundle.Regles.Select(x => new RegleAffectationSegment
+            {
+                Segment = x.Segment,
+                ConseillerPrioritaire = x.ConseillerPrioritaire,
+                ConseillerSecondaire = x.ConseillerSecondaire,
+                ConseillerTertiaire = x.ConseillerTertiaire
+            }).ToList()
+        };
 
-	private double GetIntensite(string segment) =>
-		Regles.SegmentsIntensite.FirstOrDefault(s => s.Segment == segment)?.IntensiteRelationnelle ?? 0;
+        StateService.UpdateRegles(reglesModel);
 
-	private int GetTailleTheorique(string profil, string segment)
-	{
-		var intensite = GetIntensite(segment);
-		var volume = GetVolumeHoraire(profil);
-		return intensite > 0 ? (int)Math.Round(volume / intensite) : 0;
-	}
-
-	private void Recalculer()
-	{
-		if (Regles.SegmentsIntensite.Any() && Regles.ConseillersProfils.Any())
-		{
-			foreach (var pf in Regles.PortefeuillesTheoriques)
-			{
-				pf.ClientsParConseiller = pf.Profil switch
-				{
-					"Portefeuilles Mutualisés" => GetTailleTheorique("CONSEILLER COMMERCIAL", "GP Standard"),
-					"Dédiés" => GetTailleTheorique("CONSEILLER CLIENTELE", "CI Standard"),
-					"Dédiés - Haut de Gamme" => GetTailleTheorique("BANQUIER PRIVÉ", "HDG Premium Potentiel"),
-					_ => pf.ClientsParConseiller
-				};
-			}
-		}
-
-		TaillesPortefeuilles = new List<TaillePortefeuille>();
-		TotalConseillersCible = 0;
-		TaillePortefeuilleMoyenne = 0;
-		EtpCibleRows = new List<DimensionnementEtpRow>();
-	}
+        Console.WriteLine(
+            $">>> Règles chargées depuis Portefeuille : " +
+            $"{reglesModel.SegmentsIntensite.Count} segments, " +
+            $"{reglesModel.ConseillersProfils.Count} profils, " +
+            $"{reglesModel.ReglesAffectationSegments.Count} règles");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($">>> Erreur chargement Règles depuis Portefeuille : {ex.Message}");
+    }
 }
