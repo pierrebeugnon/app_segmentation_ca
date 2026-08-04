@@ -1,1 +1,116 @@
-https://localhost:24462/api/SegmentsIntensite
+@if (vueEtp)
+    {
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Save"
+                   Disabled="@_isSaving"
+                   OnClick="EnregistrerDimensionnementEtp">
+            @(_isSaving ? "Enregistrement..." : "Enregistrer")
+        </MudButton>
+    }
+
+
+
+private bool _isLoading = false;
+private bool _isSaving = false;
+
+
+
+private async Task EnregistrerDimensionnementEtp()
+{
+    if (string.IsNullOrWhiteSpace(filtreAgence))
+    {
+        Snackbar.Add("Sélectionnez une agence avant d'enregistrer.", Severity.Warning);
+        return;
+    }
+
+    _isSaving = true;
+    StateHasChanged();
+
+    try
+    {
+        var request = new SaveDimensionnementPortefeuilleEtpRequest
+        {
+            LibRegion = filtreRegion,
+            LibSecteur = filtreSecteur,
+            LibAgence = filtreAgence,
+            Lignes = BuildLignesRequest(),
+            Charges = BuildChargesRequest()
+        };
+
+        var success = await DimensionnementEtpService.SaveAsync(request);
+
+        Snackbar.Add(
+            success
+                ? "Dimensionnement ETP enregistré avec succès."
+                : "Erreur lors de l'enregistrement du dimensionnement ETP.",
+            success ? Severity.Success : Severity.Error);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($">>> Erreur EnregistrerDimensionnementEtp : {ex.Message}");
+        Snackbar.Add("Une erreur inattendue est survenue lors de l'enregistrement.", Severity.Error);
+    }
+    finally
+    {
+        _isSaving = false;
+        StateHasChanged();
+    }
+}
+
+private List<SaveDimensionnementPortefeuilleEtpLigneRequest> BuildLignesRequest()
+{
+    var lignes = new List<SaveDimensionnementPortefeuilleEtpLigneRequest>();
+
+    foreach (var row in rows.Where(r => !r.IsTotal))
+    {
+        foreach (var slot in _slots)
+        {
+            lignes.Add(new SaveDimensionnementPortefeuilleEtpLigneRequest
+            {
+                Segment = row.Segment,
+                ProfilConseiller = slot.Profil,
+                MatriculeConseiller = GetMatriculeForSlot(slot),
+                SlotLabel = slot.Label,
+                IsActuel = slot.IsActuel,
+                IsCible = slot.IsCible,
+                EtpExistant = row.EtpParProfil.GetValueOrDefault(slot.Id),
+                EtpCible = row.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id),
+                CapaciteEtpActuel = slot.EtpActuel,
+                CapaciteEtpCible = slot.EtpCible
+            });
+        }
+    }
+
+    return lignes;
+}
+
+private List<SaveDimensionnementPortefeuilleEtpChargeRequest> BuildChargesRequest()
+{
+    return segments
+        .Select(s => new SaveDimensionnementPortefeuilleEtpChargeRequest
+        {
+            Segment = s,
+            ChargeATransfererBP = _chargeATransfererBP.GetValueOrDefault(s),
+            ChargeRecueBP = _chargeRecueBP.GetValueOrDefault(s),
+            ChargeATransfererMutualise = _chargeATransfererMutualise.GetValueOrDefault(s)
+        })
+        .ToList();
+}
+
+/// <summary>
+/// Récupère le matricule d'un conseiller pour la clé de persistance,
+/// uniquement s'il correspond à un vrai matricule présent dans la source
+/// (et non un numéro de slot ajouté manuellement, ex. "COM-3").
+/// </summary>
+private string? GetMatriculeForSlot(ConseillerSlot slot)
+{
+    var candidate = ExtractMatriculeFromSlotLabel(slot.Label);
+
+    var existeDansSource = _segmentationDistributiveFiltree.Any(x =>
+        x.TypeConseiller.Equals(slot.Profil, StringComparison.OrdinalIgnoreCase) &&
+        x.MatriculeConseiller == candidate);
+
+    return existeDansSource ? candidate : null;
+}
