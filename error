@@ -1,57 +1,11 @@
-/// <summary>
-/// S'assure que les Règles & Hypothèses sont chargées depuis la base
-/// avant que la page Portefeuille les utilise. Nécessaire quand
-/// l'utilisateur arrive directement sur /portefeuille sans être
-/// passé par /regles-hypotheses au préalable.
-/// </summary>
-private async Task EnsureReglesLoadedAsync()
+protected override async Task OnInitializedAsync()
 {
-    if (StateService.IsLoaded)
-        return;
+    _isLoading = true;
 
     try
     {
-        var bundle = await ReglesService.LoadAllAsync();
+        StateService.OnChange += OnReglesChanged;
 
-        var reglesModel = new ReglesHypothesesModel
-        {
-            HeuresParSemaine = bundle.Parametres?.HeuresParSemaine ?? 0,
-            NbSemainesParAn = bundle.Parametres?.NbSemainesParAn ?? 0,
+        await EnsureReglesLoadedAsync();
 
-            SegmentsIntensite = bundle.Segments.Select(x => new SegmentIntensite
-            {
-                LigneMetier = x.LigneMetier,
-                Segment = x.Segment,
-                NombreRdvParAn = x.NombreRdvParAn,
-                DureeRdvHeures = x.DureeRdvHeures
-            }).ToList(),
-
-            ConseillersProfils = bundle.Profils.Select(x => new ConseillerTempsProfil
-            {
-                LigneMetier = x.LigneMetier,
-                Profil = x.Profil,
-                PartTempsCommercialPct = x.PartTempsCommercialPct
-            }).ToList(),
-
-            ReglesAffectationSegments = bundle.Regles.Select(x => new RegleAffectationSegment
-            {
-                Segment = x.Segment,
-                ConseillerPrioritaire = x.ConseillerPrioritaire,
-                ConseillerSecondaire = x.ConseillerSecondaire,
-                ConseillerTertiaire = x.ConseillerTertiaire
-            }).ToList()
-        };
-
-        StateService.UpdateRegles(reglesModel);
-
-        Console.WriteLine(
-            $">>> Règles chargées depuis Portefeuille : " +
-            $"{reglesModel.SegmentsIntensite.Count} segments, " +
-            $"{reglesModel.ConseillersProfils.Count} profils, " +
-            $"{reglesModel.ReglesAffectationSegments.Count} règles");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($">>> Erreur chargement Règles depuis Portefeuille : {ex.Message}");
-    }
-}
+        _segmentationDistributive = await Http.GetFromJsonAsync<List<SegmentationDistributiveData>>(
