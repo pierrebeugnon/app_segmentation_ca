@@ -1,85 +1,107 @@
+using MediatR;
 using Segmentation.Application.Commands.DimensionnementPortefeuille;
-using Segmentation.Application.Contracts;
 using Segmentation.Core.Entities;
 using Segmentation.Core.Repositories;
 
-namespace Segmentation.Application.Handlers.DimensionnementPortefeuille;
-
-internal class SaveDimensionnementPortefeuilleEtpCommandHandler
-    : ICommandHandler<SaveDimensionnementPortefeuilleEtpCommand, bool>
+namespace Segmentation.Application.Handlers.DimensionnementPortefeuille
 {
-    private readonly IDimensionnementPortefeuilleEtpRepository _repository;
+	internal class SaveDimensionnementPortefeuilleEtpCommandHandler
+		: IRequestHandler<SaveDimensionnementPortefeuilleEtpCommand, bool>
+	{
+		private readonly IDimensionnementPortefeuilleEtpRepository _repository;
 
-    public SaveDimensionnementPortefeuilleEtpCommandHandler(
-        IDimensionnementPortefeuilleEtpRepository repository)
-    {
-        _repository = repository;
-    }
+		public SaveDimensionnementPortefeuilleEtpCommandHandler(
+			IDimensionnementPortefeuilleEtpRepository repository)
+		{
+			_repository = repository;
+		}
 
-    public async Task<bool> Handle(
-        SaveDimensionnementPortefeuilleEtpCommand command,
-        CancellationToken cancellationToken)
-    {
-        var request = command.Request;
+		public async Task<bool> Handle(
+			SaveDimensionnementPortefeuilleEtpCommand command,
+			CancellationToken cancellationToken)
+		{
+			if (command == null)
+			{
+				throw new ArgumentNullException(
+					nameof(command),
+					"La commande de sauvegarde est vide.");
+			}
 
-        if (request == null)
-            throw new ArgumentException("La requête de sauvegarde est vide.");
+			if (string.IsNullOrWhiteSpace(command.LibAgence))
+			{
+				throw new ArgumentException(
+					"L'agence est obligatoire pour enregistrer le dimensionnement.",
+					nameof(command.LibAgence));
+			}
 
-        if (string.IsNullOrWhiteSpace(request.LibAgence))
-            throw new ArgumentException("L'agence est obligatoire pour enregistrer le dimensionnement.");
+			var libRegion = command.LibRegion?.Trim();
+			var libSecteur = command.LibSecteur?.Trim();
+			var libAgence = command.LibAgence.Trim();
 
-        var now = DateTime.UtcNow;
+			var now = DateTime.UtcNow;
 
-        var lignes = request.Lignes
-            .Select(l => new DimensionnementPortefeuilleEtp
-            {
-                LibRegion = request.LibRegion?.Trim(),
-                LibSecteur = request.LibSecteur?.Trim(),
-                LibAgence = request.LibAgence.Trim(),
+			var lignes = (command.Lignes ?? new())
+				.Select(l => new DimensionnementPortefeuilleEtp
+				{
+					LibRegion = libRegion,
+					LibSecteur = libSecteur,
+					LibAgence = libAgence,
 
-                Segment = l.Segment?.Trim() ?? string.Empty,
+					Segment = l.Segment?.Trim() ?? string.Empty,
 
-                ProfilConseiller = l.ProfilConseiller?.Trim() ?? string.Empty,
-                MatriculeConseiller = l.MatriculeConseiller?.Trim(),
-                SlotLabel = l.SlotLabel?.Trim() ?? string.Empty,
+					ProfilConseiller =
+						l.ProfilConseiller?.Trim() ?? string.Empty,
 
-                IsActuel = l.IsActuel,
-                IsCible = l.IsCible,
+					MatriculeConseiller =
+						string.IsNullOrWhiteSpace(l.MatriculeConseiller)
+							? null
+							: l.MatriculeConseiller.Trim(),
 
-                EtpExistant = l.EtpExistant,
-                EtpCible = l.EtpCible,
+					SlotLabel =
+						l.SlotLabel?.Trim() ?? string.Empty,
 
-                CapaciteEtpActuel = l.CapaciteEtpActuel,
-                CapaciteEtpCible = l.CapaciteEtpCible,
+					IsActuel = l.IsActuel,
+					IsCible = l.IsCible,
 
-                DateMaj = now
-            })
-            .ToList();
+					EtpExistant = l.EtpExistant,
+					EtpCible = l.EtpCible,
 
-        var charges = request.Charges
-            .Select(c => new DimensionnementPortefeuilleEtpCharge
-            {
-                LibRegion = request.LibRegion?.Trim(),
-                LibSecteur = request.LibSecteur?.Trim(),
-                LibAgence = request.LibAgence.Trim(),
+					CapaciteEtpActuel = l.CapaciteEtpActuel,
+					CapaciteEtpCible = l.CapaciteEtpCible,
 
-                Segment = c.Segment?.Trim() ?? string.Empty,
+					DateMaj = now
+				})
+				.ToList();
 
-                ChargeATransfererBP = c.ChargeATransfererBP,
-                ChargeRecueBP = c.ChargeRecueBP,
-                ChargeATransfererMutualise = c.ChargeATransfererMutualise,
+			var charges = (command.Charges ?? new())
+				.Select(c => new DimensionnementPortefeuilleEtpCharge
+				{
+					LibRegion = libRegion,
+					LibSecteur = libSecteur,
+					LibAgence = libAgence,
 
-                DateMaj = now
-            })
-            .ToList();
+					Segment = c.Segment?.Trim() ?? string.Empty,
 
-        await _repository.SaveAsync(
-            request.LibAgence.Trim(),
-            lignes,
-            charges,
-            cancellationToken);
+					ChargeATransfererBP =
+						c.ChargeATransfererBP,
 
-        return true;
-    }
+					ChargeRecueBP =
+						c.ChargeRecueBP,
+
+					ChargeATransfererMutualise =
+						c.ChargeATransfererMutualise,
+
+					DateMaj = now
+				})
+				.ToList();
+
+			await _repository.SaveAsync(
+				libAgence,
+				lignes,
+				charges,
+				cancellationToken);
+
+			return true;
+		}
+	}
 }
-``
