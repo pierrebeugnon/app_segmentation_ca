@@ -1,28 +1,50 @@
-Banque privée
-Commercial
-60
-%
-Profil conseiller	Part temps commercial (%)	Part temps non commercial (%)	Volume horaire par conseiller dédié à la gestion de portefeuilles (en heures/an)
-↳	CGP	60 %	40 %	951,2 h
-↳	BANQUIER PRIVÉ	60 %	40 %	951,2 h
-↳	DIRECTEUR BANQUE PRIVEE	60 %	40 %	951,2 h
-↳	CO.GESPAT	60 %	40 %	951,2 h
-↳	CONS.PRIVE	60 %	40 %	951,2 h
-↳	DIR.PATRIMO	60 %	40 %	951,2 h
-Agence
-Commercial
-40
-%
-Profil conseiller	Part temps commercial (%)	Part temps non commercial (%)	Volume horaire par conseiller dédié à la gestion de portefeuilles (en heures/an)
-↳	CONSEILLER COMMERCIAL	40 %	60 %	634,1 h
-↳	CONSEILLER CLIENTELE	40 %	60 %	634,1 h
-↳	RCP	40 %	60 %	634,1 h
-↳	RESP. AGENCE	40 %	60 %	634,1 h
-↳	DS / DSD	40 %	60 %	634,1 h
-↳	CGP	40 %	60 %	634,1 h
-↳	BANQUIER PRIVÉ	40 %	60 %	634,1 h
-↳	DIRECTEUR BANQUE PRIVEE	40 %	60 %	634,1 h
-↳	CH.PATRIMON	40 %	60 %	634,1 h
-↳	CONS.CLIENT	40 %	60 %	634,1 h
-↳	CONS.COMMER	40 %	60 %	634,1 h
-↳	DIR.SECTEUR	40 %	60 %	634,1 h
+using MapsterMapper;
+using Segmentation.Application.Common;
+using Segmentation.Application.Contracts;
+using Segmentation.Application.Queries.ConseillerProfil;
+using Segmentation.Application.Responses;
+using Segmentation.Core.Repositories;
+
+namespace Segmentation.Application.Handlers.ConseillerProfil
+{
+    internal class GetAllConseillerProfilQueryHandler
+        : IQueryHandler<GetAllConseillerProfilQuery, List<ConseillerProfilResponse>>
+    {
+        private readonly IMapper _mapper;
+        private readonly IConseillersProfilsRepository _repository;
+
+        public GetAllConseillerProfilQueryHandler(
+            IMapper mapper,
+            IConseillersProfilsRepository repository)
+        {
+            _mapper = mapper;
+            _repository = repository;
+        }
+
+        public async Task<List<ConseillerProfilResponse>> Handle(
+            GetAllConseillerProfilQuery request,
+            CancellationToken cancellationToken)
+        {
+            var entities = await _repository.GetAllAsync();
+            var responses = _mapper.Map<List<ConseillerProfilResponse>>(entities.ToList());
+
+            // Normalise chaque profil vers son libellé canonique, et force
+            // sa ligne métier à partir de ce libellé canonique (plutôt que
+            // de faire confiance à la valeur stockée en base, qui peut être
+            // erronée pour d'anciennes lignes mal classées). Un même profil
+            // canonique (ex. "CGP") ne peut alors exister que dans une seule
+            // ligne métier, ce qui permet un regroupement fiable sur le seul
+            // libellé de profil.
+            foreach (var r in responses)
+            {
+                r.Profil = ProfilNormalizer.Normaliser(r.Profil);
+                r.LigneMetier = ProfilNormalizer.GetLigneMetier(r.Profil);
+            }
+
+            return responses
+                .GroupBy(r => r.Profil.Trim().ToUpperInvariant())
+                .Select(g => g.OrderByDescending(r => r.PartTempsCommercialPct).First())
+                .ToList();
+        }
+    }
+}
