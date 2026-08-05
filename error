@@ -1,188 +1,21 @@
-using Segmentation.Application.Contracts;
-using Segmentation.Application.Queries.SegmentationDistributive;
-using Segmentation.Application.Responses;
-using Segmentation.Core.Repositories;
-
-namespace Segmentation.Application.Handlers.SegmentationDistributive
-{
-	internal class GetReferentielQueryHandler
-		: IQueryHandler<GetReferentielQuery, ReferentielResponse>
-	{
-		private readonly ISegmentationDistributivesRepository _repository;
-
-		// ═══════════════════════════════════════════════════════════════
-		//   Normalisation des libellés bruts → libellé canonique
-		//   Objectif : fusionner les variantes d'écriture d'un même métier
-		//   (ex : "CONS.COMMERCIAL" et "CONSEILLER COMMERCIAL")
-		// ═══════════════════════════════════════════════════════════════
-		private static readonly Dictionary<string, string> _normalisationProfils =
-			new(StringComparer.OrdinalIgnoreCase)
-			{
-				// Conseiller commercial
-				["CONS.COMMERCIAL"] = "CONSEILLER COMMERCIAL",
-				["CONS COMMERCIAL"] = "CONSEILLER COMMERCIAL",
-				["CONSEILLER COMMERCIAL"] = "CONSEILLER COMMERCIAL",
-
-				// Conseiller clientèle
-				["CONS.CLIENTELE"] = "CONSEILLER CLIENTELE",
-				["CONS CLIENTELE"] = "CONSEILLER CLIENTELE",
-				["CONSEILLER CLIENTELE"] = "CONSEILLER CLIENTELE",
-
-				// Conseiller d'accueil
-				["CONS.ACCUEIL"] = "CONSEILLER D'ACCUEIL",
-				["CONSEILLER ACCUEIL"] = "CONSEILLER D'ACCUEIL",
-				["CONSEILLER D'ACCUEIL"] = "CONSEILLER D'ACCUEIL",
-
-				// Banquier privé
-				["BANQUIER PRIVE"] = "BANQUIER PRIVÉ",
-				["BANQUIER PRIVÉ"] = "BANQUIER PRIVÉ",
-
-				// Directeur BP
-				["DIR.BP"] = "DIRECTEUR BANQUE PRIVEE",
-				["DIRECTEUR BP"] = "DIRECTEUR BANQUE PRIVEE",
-				["DIR. BP"] = "DIRECTEUR BANQUE PRIVEE",
-
-				// Responsable agence
-				["RESP.AGENCE"] = "RESP. AGENCE",
-				["RESPONSABLE AGENCE"] = "RESP. AGENCE",
-				["RESP. AGENCE"] = "RESP. AGENCE",
-			};
-
-		/// <summary>
-		/// Retourne le libellé canonique d'un profil.
-		/// Si aucune correspondance : renvoie le libellé nettoyé tel quel.
-		/// </summary>
-		private static string NormaliserProfil(string profilBrut)
-		{
-			var trimmed = profilBrut.Trim();
-			return _normalisationProfils.TryGetValue(trimmed, out var canonique)
-				? canonique
-				: trimmed;
-		}
-
-		// Mapping profil → ligne métier
-		private static readonly Dictionary<string, string> _mappingProfilLigneMetier =
-			new(StringComparer.OrdinalIgnoreCase)
-			{
-				["DIR. BP"] = "banque privée",
-				["BANQUIER PRIVÉ"] = "banque privée",
-				["CGP"] = "banque privée",
-				["RESP. AGENCE"] = "retail",
-				["RCP"] = "retail",
-				["CONSEILLER CLIENTELE"] = "retail",
-				["CONSEILLER COMMERCIAL"] = "retail",
-				["CONSEILLER D'ACCUEIL"] = "retail",
-			};
-
-		// Segments toujours disponibles pour la configuration
-		private static readonly List<string> _segmentsStandards = new()
-		{
-			"HDG Premium Potentiel",
-			"HDG Premium Standard",
-			"HDG Potentiel",
-			"HDG Senior Epargnant",
-			"HDG Standard",
-			"CI Potentiel",
-			"CI Standard",
-			"GP Potentiel",
-			"GP Standard",
-			"Non segmenté",
-			"Non classé"
-		};
-
-		// Profils toujours disponibles pour la configuration
-		// (même si absents de SegmentationDistributives).
-		// Certains profils (ex. CO.GESPAT) existent des deux côtés :
-		// une entrée par LigneMetier est nécessaire pour qu'ils soient
-		// configurables aussi bien en Banque Privée qu'en Agence/Retail.
-		private static readonly List<ReferentielProfilResponse> _profilsStandards = new()
-		{
-			new() { Profil = "DIR. BP",                LigneMetier = "banque privée" },
-			new() { Profil = "BANQUIER PRIVÉ",         LigneMetier = "banque privée" },
-			new() { Profil = "CGP",                    LigneMetier = "banque privée" },
-			new() { Profil = "CO.GESPAT",              LigneMetier = "banque privée" },
-			new() { Profil = "CONS.PRIVE",             LigneMetier = "banque privée" },
-			new() { Profil = "DIR.PATRIMO",            LigneMetier = "banque privée" },
-
-			new() { Profil = "RESP. AGENCE",           LigneMetier = "retail" },
-			new() { Profil = "RCP",                    LigneMetier = "retail" },
-			new() { Profil = "CONSEILLER CLIENTELE",   LigneMetier = "retail" },
-			new() { Profil = "CONSEILLER COMMERCIAL",  LigneMetier = "retail" },
-			new() { Profil = "CO.GESPAT",              LigneMetier = "retail" },
-			new() { Profil = "CONS.PRIVE",             LigneMetier = "retail" },
-			new() { Profil = "DIR.PATRIMO",            LigneMetier = "retail" },
-		};
-
-		public GetReferentielQueryHandler(
-			ISegmentationDistributivesRepository repository)
-		{
-			_repository = repository;
-		}
-
-		public async Task<ReferentielResponse> Handle(
-			GetReferentielQuery request,
-			CancellationToken cancellationToken)
-		{
-			var entities = await _repository.GetAllAsync();
-			var data = entities.ToList();
-
-			// Profils depuis la table (peut être vide ou incomplet)
-			// ⚠️ On NORMALISE le libellé AVANT le Distinct pour fusionner les doublons
-			var profilsFromData = data
-				.Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
-				.Select(x => NormaliserProfil(x.TypeConseiller))   // ← normalisation ici
-				.Distinct(StringComparer.OrdinalIgnoreCase)
-				.Select(profil => new ReferentielProfilResponse
-				{
-					Profil = profil,
-					LigneMetier = _mappingProfilLigneMetier.TryGetValue(profil, out var lm)
-						? lm
-						: "retail"
-				})
-				.ToList();
-
-			// Union : profils standards + profils trouvés en base.
-			// Les profils standards garantissent que BP est toujours configurable.
-			// La clé de regroupement combine Profil + LigneMetier : un même
-			// profil (ex. CO.GESPAT) peut légitimement exister des deux côtés
-			// et ne doit pas être écrasé par l'autre variante.
-			var profils = _profilsStandards
-				.Concat(profilsFromData)
-				.GroupBy(p => $"{p.Profil.Trim().ToUpperInvariant()}|{p.LigneMetier.Trim().ToUpperInvariant()}")
-				.Select(g => g.First())
-				.OrderBy(p => p.LigneMetier)
-				.ThenBy(p => p.Profil)
-				.ToList();
-
-			var regions = data
-				.Where(x => !string.IsNullOrWhiteSpace(x.LibRegion))
-				.Select(x => x.LibRegion.Trim())
-				.Distinct(StringComparer.OrdinalIgnoreCase)
-				.OrderBy(x => x)
-				.ToList();
-
-			var secteurs = data
-				.Where(x => !string.IsNullOrWhiteSpace(x.LibSecteur))
-				.Select(x => x.LibSecteur.Trim())
-				.Distinct(StringComparer.OrdinalIgnoreCase)
-				.OrderBy(x => x)
-				.ToList();
-
-			var agences = data
-				.Where(x => !string.IsNullOrWhiteSpace(x.LibAgence))
-				.Select(x => x.LibAgence.Trim())
-				.Distinct(StringComparer.OrdinalIgnoreCase)
-				.OrderBy(x => x)
-				.ToList();
-
-			return new ReferentielResponse
-			{
-				Segments = _segmentsStandards,
-				Profils = profils,
-				Regions = regions,
-				Secteurs = secteurs,
-				Agences = agences
-			};
-		}
-	}
-}
+#### EXPORT DONNEES SUR LE HDFS
+# Pour un df spark ou pandas, d'abord enregistrer en excel sur notre home puis suivre le procédure
+#df_produit.to_excel('/home/j088777/produits_contrats_script.xlsx', index=False)
+ 
+# Chemin local du fichier CSV 
+chemin_fichier = '/home/j088777/geocodage_clients/Regions_CANDF.geojson'
+ 
+# hadoop fs -copyFromLocal -f ./id_client_sans_lead.xlsx /data/NFP10/MC/test_userid/
+ 
+# Chemin de destination dans HDFS
+hdfs_path_fichier = '/data/NFP10/MC/EY/Regions_CANDF.geojson'
+ 
+# Commande pour copier le fichier dans HDFS
+cmd_fichier = f'hadoop fs -copyFromLocal -f {chemin_fichier} {hdfs_path_fichier}'
+ 
+#  commande avec subprocess
+try:
+    res = subprocess.check_output(cmd_fichier, shell=True)
+    print(f"Fichier {chemin_fichier} déplacé avec succès vers {hdfs_path_fichier} dans HDFS.")
+except subprocess.CalledProcessError as e:
+    print(f"Erreur lors du déplacement du fichier : {e.output}")
