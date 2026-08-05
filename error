@@ -1,104 +1,216 @@
-namespace Segmentation.Application.Common
-{
-	/// <summary>
-	/// Normalisation centralisée des libellés de profils conseillers.
-	/// Fusionne les variantes d'écriture d'un même métier (codes courts
-	/// issus de SegmentationDistributive, anciens intitulés...) vers un
-	/// libellé canonique unique, utilisé partout dans l'application pour
-	/// éviter la dilution de l'info entre plusieurs écritures du même
-	/// métier.
-	///
-	/// Liste des codes bruts réellement présents en base
-	/// (vérifiée par requête SQL le 2026-08-05) :
-	///   CH.PATRIMON, CO.GESPAT, CONS.CLIENT, CONS.COMMER,
-	///   CONS.PRIVE, DIR.PATRIMO, DIR.SECTEUR, RESP.AGENCE
-	/// </summary>
-	public static class ProfilNormalizer
-	{
-		private static readonly Dictionary<string, string> _normalisation =
-			new(StringComparer.OrdinalIgnoreCase)
-			{
-				// RCP (ex Chargé de Patrimoine)
-				["CH.PATRIMON"] = "RCP",
-				["RCP"] = "RCP",
-
-				// CGP (ex Co-Gestionnaire de Patrimoine)
-				["CO.GESPAT"] = "CGP",
-				["CGP"] = "CGP",
-
-				// Conseiller clientèle
-				["CONS.CLIENT"] = "CONSEILLER CLIENTELE",
-				["CONS.CLIENTELE"] = "CONSEILLER CLIENTELE",
-				["CONSEILLER CLIENTELE"] = "CONSEILLER CLIENTELE",
-
-				// Conseiller commercial
-				["CONS.COMMER"] = "CONSEILLER COMMERCIAL",
-				["CONS.COMMERCIAL"] = "CONSEILLER COMMERCIAL",
-				["CONSEILLER COMMERCIAL"] = "CONSEILLER COMMERCIAL",
-
-				// Banquier privé (ex Conseiller Privé)
-				["CONS.PRIVE"] = "BANQUIER PRIVÉ",
-				["BANQUIER PRIVE"] = "BANQUIER PRIVÉ",
-				["BANQUIER PRIVÉ"] = "BANQUIER PRIVÉ",
-
-				// Directeur Banque Privée (ex Directeur de Patrimoine)
-				["DIR.PATRIMO"] = "DIRECTEUR BANQUE PRIVEE",
-				["DIRECTEUR BANQUE PRIVEE"] = "DIRECTEUR BANQUE PRIVEE",
-
-				// DS / DSD (ex Directeur de Secteur)
-				["DIR.SECTEUR"] = "DS / DSD",
-				["DS / DSD"] = "DS / DSD",
-
-				// Responsable d'agence
-				["RESP.AGENCE"] = "RESP. AGENCE",
-				["RESP. AGENCE"] = "RESP. AGENCE",
-
-				// Conseiller d'accueil (non présent dans les codes bruts
-				// actuels, mais référencé dans les règles d'affectation
-				// par défaut — conservé par sécurité)
-				["CONS.ACCUEIL"] = "CONSEILLER D'ACCUEIL",
-				["CONSEILLER D'ACCUEIL"] = "CONSEILLER D'ACCUEIL",
-			};
-
-		private static readonly Dictionary<string, string> _ligneMetier =
-			new(StringComparer.OrdinalIgnoreCase)
-			{
-				["DIRECTEUR BANQUE PRIVEE"] = "banque privée",
-				["BANQUIER PRIVÉ"] = "banque privée",
-				["CGP"] = "banque privée",
-
-				["RESP. AGENCE"] = "retail",
-				["RCP"] = "retail",
-				["CONSEILLER CLIENTELE"] = "retail",
-				["CONSEILLER COMMERCIAL"] = "retail",
-				["CONSEILLER D'ACCUEIL"] = "retail",
-				["DS / DSD"] = "retail",
-			};
-
-		/// <summary>
-		/// Retourne le libellé canonique d'un profil.
-		/// Si aucune correspondance : renvoie le libellé nettoyé tel quel.
-		/// </summary>
-		public static string Normaliser(string? profilBrut)
-		{
-			if (string.IsNullOrWhiteSpace(profilBrut))
-				return string.Empty;
-
-			var trimmed = profilBrut.Trim();
-			return _normalisation.TryGetValue(trimmed, out var canonique)
-				? canonique
-				: trimmed;
-		}
-
-		/// <summary>
-		/// Ligne métier (banque privée / retail) d'un profil déjà normalisé.
-		/// Retombe sur "retail" si le profil canonique n'est pas connu.
-		/// </summary>
-		public static string GetLigneMetier(string profilCanonique)
-		{
-			return _ligneMetier.TryGetValue(profilCanonique, out var lm)
-				? lm
-				: "retail";
-		}
-	}
-}
+Debugging hotkey: Shift+Alt+D (when application has focus)
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/Auth
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/Auth
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/User/getUser
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/User/getUser
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/Environment/name
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/Environment/name
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/Environment/appversion
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/Environment/appversion
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/Environment/appinformations
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/Environment/appinformations
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 205.7ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 211.4ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 552.4ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 558.4ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 442.8999ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 443.7ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 456.9ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 457.6ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/SegmentIntensite
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/SegmentIntensite
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/ConseillerProfil
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/ConseillerProfil
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/RegleAffectationSegment
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/RegleAffectationSegment
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/ParametresGeneraux
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/ParametresGeneraux
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/Environment/name
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/Environment/name
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 1019.2999ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 1020ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 221.2999ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 222.3ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 246.5ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 247.3999ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 244.6ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 245.6ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 240.7ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 242ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 33ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 33.8999ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/User/getUnits
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/User/getUnits
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/SegmentationDistributive/referentiel
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/SegmentationDistributive/referentiel
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 1578.8ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 1579.6ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[100]
+      Start processing HTTP request GET https://localhost:24462/api/User/getHabilitations
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[100]
+      Sending HTTP request GET https://localhost:24462/api/User/getHabilitations
+s0430-front-p1-c800.ca-ts.gca/User%20Photos/Images%20du%20profil/ZCAM_J097179LThumb.jpeg:1  Failed to load resource: the server responded with a status of 404 (NOT FOUND)Understand this error
+s0430-front-p1-c800.ca-ts.gca/User%20Photos/Images%20du%20profil/J097179_LThumb.jpg:1  Failed to load resource: the server responded with a status of 404 (NOT FOUND)Understand this error
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 1402.3ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 1403.1ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.ClientHandler[101]
+      Received HTTP response headers after 3352.3ms - 200
+invoke-js.ts:246 info: System.Net.Http.HttpClient.default.LogicalHandler[101]
+      End processing HTTP request after 3353.4ms - 200
+blazor.webassembly.js:1 >>> R&H chargées : 11 segments, 14 profils, 11 règles
+blazor.webassembly.js:1 crit: Microsoft.AspNetCore.Components.WebAssembly.Rendering.WebAssemblyRenderer[100]
+      Unhandled exception rendering component: Arg_SwitchExpressionException
+      SwitchExpressionException_UnmatchedValue, DIR BP
+System.Runtime.CompilerServices.SwitchExpressionException: Arg_SwitchExpressionException
+SwitchExpressionException_UnmatchedValue, DIR BP
+   at <PrivateImplementationDetails>.ThrowSwitchExpressionException(Object unmatchedValue)
+   at Segmentation.Client.Pages.ReglesHypotheses.GetProfilRank(String profil) in C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\ReglesHypotheses.razor.cs:line 549
+   at Segmentation.Client.Pages.ReglesHypotheses.<>c.<BuildRenderTree>b__77_53(ConseillerTempsProfil p) in C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\ReglesHypotheses.razor:line 321
+   at System.Linq.Enumerable.EnumerableSorter`2[[Segmentation.Client.Models.ConseillerTempsProfil, Segmentation.Client, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]].ComputeKeys(ConseillerTempsProfil[] elements, Int32 count)
+   at System.Linq.Enumerable.EnumerableSorter`1[[Segmentation.Client.Models.ConseillerTempsProfil, Segmentation.Client, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]].ComputeMap(ConseillerTempsProfil[] elements, Int32 count)
+   at System.Linq.Enumerable.EnumerableSorter`1[[Segmentation.Client.Models.ConseillerTempsProfil, Segmentation.Client, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]].Sort(ConseillerTempsProfil[] elements, Int32 count)
+   at System.Linq.Enumerable.OrderedIterator`1[[Segmentation.Client.Models.ConseillerTempsProfil, Segmentation.Client, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]].SortedMap(ConseillerTempsProfil[] buffer)
+   at System.Linq.Enumerable.OrderedIterator`2[[Segmentation.Client.Models.ConseillerTempsProfil, Segmentation.Client, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]].MoveNext()
+   at Segmentation.Client.Pages.ReglesHypotheses.<BuildRenderTree>b__77_33(RenderTreeBuilder __builder4) in C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\ReglesHypotheses.razor:line 321
+   at Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder.AddContent(Int32 sequence, RenderFragment fragment)
+   at MudBlazor.MudPaper.BuildRenderTree(RenderTreeBuilder __builder)
+   at Microsoft.AspNetCore.Components.ComponentBase.<.ctor>b__7_0(RenderTreeBuilder builder)
+   at Microsoft.AspNetCore.Components.Rendering.ComponentState.RenderIntoBatch(RenderBatchBuilder batchBuilder, RenderFragment renderFragment, Exception& renderFragmentException)
+Tt @ blazor.webassembly.js:1
+(anonymous) @ invoke-js.ts:246
+Mc @ invoke-js.ts:82
+$func298 @ dotnet.native.muve7a13r4.wasm:0x1f798
+$func222 @ dotnet.native.muve7a13r4.wasm:0x1ca99
+$func213 @ dotnet.native.muve7a13r4.wasm:0xebe8
+$func256 @ dotnet.native.muve7a13r4.wasm:0x1d975
+$func3231 @ dotnet.native.muve7a13r4.wasm:0xf17d1
+$func2553 @ dotnet.native.muve7a13r4.wasm:0xc7093
+$func2558 @ dotnet.native.muve7a13r4.wasm:0xc788b
+$func2582 @ dotnet.native.muve7a13r4.wasm:0xc9f5b
+$mono_wasm_invoke_jsexport @ dotnet.native.muve7a13r4.wasm:0xac9d
+Module._mono_wasm_invoke_jsexport @ dotnet.native.cs8mcre4gh.js:8
+kn @ managed-exports.ts:304
+(anonymous) @ invoke-cs.ts:327
+beginInvokeDotNetFromJS @ blazor.webassembly.js:1
+invokeDotNetMethodAsync @ blazor.webassembly.js:1
+invokeMethodAsync @ blazor.webassembly.js:1
+(anonymous) @ blazor.webassembly.js:1
+D @ blazor.webassembly.js:1
+(anonymous) @ blazor.webassembly.js:1
+invokeWhenHeapUnlocked @ blazor.webassembly.js:1
+(anonymous) @ blazor.webassembly.js:1
+D @ blazor.webassembly.js:1
+N @ blazor.webassembly.js:1
+dispatchGlobalEventToAllElements @ blazor.webassembly.js:1
+onGlobalEvent @ blazor.webassembly.js:1Understand this error
+blazor.webassembly.js:1 crit: Microsoft.AspNetCore.Components.WebAssembly.Rendering.WebAssemblyRenderer[100]
+      Unhandled exception rendering component: Arg_SwitchExpressionException
+      SwitchExpressionException_UnmatchedValue, DIR BP
+System.Runtime.CompilerServices.SwitchExpressionException: Arg_SwitchExpressionException
+SwitchExpressionException_UnmatchedValue, DIR BP
+   at <PrivateImplementationDetails>.ThrowSwitchExpressionException(Object unmatchedValue)
+   at Segmentation.Client.Pages.ReglesHypotheses.GetProfilRank(String profil) in C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\ReglesHypotheses.razor.cs:line 549
+   at Segmentation.Client.Pages.ReglesHypotheses.<>c.<BuildRenderTree>b__77_53(ConseillerTempsProfil p) in C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\ReglesHypotheses.razor:line 321
+   at System.Linq.Enumerable.EnumerableSorter`2[[Segmentation.Client.Models.ConseillerTempsProfil, Segmentation.Client, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]].ComputeKeys(ConseillerTempsProfil[] elements, Int32 count)
+   at System.Linq.Enumerable.EnumerableSorter`1[[Segmentation.Client.Models.ConseillerTempsProfil, Segmentation.Client, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]].ComputeMap(ConseillerTempsProfil[] elements, Int32 count)
+   at System.Linq.Enumerable.EnumerableSorter`1[[Segmentation.Client.Models.ConseillerTempsProfil, Segmentation.Client, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]].Sort(ConseillerTempsProfil[] elements, Int32 count)
+   at System.Linq.Enumerable.OrderedIterator`1[[Segmentation.Client.Models.ConseillerTempsProfil, Segmentation.Client, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]].SortedMap(ConseillerTempsProfil[] buffer)
+   at System.Linq.Enumerable.OrderedIterator`2[[Segmentation.Client.Models.ConseillerTempsProfil, Segmentation.Client, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]].MoveNext()
+   at Segmentation.Client.Pages.ReglesHypotheses.<BuildRenderTree>b__77_33(RenderTreeBuilder __builder4) in C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\ReglesHypotheses.razor:line 321
+   at Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder.AddContent(Int32 sequence, RenderFragment fragment)
+   at MudBlazor.MudPaper.BuildRenderTree(RenderTreeBuilder __builder)
+   at Microsoft.AspNetCore.Components.ComponentBase.<.ctor>b__7_0(RenderTreeBuilder builder)
+   at Microsoft.AspNetCore.Components.Rendering.ComponentState.RenderIntoBatch(RenderBatchBuilder batchBuilder, RenderFragment renderFragment, Exception& renderFragmentException)
+Tt @ blazor.webassembly.js:1
+(anonymous) @ invoke-js.ts:246
+Mc @ invoke-js.ts:82
+$func298 @ dotnet.native.muve7a13r4.wasm:0x1f798
+$func222 @ dotnet.native.muve7a13r4.wasm:0x1ca99
+$func213 @ dotnet.native.muve7a13r4.wasm:0xebe8
+$func256 @ dotnet.native.muve7a13r4.wasm:0x1d975
+$func3231 @ dotnet.native.muve7a13r4.wasm:0xf17d1
+$func2553 @ dotnet.native.muve7a13r4.wasm:0xc7093
+$func2558 @ dotnet.native.muve7a13r4.wasm:0xc788b
+$func2582 @ dotnet.native.muve7a13r4.wasm:0xc9f5b
+$mono_wasm_invoke_jsexport @ dotnet.native.muve7a13r4.wasm:0xac9d
+Module._mono_wasm_invoke_jsexport @ dotnet.native.cs8mcre4gh.js:8
+kn @ managed-exports.ts:304
+(anonymous) @ invoke-cs.ts:149
+endInvokeJSFromDotNet @ blazor.webassembly.js:1
+beginInvokeJSFromDotNet @ blazor.webassembly.js:1
+await in beginInvokeJSFromDotNet
+en @ blazor.webassembly.js:1
+(anonymous) @ invoke-js.ts:323
+Mc @ invoke-js.ts:82
+$func298 @ dotnet.native.muve7a13r4.wasm:0x1f798
+$func222 @ dotnet.native.muve7a13r4.wasm:0x1ca99
+$func213 @ dotnet.native.muve7a13r4.wasm:0xebe8
+$func256 @ dotnet.native.muve7a13r4.wasm:0x1d975
+$func3231 @ dotnet.native.muve7a13r4.wasm:0xf17d1
+$func2553 @ dotnet.native.muve7a13r4.wasm:0xc7093
+$func2558 @ dotnet.native.muve7a13r4.wasm:0xc788b
+$func2582 @ dotnet.native.muve7a13r4.wasm:0xc9f5b
+$mono_wasm_invoke_jsexport @ dotnet.native.muve7a13r4.wasm:0xac9d
+Module._mono_wasm_invoke_jsexport @ dotnet.native.cs8mcre4gh.js:8
+kn @ managed-exports.ts:304
+(anonymous) @ invoke-cs.ts:327
+beginInvokeDotNetFromJS @ blazor.webassembly.js:1
+invokeDotNetMethodAsync @ blazor.webassembly.js:1
+invokeMethodAsync @ blazor.webassembly.js:1
+(anonymous) @ blazor.webassembly.js:1
+D @ blazor.webassembly.js:1
+(anonymous) @ blazor.webassembly.js:1
+invokeWhenHeapUnlocked @ blazor.webassembly.js:1
+(anonymous) @ blazor.webassembly.js:1
+D @ blazor.webassembly.js:1
+N @ blazor.webassembly.js:1
+dispatchGlobalEventToAllElements @ blazor.webassembly.js:1
+onGlobalEvent @ blazor.webassembly.js:1Understand this error
