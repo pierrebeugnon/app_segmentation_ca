@@ -7,7 +7,6 @@ using Segmentation.Client.Services;
 using Segmentation.Shared.Models;
 using System.Globalization;
 using System.Text;
-using static System.Net.WebRequestMethods;
 
 namespace Segmentation.Client.Pages;
 
@@ -82,7 +81,7 @@ public partial class ReglesHypotheses
 
 
 			// 2bis. Charge les données brutes pour l'agrégation du nombre de clients par segment
-			_segmentationDistributive = await this.Http.GetFromJsonAsync<List<SegmentationDistributiveData>>(
+			_segmentationDistributive = await this.HttpClientR.GetFromJsonAsync<List<SegmentationDistributiveData>>(
 				"api/SegmentationDistributive"
 			) ?? new();
 
