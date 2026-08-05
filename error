@@ -1,3 +1,8 @@
+Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
+Erreur (active)	CS1061	'ReglesHypotheses' ne contient pas de définition pour 'HttpClientR' et aucune méthode d'extension accessible 'HttpClientR' acceptant un premier argument de type 'ReglesHypotheses' n'a été trouvée (une directive using ou une référence d'assembly est-elle manquante ?)	Segmentation.Client	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\ReglesHypotheses.razor.cs	84	
+
+
+
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using System.Net.Http.Json;
