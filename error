@@ -1,3 +1,4 @@
-SELECT DISTINCT '[' + Profil + ']' AS ProfilExact, LigneMetier
-FROM [DNFP10A02T701J].[dbo].[ConseillersProfils]
-ORDER BY Profil;
+Msg 145, Niveau 15, État 1, Ligne 1
+ORDER BY items must appear in the select list if SELECT DISTINCT is specified.
+
+Heure de fin : 2026-08-05T16:01:44.4514975+02:00
