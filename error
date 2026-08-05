@@ -1,6 +1,50 @@
-// Directeur Banque Privée (ex Directeur de Patrimoine,
-				// ex "DIR. BP" — ancienne nomenclature)
-				["DIR.PATRIMO"] = "DIRECTEUR BANQUE PRIVEE",
-				["DIR. BP"] = "DIRECTEUR BANQUE PRIVEE",
-				["DIR.BP"] = "DIRECTEUR BANQUE PRIVEE",
-				["DIRECTEUR BANQUE PRIVEE"] = "DIRECTEUR BANQUE PRIVEE",
+[
+    {
+        "ConseillerProfilID": 351,
+        "LigneMetier": "banque privée",
+        "Profil": "BANQUIER PRIVÉ",
+        "PartTempsCommercialPct": 60
+    },
+    {
+        "ConseillerProfilID": 352,
+        "LigneMetier": "banque privée",
+        "Profil": "CGP",
+        "PartTempsCommercialPct": 60
+    },
+    {
+        "ConseillerProfilID": 353,
+        "LigneMetier": "banque privée",
+        "Profil": "DIRECTEUR BANQUE PRIVEE",
+        "PartTempsCommercialPct": 60
+    },
+    {
+        "ConseillerProfilID": 354,
+        "LigneMetier": "retail",
+        "Profil": "RCP",
+        "PartTempsCommercialPct": 40
+    },
+    {
+        "ConseillerProfilID": 356,
+        "LigneMetier": "retail",
+        "Profil": "CONSEILLER CLIENTELE",
+        "PartTempsCommercialPct": 40
+    },
+    {
+        "ConseillerProfilID": 357,
+        "LigneMetier": "retail",
+        "Profil": "CONSEILLER COMMERCIAL",
+        "PartTempsCommercialPct": 40
+    },
+    {
+        "ConseillerProfilID": 362,
+        "LigneMetier": "retail",
+        "Profil": "DS / DSD",
+        "PartTempsCommercialPct": 40
+    },
+    {
+        "ConseillerProfilID": 364,
+        "LigneMetier": "retail",
+        "Profil": "RESP. AGENCE",
+        "PartTempsCommercialPct": 40
+    }
+]
