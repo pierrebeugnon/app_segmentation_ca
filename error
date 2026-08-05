@@ -1,10 +1,12 @@
-/****** Script de la commande SelectTopNRows à partir de SSMS  ******/
-SELECT TOP (1000) [ConseillerProfilID]
-      ,[LigneMetier]
+INSERT INTO [DNFP10A02T701J].[dbo].[ConseillersProfils]
+      ([LigneMetier]
       ,[Profil]
       ,[PartTempsCommercialPct]
       ,[CreatedDate]
       ,[UpdatedDate]
       ,[DeletedDate]
-      ,[IsDeleted]
-  FROM [DNFP10A02T701J].[dbo].[ConseillersProfils]
+      ,[IsDeleted])
+VALUES
+      ('banque privée', 'CO.GESPAT',   0, GETUTCDATE(), NULL, NULL, 0),
+      ('banque privée', 'CONS.PRIVE',  0, GETUTCDATE(), NULL, NULL, 0),
+      ('banque privée', 'DIR.PATRIMO', 0, GETUTCDATE(), NULL, NULL, 0);
