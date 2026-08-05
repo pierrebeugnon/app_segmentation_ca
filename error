@@ -91,16 +91,26 @@ namespace Segmentation.Application.Handlers.SegmentationDistributive
 		};
 
 		// Profils toujours disponibles pour la configuration
-		// (même si absents de SegmentationDistributives)
+		// (même si absents de SegmentationDistributives).
+		// Certains profils (ex. CO.GESPAT) existent des deux côtés :
+		// une entrée par LigneMetier est nécessaire pour qu'ils soient
+		// configurables aussi bien en Banque Privée qu'en Agence/Retail.
 		private static readonly List<ReferentielProfilResponse> _profilsStandards = new()
 		{
 			new() { Profil = "DIR. BP",                LigneMetier = "banque privée" },
 			new() { Profil = "BANQUIER PRIVÉ",         LigneMetier = "banque privée" },
 			new() { Profil = "CGP",                    LigneMetier = "banque privée" },
+			new() { Profil = "CO.GESPAT",              LigneMetier = "banque privée" },
+			new() { Profil = "CONS.PRIVE",             LigneMetier = "banque privée" },
+			new() { Profil = "DIR.PATRIMO",            LigneMetier = "banque privée" },
+
 			new() { Profil = "RESP. AGENCE",           LigneMetier = "retail" },
 			new() { Profil = "RCP",                    LigneMetier = "retail" },
 			new() { Profil = "CONSEILLER CLIENTELE",   LigneMetier = "retail" },
 			new() { Profil = "CONSEILLER COMMERCIAL",  LigneMetier = "retail" },
+			new() { Profil = "CO.GESPAT",              LigneMetier = "retail" },
+			new() { Profil = "CONS.PRIVE",             LigneMetier = "retail" },
+			new() { Profil = "DIR.PATRIMO",            LigneMetier = "retail" },
 		};
 
 		public GetReferentielQueryHandler(
@@ -131,11 +141,14 @@ namespace Segmentation.Application.Handlers.SegmentationDistributive
 				})
 				.ToList();
 
-			// Union : profils standards + profils trouvés en base
-			// Les profils standards garantissent que BP est toujours configurable
+			// Union : profils standards + profils trouvés en base.
+			// Les profils standards garantissent que BP est toujours configurable.
+			// La clé de regroupement combine Profil + LigneMetier : un même
+			// profil (ex. CO.GESPAT) peut légitimement exister des deux côtés
+			// et ne doit pas être écrasé par l'autre variante.
 			var profils = _profilsStandards
 				.Concat(profilsFromData)
-				.GroupBy(p => p.Profil, StringComparer.OrdinalIgnoreCase)
+				.GroupBy(p => $"{p.Profil.Trim().ToUpperInvariant()}|{p.LigneMetier.Trim().ToUpperInvariant()}")
 				.Select(g => g.First())
 				.OrderBy(p => p.LigneMetier)
 				.ThenBy(p => p.Profil)
