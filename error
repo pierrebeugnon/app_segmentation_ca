@@ -1,108 +1,43 @@
-namespace Segmentation.Application.Common
+using MapsterMapper;
+using Segmentation.Application.Common;
+using Segmentation.Application.Contracts;
+using Segmentation.Application.Queries.SegmentationDistributive;
+using Segmentation.Application.Responses;
+using Segmentation.Core.Repositories;
+
+namespace Segmentation.Application.Handlers.SegmentationDistributive
 {
-	/// <summary>
-	/// Normalisation centralisée des libellés de profils conseillers.
-	/// Fusionne les variantes d'écriture d'un même métier (abréviations,
-	/// anciens intitulés...) vers un libellé canonique unique, utilisé
-	/// partout dans l'application pour éviter la dilution de l'info
-	/// entre plusieurs écritures du même métier.
-	/// </summary>
-	public static class ProfilNormalizer
+	internal class GetAllSegmentationDistributiveQueryHandler
+		: IQueryHandler<GetAllSegmentationDistributiveQuery,
+						List<SegmentationDistributiveResponse>>
 	{
-		private static readonly Dictionary<string, string> _normalisation =
-			new(StringComparer.OrdinalIgnoreCase)
-			{
-				// Conseiller commercial
-				["CONS.COMMERCIAL"] = "CONSEILLER COMMERCIAL",
-				["CONS COMMERCIAL"] = "CONSEILLER COMMERCIAL",
-				["CONSEILLER COMMERCIAL"] = "CONSEILLER COMMERCIAL",
+		private readonly IMapper _mapper;
+		private readonly ISegmentationDistributivesRepository _repository;
 
-				// Conseiller clientèle
-				["CONS.CLIENTELE"] = "CONSEILLER CLIENTELE",
-				["CONS CLIENTELE"] = "CONSEILLER CLIENTELE",
-				["CONSEILLER CLIENTELE"] = "CONSEILLER CLIENTELE",
-
-				// Conseiller d'accueil
-				["CONS.ACCUEIL"] = "CONSEILLER D'ACCUEIL",
-				["CONSEILLER ACCUEIL"] = "CONSEILLER D'ACCUEIL",
-				["CONSEILLER D'ACCUEIL"] = "CONSEILLER D'ACCUEIL",
-
-				// RCP (ex Chargé de Patrimoine)
-				["CH.PATRIMON"] = "RCP",
-				["CH PATRIMON"] = "RCP",
-				["CH.PATRIMOINE"] = "RCP",
-				["CH PATRIMOINE"] = "RCP",
-				["RCP"] = "RCP",
-
-				// Responsable d'agence
-				["RESP.AGENCE"] = "RESP. AGENCE",
-				["RESPONSABLE AGENCE"] = "RESP. AGENCE",
-				["RESP. AGENCE"] = "RESP. AGENCE",
-
-				// DS / DSD (ex Directeur de Secteur)
-				["DIR.SECTEUR"] = "DS / DSD",
-				["DIR SECTEUR"] = "DS / DSD",
-				["DS / DSD"] = "DS / DSD",
-				["DS/DSD"] = "DS / DSD",
-
-				// CGP (ex Co-Gestionnaire de Patrimoine)
-				["CO.GESPAT"] = "CGP",
-				["CO GESPAT"] = "CGP",
-				["CGP"] = "CGP",
-
-				// Banquier privé (ex Conseiller Privé)
-				["CONS.PRIVE"] = "BANQUIER PRIVÉ",
-				["CONS PRIVE"] = "BANQUIER PRIVÉ",
-				["BANQUIER PRIVE"] = "BANQUIER PRIVÉ",
-				["BANQUIER PRIVÉ"] = "BANQUIER PRIVÉ",
-
-				// Directeur Banque Privée (ex Directeur de Patrimoine)
-				["DIR.PATRIMO"] = "DIRECTEUR BANQUE PRIVEE",
-				["DIR PATRIMO"] = "DIRECTEUR BANQUE PRIVEE",
-				["DIR.BP"] = "DIRECTEUR BANQUE PRIVEE",
-				["DIRECTEUR BP"] = "DIRECTEUR BANQUE PRIVEE",
-				["DIR. BP"] = "DIRECTEUR BANQUE PRIVEE",
-			};
-
-		private static readonly Dictionary<string, string> _ligneMetier =
-			new(StringComparer.OrdinalIgnoreCase)
-			{
-				["DIRECTEUR BANQUE PRIVEE"] = "banque privée",
-				["BANQUIER PRIVÉ"] = "banque privée",
-				["CGP"] = "banque privée",
-
-				["RESP. AGENCE"] = "retail",
-				["RCP"] = "retail",
-				["CONSEILLER CLIENTELE"] = "retail",
-				["CONSEILLER COMMERCIAL"] = "retail",
-				["CONSEILLER D'ACCUEIL"] = "retail",
-				["DS / DSD"] = "retail",
-			};
-
-		/// <summary>
-		/// Retourne le libellé canonique d'un profil.
-		/// Si aucune correspondance : renvoie le libellé nettoyé tel quel.
-		/// </summary>
-		public static string Normaliser(string? profilBrut)
+		public GetAllSegmentationDistributiveQueryHandler(
+			IMapper mapper,
+			ISegmentationDistributivesRepository repository)
 		{
-			if (string.IsNullOrWhiteSpace(profilBrut))
-				return string.Empty;
-
-			var trimmed = profilBrut.Trim();
-			return _normalisation.TryGetValue(trimmed, out var canonique)
-				? canonique
-				: trimmed;
+			_mapper = mapper;
+			_repository = repository;
 		}
 
-		/// <summary>
-		/// Ligne métier (banque privée / retail) d'un profil déjà normalisé.
-		/// Retombe sur "retail" si le profil canonique n'est pas connu.
-		/// </summary>
-		public static string GetLigneMetier(string profilCanonique)
+		public async Task<List<SegmentationDistributiveResponse>> Handle(
+			GetAllSegmentationDistributiveQuery request,
+			CancellationToken cancellationToken)
 		{
-			return _ligneMetier.TryGetValue(profilCanonique, out var lm)
-				? lm
-				: "retail";
+			var entities = await _repository.GetAllAsync();
+			var responses = _mapper.Map<List<SegmentationDistributiveResponse>>(entities.ToList());
+
+			// Normalise le libellé du type de conseiller pour fusionner les
+			// variantes d'écriture d'un même métier (ex. CH.PATRIMON → RCP),
+			// cohérent avec la normalisation appliquée dans GetReferentielQueryHandler.
+			foreach (var r in responses)
+			{
+				r.TypeConseiller = ProfilNormalizer.Normaliser(r.TypeConseiller);
+			}
+
+			return responses;
 		}
 	}
 }
