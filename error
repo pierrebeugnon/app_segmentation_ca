@@ -1,4 +1,10 @@
-SELECT DISTINCT TypeConseiller, COUNT(*) AS nb_lignes
-FROM SegmentationDistributive
-GROUP BY TypeConseiller
-ORDER BY TypeConseiller;
+TypeConseiller	nb_lignes
+	52
+CH.PATRIMON	63
+CO.GESPAT	69
+CONS.CLIENT	345
+CONS.COMMER	499
+CONS.PRIVE	35
+DIR.PATRIMO	14
+DIR.SECTEUR	129
+RESP.AGENCE	87
