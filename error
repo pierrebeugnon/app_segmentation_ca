@@ -1,15 +1,2 @@
-private List<SegmentationDistributiveData> _segmentationDistributive = new();
-
-
-// 2bis. Charge les données brutes pour l'agrégation du nombre de clients par segment
-_segmentationDistributive = await Http.GetFromJsonAsync<List<SegmentationDistributiveData>>(
-    "api/SegmentationDistributive"
-) ?? new();
-
-
-
-// ── Charge ETP théorique (vision cible) = nb clients du segment (agrégé
-// depuis SegmentationDistributive) ÷ taille théorique calculée ci-dessus ──
-var nbClientsSegment = segmentNonRenseigne
-    ? 0
-    : _segmentationDistributive.Sum(x => EtpService.GetClientCountForSegment(x, context.SegmentCouvert));
+Gravité	Code	Description	Projet	Fichier	Ligne	État de la suppression
+Erreur (active)	CS0117	'WebRequestMethods.Http' ne contient pas de définition pour 'GetFromJsonAsync'	Segmentation.Client	C:\Users\J097179\source\repos\a02t7-segmentation\src\Segmentation\Client\Pages\ReglesHypotheses.razor.cs	84	
