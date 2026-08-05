@@ -1,11 +1,5 @@
-// Les secteurs Banque Privée n'ont pas de véritable subdivision par
-// agence : la seule "agence" présente en base est un portefeuille
-// mutualisé de secteur, qu'il ne faut pas sélectionner par défaut.
-// Dans ce cas, on laisse l'agence vide — AgenceEffective retombera
-// sur le secteur comme clé de sauvegarde/restauration.
-var estSecteurBanquePrivee = filtreSecteur?.Contains("Banque", StringComparison.OrdinalIgnoreCase) == true;
-
-if (string.IsNullOrEmpty(filtreAgence) && allAgences.Any() && !estSecteurBanquePrivee)
-{
-    filtreAgence = allAgences.First();
-}
+INSERT INTO ConseillersProfils (LigneMetier, Profil, PartTempsCommercialPct)
+VALUES 
+  ('banque privée', 'CO.GESPAT', 0),
+  ('banque privée', 'CONS.PRIVE', 0),
+  ('banque privée', 'DIR.PATRIMO', 0);
