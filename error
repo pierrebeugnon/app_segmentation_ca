@@ -1,407 +1,115 @@
+using Segmentation.Application.Common;
+using Segmentation.Application.Contracts;
+using Segmentation.Application.Queries.SegmentationDistributive;
+using Segmentation.Application.Responses;
+using Segmentation.Core.Repositories;
+
+namespace Segmentation.Application.Handlers.SegmentationDistributive
 {
-    "Segments": [
-        "HDG Premium Potentiel",
-        "HDG Premium Standard",
-        "HDG Potentiel",
-        "HDG Senior Epargnant",
-        "HDG Standard",
-        "CI Potentiel",
-        "CI Standard",
-        "GP Potentiel",
-        "GP Standard",
-        "Non segmenté",
-        "Non classé"
-    ],
-    "Profils": [
-        {
-            "Profil": "BANQUIER PRIVÉ",
-            "LigneMetier": "banque privée"
-        },
-        {
-            "Profil": "CGP",
-            "LigneMetier": "banque privée"
-        },
-        {
-            "Profil": "CO.GESPAT",
-            "LigneMetier": "banque privée"
-        },
-        {
-            "Profil": "CONS.PRIVE",
-            "LigneMetier": "banque privée"
-        },
-        {
-            "Profil": "DIR. BP",
-            "LigneMetier": "banque privée"
-        },
-        {
-            "Profil": "DIR.PATRIMO",
-            "LigneMetier": "banque privée"
-        },
-        {
-            "Profil": "CH.PATRIMON",
-            "LigneMetier": "retail"
-        },
-        {
-            "Profil": "CO.GESPAT",
-            "LigneMetier": "retail"
-        },
-        {
-            "Profil": "CONS.CLIENT",
-            "LigneMetier": "retail"
-        },
-        {
-            "Profil": "CONS.COMMER",
-            "LigneMetier": "retail"
-        },
-        {
-            "Profil": "CONS.PRIVE",
-            "LigneMetier": "retail"
-        },
-        {
-            "Profil": "CONSEILLER CLIENTELE",
-            "LigneMetier": "retail"
-        },
-        {
-            "Profil": "CONSEILLER COMMERCIAL",
-            "LigneMetier": "retail"
-        },
-        {
-            "Profil": "DIR.PATRIMO",
-            "LigneMetier": "retail"
-        },
-        {
-            "Profil": "DIR.SECTEUR",
-            "LigneMetier": "retail"
-        },
-        {
-            "Profil": "RCP",
-            "LigneMetier": "retail"
-        },
-        {
-            "Profil": "RESP. AGENCE",
-            "LigneMetier": "retail"
-        }
-    ],
-    "Regions": [
-        "ARTOIS CAMBRESIS",
-        "AVESNOIS",
-        "BETHUNE LENS",
-        "LES FLANDRES",
-        "LITTORAL",
-        "MEL NORD",
-        "MEL SUD",
-        "TERRE ET OPALE",
-        "VALENCIENNES DOUAI"
-    ],
-    "Secteurs": [
-        "AIRE SUR LA LYS",
-        "ARMENTIERES",
-        "ARRAS-BACHELET",
-        "AUDRUICQ",
-        "AVESNES-SUR-HELPE",
-        "AVION",
-        "BANQUE PRIVEE ARTOIS CAMBRESIS",
-        "BANQUE PRIVEE AVESNOIS",
-        "BANQUE PRIVEE BETHUNE LENS",
-        "BANQUE PRIVEE LES FLANDRES",
-        "BANQUE PRIVEE LITTORAL",
-        "BANQUE PRIVEE MEL NORD",
-        "BANQUE PRIVEE MEL SUD",
-        "BANQUE PRIVEE TERRE ET OPALE",
-        "BANQUE PRIVEE VALENCIENNES DOUAI",
-        "BAPAUME",
-        "BERCK",
-        "BERGUES",
-        "BETHUNE-VILLE",
-        "BOULOGNE-MARIETTE",
-        "BOURBOURG",
-        "BRUAY-CENTRE",
-        "BUCQUOY",
-        "CALAIS-LAFAYETTE",
-        "CAMBRAI",
-        "CARVIN",
-        "CAUDRY",
-        "DENAIN",
-        "DESVRES",
-        "DOUAI",
-        "DUNKERQUE",
-        "HAZEBROUCK",
-        "HESDIN",
-        "LA BASSEE",
-        "LAMBERSART",
-        "LE QUESNOY",
-        "LENS-LANOY",
-        "LILLE-NATIONALE",
-        "MARCQ-EN-BAROEUL",
-        "MAUBEUGE",
-        "PONT-A-MARCQ",
-        "RONCHIN",
-        "RONCQ",
-        "ROUBAIX-BARBIEUX",
-        "SAINT-AMAND",
-        "SAINT-POL-VERDUN",
-        "SECLIN",
-        "ST OMER FOCH",
-        "TOURCOING",
-        "V.D'ASCQ-MONTALEMBERT",
-        "VALENCIENNES-CENTRE",
-        "VITRY-EN-ARTOIS"
-    ],
-    "Agences": [
-        "ACHICOURT REX",
-        "AGENCE STE CATHERINE LES ARRAS",
-        "AIRE SUR LA LYS",
-        "AIRE SUR LA LYS - Portefeuille mutualisé",
-        "ANICHE",
-        "ANNOEULLIN",
-        "ANZIN",
-        "ARDRES",
-        "ARLEUX",
-        "ARMENTIERES",
-        "ARMENTIERES - Portefeuille mutualisé",
-        "ARQUES",
-        "ARRAS-BACHELET",
-        "ARRAS-BACHELET - Portefeuille mutualisé",
-        "ARRAS-HOCHETTES",
-        "AUBIGNY",
-        "AUCHEL",
-        "AUDRUICQ",
-        "AUDRUICQ - Portefeuille mutualisé",
-        "AULNOYE",
-        "AUXI-LE-CHATEAU",
-        "AVESNES-LE-COMTE",
-        "AVESNES-LEZ-AUBERT",
-        "AVESNES-SUR-HELPE",
-        "AVESNES-SUR-HELPE - Portefeuille mutualisé",
-        "AVION",
-        "AVION - Portefeuille mutualisé",
-        "BAILLEUL",
-        "BANQUE PRIVEE ARTOIS CAMBRESIS - Portefeuille mutualisé",
-        "BANQUE PRIVEE AVESNOIS - Portefeuille mutualisé",
-        "BANQUE PRIVEE BETHUNE LENS - Portefeuille mutualisé",
-        "BANQUE PRIVEE LES FLANDRES - Portefeuille mutualisé",
-        "BANQUE PRIVEE LITTORAL - Portefeuille mutualisé",
-        "BANQUE PRIVEE MEL NORD - Portefeuille mutualisé",
-        "BANQUE PRIVEE MEL SUD - Portefeuille mutualisé",
-        "BANQUE PRIVEE TERRE ET OPALE - Portefeuille mutualisé",
-        "BANQUE PRIVEE VALENCIENNES DOUAI - Portefeuille mutualisé",
-        "BAPAUME",
-        "BAPAUME - Portefeuille mutualisé",
-        "BARLIN",
-        "BAVAY",
-        "BEAUMETZ-LES-LOGES",
-        "BELLAING-LECLERC",
-        "BERCK",
-        "BERCK - Portefeuille mutualisé",
-        "BERGUES",
-        "BERGUES - Portefeuille mutualisé",
-        "BETHUNE-JOFFRE",
-        "BETHUNE-VILLE",
-        "BETHUNE-VILLE - Portefeuille mutualisé",
-        "BEUVRY",
-        "BOLLEZEELE",
-        "BONDUES-CROIX BLANC",
-        "BOUCHAIN",
-        "BOULOGNE-MARIETTE",
-        "BOULOGNE-MARIETTE - Portefeuille mutualisé",
-        "BOULOGNE-VILLE",
-        "BOURBOURG",
-        "BOURBOURG - Portefeuille mutualisé",
-        "BRAY-DUNES",
-        "BREBIERES",
-        "BRUAY-CENTRE",
-        "BRUAY-CENTRE - Portefeuille mutualisé",
-        "BRUAY-GARE",
-        "BUCQUOY",
-        "BUCQUOY - Portefeuille mutualisé",
-        "BULLY-LES-MINES",
-        "CALAIS-EGALITE",
-        "CALAIS-LAFAYETTE",
-        "CALAIS-LAFAYETTE - Portefeuille mutualisé",
-        "CALAIS-NORD",
-        "CAMBRAI",
-        "CAMBRAI - Portefeuille mutualisé",
-        "CARVIN",
-        "CARVIN - Portefeuille mutualisé",
-        "CASSEL",
-        "CAUDRY",
-        "CAUDRY - Portefeuille mutualisé",
-        "CHOCQUES",
-        "COMINES",
-        "CONDE-SUR-ESCAUT",
-        "COUDEKERQUE-BRANCHE",
-        "COULOGNE",
-        "COURRIERES",
-        "COUSOLRE",
-        "CROISILLES",
-        "CROIX",
-        "CYSOING",
-        "DENAIN",
-        "DENAIN - Portefeuille mutualisé",
-        "DESVRES",
-        "DESVRES - Portefeuille mutualisé",
-        "DIVION",
-        "DOUAI",
-        "DOUAI - Portefeuille mutualisé",
-        "DOUAI 2",
-        "DUNKERQUE",
-        "DUNKERQUE - Portefeuille mutualisé",
-        "ESTAIRES",
-        "ETAPLES",
-        "FAUQUEMBERGUES",
-        "FLEURBAIX",
-        "FLINES-LEZ-RACHES",
-        "FOURMIES",
-        "FOURNES EN WEPPES",
-        "FREVENT",
-        "FRUGES",
-        "GOUZEAUCOURT",
-        "GRANDE SYNTHE",
-        "GRAVELINES",
-        "GUINES",
-        "HALLUIN",
-        "HARNES",
-        "HAUBOURDIN",
-        "HAUTMONT",
-        "HAZEBROUCK",
-        "HAZEBROUCK - Portefeuille mutualisé",
-        "HELLEMMES",
-        "HEM",
-        "HENIN BEAUMONT",
-        "HERMIES",
-        "HESDIN",
-        "HESDIN - Portefeuille mutualisé",
-        "HONDSCHOOTE",
-        "HOUDAIN",
-        "HUCQUELIERS",
-        "ISBERGUES",
-        "JEUMONT",
-        "LA BASSEE",
-        "LA BASSEE - Portefeuille mutualisé",
-        "LA CAPELLE",
-        "LA MADELEINE-DE GAU",
-        "LAMBERSART",
-        "LAMBERSART - Portefeuille mutualisé",
-        "LANDRECIES",
-        "LANNOY",
-        "LAVENTIE",
-        "LE CATEAU",
-        "LE QUESNOY",
-        "LE QUESNOY - Portefeuille mutualisé",
-        "LE TOUQUET",
-        "LEERS",
-        "LEFOREST",
-        "LENS-LANOY",
-        "LENS-LANOY - Portefeuille mutualisé",
-        "LESQUIN",
-        "LESTREM",
-        "LICQUES",
-        "LIEVIN",
-        "LILLE-CORMONTAIGNE",
-        "LILLE-NATIONALE",
-        "LILLE-NATIONALE - Portefeuille mutualisé",
-        "LILLE-REPUBLIQUE",
-        "LILLE-SAINT-MAURICE",
-        "LILLE-TREILLE",
-        "LILLE-VICTOR HUGO",
-        "LILLERS",
-        "LOMME",
-        "LOMME BOURG",
-        "LOON PLAGE",
-        "LOOS",
-        "LOOS-EN-GOHELLE",
-        "LUMBRES",
-        "MALO-LES-BAINS",
-        "MARCHIENNES",
-        "MARCK",
-        "MARCOING",
-        "MARCQ-CLEMENCEAU",
-        "MARCQ-EN-BAROEUL",
-        "MARCQ-EN-BAROEUL - Portefeuille mutualisé",
-        "MARQUION",
-        "MARQUISE",
-        "MAUBEUGE",
-        "MAUBEUGE - Portefeuille mutualisé",
-        "MERVILLE",
-        "MONS-EN-BAROEUL",
-        "MONTREUIL",
-        "MOULLE",
-        "MOUVAUX",
-        "NEUFCHATEL",
-        "NEUVILLE SAINT-REMY",
-        "NEUVILLE-EN-FERRAIN",
-        "NOEUX-LES-MINES",
-        "OIGNIES",
-        "ONNAING",
-        "ORCHIES",
-        "OUTREAU",
-        "OYE-PLAGE",
-        "PAS-EN-ARTOIS",
-        "PECQUENCOURT",
-        "PERENCHIES",
-        "PERNES-EN-ARTOIS",
-        "PONT-A-MARCQ",
-        "PONT-A-MARCQ - Portefeuille mutualisé",
-        "PROVILLE",
-        "QUESNOY-SUR-DEULE",
-        "RONCHIN",
-        "RONCHIN - Portefeuille mutualisé",
-        "RONCQ",
-        "RONCQ - Portefeuille mutualisé",
-        "ROSENDAEL",
-        "ROUBAIX 2",
-        "ROUBAIX-BARBIEUX",
-        "ROUBAIX-BARBIEUX - Portefeuille mutualisé",
-        "SAINGHIN-EN-WEPPES",
-        "SAINT VENANT",
-        "SAINT-AMAND",
-        "SAINT-AMAND - Portefeuille mutualisé",
-        "SAINT-ANDRE",
-        "SAINT-LAURENT-BLANG",
-        "SAINT-POL-SUR-MER",
-        "SAINT-POL-VERDUN",
-        "SAINT-POL-VERDUN - Portefeuille mutualisé",
-        "SAINT-SAULVE",
-        "SAMER",
-        "SECLIN",
-        "SECLIN - Portefeuille mutualisé",
-        "SIN-LE-NOBLE",
-        "SOLESMES",
-        "SOLRE-LE-CHATEAU",
-        "SOMAIN",
-        "SOUCHEZ",
-        "ST OMER FOCH",
-        "ST OMER FOCH - Portefeuille mutualisé",
-        "STEENVOORDE",
-        "STEENWERCK",
-        "TEMPLEUVE",
-        "THEROUANNE",
-        "THIANT",
-        "THUMERIES",
-        "TOURCOING",
-        "TOURCOING - Portefeuille mutualisé",
-        "TRELON",
-        "V. D'ASCQ-FLERS",
-        "V. D'ASCQ-HOTEL-VIL",
-        "V.D'ASCQ-MONTALEMBE",
-        "V.D'ASCQ-MONTALEMBERT - Portefeuille mutualisé",
-        "VALENCIENNES-CARDON",
-        "VALENCIENNES-CENTRE",
-        "VALENCIENNES-CENTRE - Portefeuille mutualisé",
-        "VIEUX-BERQUIN",
-        "VIMY",
-        "VITRY-EN-ARTOIS",
-        "VITRY-EN-ARTOIS - Portefeuille mutualisé",
-        "WALINCOURT",
-        "WAMBRECHIES",
-        "WASQUEHAL",
-        "WATTIGNIES",
-        "WATTRELOS",
-        "WAVRIN",
-        "WAZIERS",
-        "WIMEREUX",
-        "WINGLES",
-        "WIZERNES",
-        "WORMHOUT"
-    ]
+	internal class GetReferentielQueryHandler
+		: IQueryHandler<GetReferentielQuery, ReferentielResponse>
+	{
+		private readonly ISegmentationDistributivesRepository _repository;
+
+		// Segments toujours disponibles pour la configuration
+		private static readonly List<string> _segmentsStandards = new()
+		{
+			"HDG Premium Potentiel",
+			"HDG Premium Standard",
+			"HDG Potentiel",
+			"HDG Senior Epargnant",
+			"HDG Standard",
+			"CI Potentiel",
+			"CI Standard",
+			"GP Potentiel",
+			"GP Standard",
+			"Non segmenté",
+			"Non classé"
+		};
+
+		// Profils toujours disponibles pour la configuration
+		// (même si absents de SegmentationDistributives)
+		private static readonly List<ReferentielProfilResponse> _profilsStandards = new()
+		{
+			new() { Profil = "CGP",                     LigneMetier = "banque privée" },
+			new() { Profil = "BANQUIER PRIVÉ",          LigneMetier = "banque privée" },
+			new() { Profil = "DIRECTEUR BANQUE PRIVEE", LigneMetier = "banque privée" },
+
+			new() { Profil = "CONSEILLER COMMERCIAL",   LigneMetier = "retail" },
+			new() { Profil = "CONSEILLER CLIENTELE",    LigneMetier = "retail" },
+			new() { Profil = "RCP",                     LigneMetier = "retail" },
+			new() { Profil = "RESP. AGENCE",            LigneMetier = "retail" },
+			new() { Profil = "DS / DSD",                LigneMetier = "retail" },
+		};
+
+		public GetReferentielQueryHandler(
+			ISegmentationDistributivesRepository repository)
+		{
+			_repository = repository;
+		}
+
+		public async Task<ReferentielResponse> Handle(
+			GetReferentielQuery request,
+			CancellationToken cancellationToken)
+		{
+			var entities = await _repository.GetAllAsync();
+			var data = entities.ToList();
+
+			// Profils normalisés et déduits de SegmentationDistributive,
+			// via ProfilNormalizer (même logique centralisée que pour les
+			// endpoints ConseillerProfil et SegmentationDistributive).
+			var profilsFromData = data
+				.Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
+				.Select(x => ProfilNormalizer.Normaliser(x.TypeConseiller))
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.Select(profil => new ReferentielProfilResponse
+				{
+					Profil = profil,
+					LigneMetier = ProfilNormalizer.GetLigneMetier(profil)
+				})
+				.ToList();
+
+			// Union : profils standards + profils trouvés en base.
+			// Clé de regroupement = Profil normalisé seul (pas de
+			// LigneMetier dans la clé) : un même profil canonique
+			// (ex. "CGP") ne doit apparaître qu'une seule fois.
+			var profils = _profilsStandards
+				.Concat(profilsFromData)
+				.GroupBy(p => p.Profil.Trim().ToUpperInvariant())
+				.Select(g => g.First())
+				.OrderBy(p => p.LigneMetier)
+				.ThenBy(p => p.Profil)
+				.ToList();
+
+			var regions = data
+				.Where(x => !string.IsNullOrWhiteSpace(x.LibRegion))
+				.Select(x => x.LibRegion.Trim())
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.OrderBy(x => x)
+				.ToList();
+
+			var secteurs = data
+				.Where(x => !string.IsNullOrWhiteSpace(x.LibSecteur))
+				.Select(x => x.LibSecteur.Trim())
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.OrderBy(x => x)
+				.ToList();
+
+			var agences = data
+				.Where(x => !string.IsNullOrWhiteSpace(x.LibAgence))
+				.Select(x => x.LibAgence.Trim())
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.OrderBy(x => x)
+				.ToList();
+
+			return new ReferentielResponse
+			{
+				Segments = _segmentsStandards,
+				Profils = profils,
+				Regions = regions,
+				Secteurs = secteurs,
+				Agences = agences
+			};
+		}
+	}
 }
