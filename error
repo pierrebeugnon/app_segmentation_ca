@@ -1,9 +1,4 @@
-<MudAlert Severity="Severity.Info" Class="ma-3">
-                        <div><strong>DEBUG — Nombre de clients par segment (agrégé depuis SegmentationDistributive) :</strong></div>
-                        <div>Total lignes SegmentationDistributive chargées : @_segmentationDistributive.Count</div>
-                        @foreach (var seg in TaillesCalculees.Where(t => !IsSegmentNonAffectable(t.SegmentCouvert)).Select(t => t.SegmentCouvert).Distinct())
-                        {
-                            var nbClients = _segmentationDistributive.Sum(x => EtpService.GetClientCountForSegment(x, seg));
-                            <div>@seg : @nbClients clients</div>
-                        }
-                    </MudAlert>
+SELECT *
+FROM SegmentationDistributive
+WHERE CodeRegion IS NULL 
+   OR LTRIM(RTRIM(CodeRegion)) = '';
