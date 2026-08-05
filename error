@@ -1,4 +1,11 @@
-SELECT DISTINCT LibAgence, COUNT(*) AS nb_lignes
-FROM SegmentationDistributive
-WHERE LibSecteur = 'Banque privée'
-GROUP BY LibAgence;
+// Les secteurs Banque Privée n'ont pas de véritable subdivision par
+// agence : la seule "agence" présente en base est un portefeuille
+// mutualisé de secteur, qu'il ne faut pas sélectionner par défaut.
+// Dans ce cas, on laisse l'agence vide — AgenceEffective retombera
+// sur le secteur comme clé de sauvegarde/restauration.
+var estSecteurBanquePrivee = filtreSecteur?.Contains("Banque", StringComparison.OrdinalIgnoreCase) == true;
+
+if (string.IsNullOrEmpty(filtreAgence) && allAgences.Any() && !estSecteurBanquePrivee)
+{
+    filtreAgence = allAgences.First();
+}
