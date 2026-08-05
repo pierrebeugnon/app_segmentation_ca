@@ -1,17 +1,4 @@
-private static int GetProfilRank(string? profil) => NormalizeProfilKey(profil) switch
-{
-    // Agence
-    "CONSEILLER COMMERCIAL" => 1,
-    "CONSEILLER CLIENTELE" => 2,
-    "RCP" => 3,
-    "RESP AGENCE" => 4,
-    "DS / DSD" => 5,
-
-    // Banque privée
-    "CGP" => 21,
-    "BANQUIER PRIVE" => 22,
-    "DIRECTEUR BANQUE PRIVEE" => 23,
-
-    "CONSEILLER D ACCUEIL" => 30,
-    _ => 99
-};
+SELECT DISTINCT TypeConseiller, COUNT(*) AS nb_lignes
+FROM SegmentationDistributive
+GROUP BY TypeConseiller
+ORDER BY TypeConseiller;
