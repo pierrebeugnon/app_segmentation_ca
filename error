@@ -1,3 +1,15 @@
-SELECT DISTINCT '[' + Profil + ']' AS ProfilExact, LigneMetier
-FROM [DNFP10A02T701J].[dbo].[ConseillersProfils]
-ORDER BY ProfilExact;
+ProfilExact	LigneMetier
+[BANQUIER PRIVÉ]	banque privée
+[CGP]	banque privée
+[CH.PATRIMON]	retail
+[CO.GESPAT]	retail
+[CONS.CLIENT]	retail
+[CONS.COMMER]	retail
+[CONS.PRIVE]	retail
+[CONSEILLER CLIENTELE]	retail
+[CONSEILLER COMMERCIAL]	retail
+[DIR. BP]	banque privée
+[DIR.PATRIMO]	retail
+[DIR.SECTEUR]	retail
+[RCP]	retail
+[RESP. AGENCE]	retail
