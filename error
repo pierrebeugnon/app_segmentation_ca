@@ -1,8 +1,14 @@
 @inherits PageBase
 @page "/"
+@inject NavigationManager NavigationManager
 
 <PageTitle>@configuration["Application:DisplayName"]</PageTitle>
-
 <div class="container-fluid">
-
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        NavigationManager.NavigateTo("/dashboard", true);
+    }
+}
