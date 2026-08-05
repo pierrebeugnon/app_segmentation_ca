@@ -1,8 +1,33 @@
-double totalChargeEtp = 0;
-foreach (var t in TaillesCalculees.Where(x => !IsSegmentNonAffectable(x.SegmentCouvert)))
+@inherits PageBase
+<TelerikAppBar class="app-bar" PositionMode="AppBarPositionMode.Sticky" Position="AppBarPosition.Top">
+    <AppBarSection>
+        <button class="k-button drawer-button" onclick="@(() => RedirectToHome())">
+            <svg aria-hidden="true" focusable="false" data-prefix="facd" data-icon="logo-ca" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" data-fa-i2svg=""><g class="fa-group"><path class="fa-secondary" fill="currentColor" d="m 639.72431,93.151315 c -0.12179,-0.02495 -92.78397,53.227515 -114.48811,61.355825 -19.9648,7.8629 -27.7668,-2.29359 -29.64196,-6.23284 -3.94706,-3.86431 -15.66176,-39.16769 -15.5915,-39.24106 -0.0703,0.0734 5.77382,0.0734 17.5135,-1.89548 13.99269,-4.02356 142.08628,-75.186133 142.20807,-75.137735 z"></path><path class="fa-primary" fill="currentColor" d="M 237.55859 61.087891 C 234.95455 61.033772 232.1885 61.201943 229.20508 61.578125 C 197.63018 63.461101 63.256975 99.310825 10.240234 211.30859 C -19.315857 274.9346 21.955085 341.95168 47.640625 359.42773 C 55.448864 365.70897 134.52416 434.57801 310.00586 365.75586 C 483.85598 298.2593 639.60282 191.95898 639.72461 191.95898 L 639.72461 120.8457 C 639.66371 120.7723 570.99995 160.12326 491.29688 202.85547 L 430.40625 67.822266 L 341.81445 67.822266 L 217.36719 300.15625 C 217.46399 300.20315 278.6038 298.25844 317.77148 268.71484 C 327.6766 262.86919 353.37297 193.89251 378.94141 144.5293 C 381.02579 138.56188 382.97266 144.40751 382.97266 144.5293 L 420.99023 239.86133 C 360.81945 270.68368 303.67706 297.751 272.91406 306.44922 C 191.73238 329.83491 92.846955 343.88355 57.320312 312.40234 C 23.910835 282.71353 101.04433 158.45517 246.98242 130.80859 C 270.43682 124.96295 284.44336 126.88371 284.44336 127.05078 C 284.44336 126.88371 272.79229 81.385953 266.65625 75.638672 C 257.07334 65.744972 248.84276 61.322405 237.55859 61.087891 z M 524.05469 277.98242 L 450.72852 317.27734 C 450.87372 317.30076 469.84104 361.72371 475.64453 377.2793 C 481.8774 391.32821 497.4707 391.32848 497.4707 391.26758 L 578.58008 391.26758 L 524.05469 277.98242 z M 6.2246094 427.43945 L 6.2246094 480.20898 L 595.97656 480.20898 L 595.97656 427.43945 L 6.2246094 427.43945 z "></path></g></svg>
+        </button>
+    </AppBarSection>
+    <AppBarSpacer Size="10px" />
+    <AppBarSection>
+        <span class="facd fa-2x @configuration["Application:Icon"]"></span>
+        &nbsp;
+        <span class="display-name">@configuration["Application:DisplayName"]</span>
+    </AppBarSection>
+    <AppBarSection>
+        <AvatarFloatingButton />
+    </AppBarSection>
+</TelerikAppBar>
+
+
+
+
+
+
+namespace Segmentation.Client.Components.Layout
 {
-    if (IsSegmentNonRenseigne(t.SegmentCouvert)) continue;
-    var tailleT = CalculService.GetTailleTheoriqueParSegment(model, t.SegmentCouvert);
-    var nbT = _segmentationDistributive.Sum(x => EtpService.GetClientCountForSegment(x, t.SegmentCouvert));
-    if (tailleT > 0) totalChargeEtp += nbT / tailleT;
+    public partial class AppBar
+    {
+        public void RedirectToHome()
+        {
+            NavigationManager!.NavigateTo("/dashboard", true);
+        }
+    }
 }
