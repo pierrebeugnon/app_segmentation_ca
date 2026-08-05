@@ -1,11 +1,24 @@
-protected override async Task OnInitializedAsync()
-{
-    _isLoading = true;
+_slots = BuildSlots();
+            rows = BuildRows();
 
-    try
-    {
-        StateService.OnChange += OnReglesChanged;
+            RecalcTotal();
 
-        await EnsureReglesLoadedAsync();
+            // Tente de restaurer une sauvegarde existante pour cette agence.
+            // Doit s'exécuter AVANT le calcul de `profils` ci-dessous : c'est
+            // elle qui peut ajouter à _slots des conseillers créés
+            // manuellement lors d'une sauvegarde précédente (sans matricule,
+            // donc absents de BuildSlots()).
+            await RestaurerSauvegardeEtp();
 
-        _segmentationDistributive = await Http.GetFromJsonAsync<List<SegmentationDistributiveData>>(
+            // Un profil obtient une colonne dans le tableau de charges dès
+            // qu'au moins un conseiller de ce type existe dans _slots — que
+            // ce soit un conseiller réel (matricule) ou restauré depuis une
+            // sauvegarde précédente (ajouté manuellement).
+            profils = _slots
+                .Select(s => s.Profil)
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(p => p)
+                .ToList();
+
+            filteredRows = rows.ToList();
