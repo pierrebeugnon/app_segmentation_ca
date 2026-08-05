@@ -1,21 +1,70 @@
-#### EXPORT DONNEES SUR LE HDFS
-# Pour un df spark ou pandas, d'abord enregistrer en excel sur notre home puis suivre le procédure
-#df_produit.to_excel('/home/j088777/produits_contrats_script.xlsx', index=False)
- 
-# Chemin local du fichier CSV 
-chemin_fichier = '/home/j088777/geocodage_clients/Regions_CANDF.geojson'
- 
-# hadoop fs -copyFromLocal -f ./id_client_sans_lead.xlsx /data/NFP10/MC/test_userid/
- 
-# Chemin de destination dans HDFS
-hdfs_path_fichier = '/data/NFP10/MC/EY/Regions_CANDF.geojson'
- 
-# Commande pour copier le fichier dans HDFS
-cmd_fichier = f'hadoop fs -copyFromLocal -f {chemin_fichier} {hdfs_path_fichier}'
- 
-#  commande avec subprocess
-try:
-    res = subprocess.check_output(cmd_fichier, shell=True)
-    print(f"Fichier {chemin_fichier} déplacé avec succès vers {hdfs_path_fichier} dans HDFS.")
-except subprocess.CalledProcessError as e:
-    print(f"Erreur lors du déplacement du fichier : {e.output}")
+import subprocess
+import datetime
+import os
+
+# ══════════════════════════════════════════════════════════════════
+# SAUVEGARDE DU NOTEBOOK ENTIER VERS HDFS
+# ══════════════════════════════════════════════════════════════════
+# Reprend exactement la technique fournie : hadoop fs -copyFromLocal
+# via subprocess. Contrairement à l'archivage par module (qui capture
+# uniquement le code de la cellule en cours via _ih[-1]), ce script
+# copie le fichier .ipynb complet tel qu'il existe sur le disque local
+# du serveur Jupyter — donc TOUT le notebook, pas une cellule isolée.
+#
+# ⚠️  À RENSEIGNER : le chemin local du notebook (celui que tu vois
+# dans l'URL du navigateur / l'explorateur de fichiers Jupyter, côté
+# serveur). Exemple donné en référence :
+#   /home/j088777/geocodage_clients/Regions_CANDF.geojson
+# Donc pour un notebook, quelque chose comme :
+#   /home/j088777/mon_dossier/mon_notebook.ipynb
+#
+# ⚠️  IMPORTANT — ce script lit le fichier tel qu'il est SUR LE DISQUE,
+# c'est-à-dire tel qu'il était à la DERNIÈRE SAUVEGARDE (Ctrl+S ou
+# l'auto-save de Jupyter, généralement toutes les 2 minutes). Si tu as
+# des modifications non sauvegardées dans d'autres cellules au moment
+# où tu lances ce script, elles ne seront pas incluses — pense à
+# sauvegarder le notebook (Ctrl+S) juste avant de lancer cette cellule
+# pour être sûr d'avoir la dernière version.
+# ══════════════════════════════════════════════════════════════════
+
+# ── Paramètres à adapter ─────────────────────────────────────────
+CHEMIN_NOTEBOOK_LOCAL = "/home/j088777/CHEMIN_A_COMPLETER/mon_notebook.ipynb"  # ⚠️ à renseigner
+HDFS_DOSSIER_NOTEBOOKS = "/data/NFP10/MC/EY/checkpoints/notebooks"
+
+
+def sauvegarder_notebook_hdfs(chemin_local, hdfs_dossier):
+    """
+    Copie le fichier .ipynb local vers un dossier HDFS dédié, avec un
+    horodatage dans le nom pour garder un historique (pas d'écrasement
+    entre deux runs). Best-effort : n'interrompt jamais le calcul.
+    """
+    if not os.path.isfile(chemin_local):
+        print(f"  [Warn] Notebook introuvable localement : {chemin_local}", flush=True)
+        print(f"  → Vérifier CHEMIN_NOTEBOOK_LOCAL en tête de script.", flush=True)
+        return None
+
+    nom_fichier = os.path.basename(chemin_local)
+    nom_sans_ext, ext = os.path.splitext(nom_fichier)
+    horodatage = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    nom_archive = f"{nom_sans_ext}_{horodatage}{ext}"
+    hdfs_path_fichier = f"{hdfs_dossier}/{nom_archive}"
+
+    # S'assurer que le dossier HDFS de destination existe
+    cmd_mkdir = f"hadoop fs -mkdir -p {hdfs_dossier}"
+    try:
+        subprocess.check_output(cmd_mkdir, shell=True, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        print(f"  [Warn] Impossible de créer le dossier HDFS (peut déjà exister) : {e.output}", flush=True)
+
+    # Copie effective du fichier
+    cmd_fichier = f"hadoop fs -copyFromLocal -f {chemin_local} {hdfs_path_fichier}"
+    try:
+        subprocess.check_output(cmd_fichier, shell=True, stderr=subprocess.STDOUT)
+        print(f"✅ Notebook sauvegardé : {hdfs_path_fichier}", flush=True)
+        return hdfs_path_fichier
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Erreur lors du déplacement du notebook : {e.output}", flush=True)
+        return None
+
+
+sauvegarder_notebook_hdfs(CHEMIN_NOTEBOOK_LOCAL, HDFS_DOSSIER_NOTEBOOKS)
