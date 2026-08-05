@@ -1,43 +1,17 @@
-using MapsterMapper;
-using Segmentation.Application.Common;
-using Segmentation.Application.Contracts;
-using Segmentation.Application.Queries.SegmentationDistributive;
-using Segmentation.Application.Responses;
-using Segmentation.Core.Repositories;
-
-namespace Segmentation.Application.Handlers.SegmentationDistributive
+private static int GetProfilRank(string? profil) => NormalizeProfilKey(profil) switch
 {
-	internal class GetAllSegmentationDistributiveQueryHandler
-		: IQueryHandler<GetAllSegmentationDistributiveQuery,
-						List<SegmentationDistributiveResponse>>
-	{
-		private readonly IMapper _mapper;
-		private readonly ISegmentationDistributivesRepository _repository;
+    // Agence
+    "CONSEILLER COMMERCIAL" => 1,
+    "CONSEILLER CLIENTELE" => 2,
+    "RCP" => 3,
+    "RESP AGENCE" => 4,
+    "DS / DSD" => 5,
 
-		public GetAllSegmentationDistributiveQueryHandler(
-			IMapper mapper,
-			ISegmentationDistributivesRepository repository)
-		{
-			_mapper = mapper;
-			_repository = repository;
-		}
+    // Banque privée
+    "CGP" => 21,
+    "BANQUIER PRIVE" => 22,
+    "DIRECTEUR BANQUE PRIVEE" => 23,
 
-		public async Task<List<SegmentationDistributiveResponse>> Handle(
-			GetAllSegmentationDistributiveQuery request,
-			CancellationToken cancellationToken)
-		{
-			var entities = await _repository.GetAllAsync();
-			var responses = _mapper.Map<List<SegmentationDistributiveResponse>>(entities.ToList());
-
-			// Normalise le libellé du type de conseiller pour fusionner les
-			// variantes d'écriture d'un même métier (ex. CH.PATRIMON → RCP),
-			// cohérent avec la normalisation appliquée dans GetReferentielQueryHandler.
-			foreach (var r in responses)
-			{
-				r.TypeConseiller = ProfilNormalizer.Normaliser(r.TypeConseiller);
-			}
-
-			return responses;
-		}
-	}
-}
+    "CONSEILLER D ACCUEIL" => 30,
+    _ => 99
+};
