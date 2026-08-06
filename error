@@ -1,38 +1,4 @@
-<!-- ── Colonne 4 : Charge à transférer en pf mutualisé (GP Standard uniquement) ── -->
-                                @if (vueEtp && _showChargesManuelles)
-                                {
-                                    var bgTransMut = row.IsTotal || IsGpStandard(row.Segment) ? "#EDF4F6" : "#E4E9ED";
-                                    <td style="text-align:center;padding:4px 3px;background:@bgTransMut">
-                                        @if (!row.IsTotal)
-                                        {
-                                            if (IsGpStandard(row.Segment))
-                                            {
-                                                var segM = row.Segment;
-                                                var valTransMut = _chargeATransfererMutualise.GetValueOrDefault(segM);
-                                                // Cette colonne reste éditable même en vue Portefeuille Mutualisé
-                                                // (seules les 2 colonnes Agence↔BP sont verrouillées dans cette vue).
-                                                var maxTransMut = _estPortefeuilleMutualise ? double.MaxValue : GetChargeExistanteMax(row);
-                                                <MudNumericField T="double?"
-                                                                 Value="@valTransMut"
-                                                                 ValueChanged="@(v => { _chargeATransfererMutualise[segM] = v.HasValue ? Math.Clamp(v.Value, 0, maxTransMut) : v; StateHasChanged(); })"
-                                                                 Format="F2" Step="0.25" Min="0" Max="@maxTransMut"
-                                                                 HideSpinButtons="true"
-                                                                 Variant="Variant.Text"
-                                                                 Margin="Margin.Dense"
-                                                                 Class="ca-dim-etp-input"
-                                                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#1A4E6B" />
-                                            }
-                                            else
-                                            {
-                                                <span style="color:#757575;font-size:11px">—</span>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            var totalTransMut = GetTotalATransfererMutualise();
-                                            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                @(totalTransMut > 0 ? totalTransMut.ToString("F2") : "—")
-                                            </span>
-                                        }
-                                    </td>
-                                }
+@{
+    var estSegmentGrise = _estPortefeuilleMutualise && !row.IsTotal && !IsGpStandard(row.Segment);
+}
+<tr class="@(row.IsTotal ? "ca-dim-tr-total" : "ca-dim-tr-data")" style="@(estSegmentGrise ? "opacity:0.35;background:#F5F5F5" : "")">
