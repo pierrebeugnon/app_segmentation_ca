@@ -1,37 +1,132 @@
-ValueChanged="@(v => { _chargeATransfererBP[segT] = v.HasValue ? Math.Max(0, v.Value) : v; StateHasChanged(); })"
+private double GetChargeExistanteMax(DimMatrixRow row) => GetRowExistantTotal(row) ?? 0;
+
+
+@if (vueEtp && _showChargesManuelles)
+                                {
+                                    var bgTransBp = row.IsTotal || IsHdgPremium(row.Segment) ? "#EDF4F6" : "#E4E9ED";
+                                    <td style="text-align:center;padding:4px 3px;background:@bgTransBp">
+                                        @if (!row.IsTotal)
+                                        {
+                                            if (_estPortefeuilleMutualise)
+                                            {
+                                                <span style="color:#BDBDBD;font-size:11px" title="Colonne verrouillée en vue Portefeuille Mutualisé">🔒</span>
+                                            }
+                                            else if (IsHdgPremium(row.Segment))
+                                            {
+                                                var segT = row.Segment;
+                                                var valTransBP = _chargeATransfererBP.GetValueOrDefault(segT);
+                                                var maxTransBP = _estSecteurBanquePrivee ? double.MaxValue : GetChargeExistanteMax(row);
+                                                <MudNumericField T="double?"
+                                                                 Value="@valTransBP"
+                                                                 ValueChanged="@(v => { _chargeATransfererBP[segT] = v.HasValue ? Math.Clamp(v.Value, 0, maxTransBP) : v; StateHasChanged(); })"
+                                                                 Format="F2" Step="0.25" Min="0" Max="@maxTransBP"
+                                                                 HideSpinButtons="true"
+                                                                 Variant="Variant.Text"
+                                                                 Margin="Margin.Dense"
+                                                                 Class="ca-dim-etp-input"
+                                                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#1A4E6B" />
+                                            }
+                                            else
+                                            {
+                                                <span style="color:#757575;font-size:11px">—</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            var totalTransBP = GetTotalATransfererBP();
+                                            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
+                                                @(totalTransBP > 0 ? totalTransBP.ToString("F2") : "—")
+                                            </span>
+                                        }
+                                    </td>
+                                }
 
 
 
 
-ValueChanged="@(v => { _chargeRecueBP[segR] = v.HasValue ? Math.Max(0, v.Value) : v; StateHasChanged(); })"
+
+@if (vueEtp && _showChargesManuelles)
+                                {
+                                    var bgRecueBp = row.IsTotal || (!IsHdgPremium(row.Segment) && IsSegmentActionnable(row.Segment)) ? "#EDF4F6" : "#E4E9ED";
+                                    <td style="text-align:center;padding:4px 3px;background:@bgRecueBp">
+                                        @if (!row.IsTotal)
+                                        {
+                                            if (_estPortefeuilleMutualise)
+                                            {
+                                                <span style="color:#BDBDBD;font-size:11px" title="Colonne verrouillée en vue Portefeuille Mutualisé">🔒</span>
+                                            }
+                                            else if (!IsHdgPremium(row.Segment) && IsSegmentActionnable(row.Segment))
+                                            {
+                                                var segR = row.Segment;
+                                                var valRecueBP = _chargeRecueBP.GetValueOrDefault(segR);
+                                                var maxRecueBP = _estSecteurBanquePrivee ? GetChargeExistanteMax(row) : double.MaxValue;
+                                                <MudNumericField T="double?"
+                                                                 Value="@valRecueBP"
+                                                                 ValueChanged="@(v => { _chargeRecueBP[segR] = v.HasValue ? Math.Clamp(v.Value, 0, maxRecueBP) : v; StateHasChanged(); })"
+                                                                 Format="F2" Step="0.25" Min="0" Max="@maxRecueBP"
+                                                                 HideSpinButtons="true"
+                                                                 Variant="Variant.Text"
+                                                                 Margin="Margin.Dense"
+                                                                 Class="ca-dim-etp-input"
+                                                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#1A4E6B" />
+                                            }
+                                            else
+                                            {
+                                                <span style="color:#757575;font-size:11px">—</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            var totalRecueBP = GetTotalRecueBP();
+                                            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
+                                                @(totalRecueBP > 0 ? totalRecueBP.ToString("F2") : "—")
+                                            </span>
+                                        }
+                                    </td>
+                                }
 
 
 
-ValueChanged="@(v => { _chargeATransfererMutualise[segM] = v.HasValue ? Math.Max(0, v.Value) : v; StateHasChanged(); })"
 
 
-private double? GetCoverageDiff(DimMatrixRow row)
-{
-    if (row.IsTotal) return null;
-    var activeSlots = _slots.Where(s => s.IsCible).ToList();
-    var totalCible  = activeSlots.Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-    // On compare à la charge ajustée (après transferts), pas à la charge
-    // brute existante — cohérent avec la colonne "Charge Totale ETP par
-    // segment" affichée juste à côté.
-    var totalExist  = GetChargeTotaleAffichee(row) ?? 0;
-    if (totalCible <= 0 && totalExist <= 0) return null;
-    return totalCible - totalExist;
-}
+@if (vueEtp && _showChargesManuelles)
+                                {
+                                    var bgTransMut = row.IsTotal || IsGpStandard(row.Segment) ? "#EDF4F6" : "#E4E9ED";
+                                    <td style="text-align:center;padding:4px 3px;background:@bgTransMut">
+                                        @if (!row.IsTotal)
+                                        {
+                                            if (IsGpStandard(row.Segment))
+                                            {
+                                                var segM = row.Segment;
+                                                var valTransMut = _chargeATransfererMutualise.GetValueOrDefault(segM);
+                                                var maxTransMut = _estPortefeuilleMutualise ? double.MaxValue : GetChargeExistanteMax(row);
+                                                <MudNumericField T="double?"
+                                                                 Value="@valTransMut"
+                                                                 ValueChanged="@(v => { _chargeATransfererMutualise[segM] = v.HasValue ? Math.Clamp(v.Value, 0, maxTransMut) : v; StateHasChanged(); })"
+                                                                 Format="F2" Step="0.25" Min="0" Max="@maxTransMut"
+                                                                 HideSpinButtons="true"
+                                                                 Variant="Variant.Text"
+                                                                 Margin="Margin.Dense"
+                                                                 Class="ca-dim-etp-input"
+                                                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#1A4E6B" />
+                                            }
+                                            else
+                                            {
+                                                <span style="color:#757575;font-size:11px">—</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            var totalTransMut = GetTotalATransfererMutualise();
+                                            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
+                                                @(totalTransMut > 0 ? totalTransMut.ToString("F2") : "—")
+                                            </span>
+                                        }
+                                    </td>
+                                }
 
 
 
-private double? GetDisplayCoverageDiff(DimMatrixRow row)
-{
-    if (row.IsTotal) return null;
-    var activeSlots = _slots.Where(s => s.IsCible).ToList();
-    var totalCib = activeSlots.Sum(s => EtpService.GetClientCountFromEtp(row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id), row.Segment) ?? 0);
-    var totalExist = EtpService.GetClientCountFromEtp(GetChargeTotaleAffichee(row), row.Segment) ?? 0;
-    if (totalCib <= 0 && totalExist <= 0) return null;
-    return totalCib - totalExist;
-}
-ss
+
+
+
