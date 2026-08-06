@@ -2,7 +2,9 @@
 @inject SegmentationStateService StateService
 @inject DashboardService DashboardService
 @inject HttpClient Http
+@inject ReglesHypothesesService ReglesService
 @using Segmentation.Client.Services
+@using Segmentation.Client.Models
 @using Segmentation.Shared.Models
 @using Segmentation.Shared.Referentiels
 @using System.Net.Http.Json
@@ -389,12 +391,72 @@
         filtreSecteur != filtreSecteurApplique ||
         filtreAgence  != filtreAgenceApplique;
 
+    /// <summary>
+    /// S'assure que les Règles & Hypothèses sont chargées depuis la base
+    /// avant que le Dashboard les utilise. Nécessaire quand l'utilisateur
+    /// arrive directement sur /dashboard sans être passé par
+    /// /regles-hypotheses ou /portefeuille au préalable.
+    /// </summary>
+    private async Task EnsureReglesLoadedAsync()
+    {
+        if (StateService.IsLoaded)
+            return;
+
+        try
+        {
+            var bundle = await ReglesService.LoadAllAsync();
+
+            var reglesModel = new ReglesHypothesesModel
+            {
+                HeuresParSemaine = bundle.Parametres?.HeuresParSemaine ?? 0,
+                NbSemainesParAn = bundle.Parametres?.NbSemainesParAn ?? 0,
+
+                SegmentsIntensite = bundle.Segments.Select(x => new SegmentIntensite
+                {
+                    LigneMetier = x.LigneMetier,
+                    Segment = x.Segment,
+                    NombreRdvParAn = x.NombreRdvParAn,
+                    DureeRdvHeures = x.DureeRdvHeures
+                }).ToList(),
+
+                ConseillersProfils = bundle.Profils.Select(x => new ConseillerTempsProfil
+                {
+                    LigneMetier = x.LigneMetier,
+                    Profil = x.Profil,
+                    PartTempsCommercialPct = x.PartTempsCommercialPct
+                }).ToList(),
+
+                ReglesAffectationSegments = bundle.Regles.Select(x => new RegleAffectationSegment
+                {
+                    Segment = x.Segment,
+                    ConseillerPrioritaire = x.ConseillerPrioritaire,
+                    ConseillerSecondaire = x.ConseillerSecondaire,
+                    ConseillerTertiaire = x.ConseillerTertiaire
+                }).ToList()
+            };
+
+            StateService.UpdateRegles(reglesModel);
+
+            Console.WriteLine(
+                $">>> Règles chargées depuis Dashboard : " +
+                $"{reglesModel.SegmentsIntensite.Count} segments, " +
+                $"{reglesModel.ConseillersProfils.Count} profils, " +
+                $"{reglesModel.ReglesAffectationSegments.Count} règles");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($">>> Erreur chargement Règles depuis Dashboard : {ex.Message}");
+        }
+    }
+
     // ── Lifecycle ──────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
         _isLoading = true;
         try
         {
+            await EnsureReglesLoadedAsync();
+
             _data = await Http.GetFromJsonAsync<List<SegmentationDistributiveData>>(
                 "api/SegmentationDistributive") ?? new();
 
