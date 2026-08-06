@@ -1,1 +1,43 @@
-TRUNCATE TABLE DimensionnementPortefeuilleEtp;
+var profilsFromData = data
+    .Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
+    .Select(x => ProfilNormalizer.Normaliser(x.TypeConseiller))
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .Select(profil => new ReferentielProfilResponse
+    {
+        Profil = profil,
+        LigneMetier = ProfilNormalizer.GetLigneMetier(profil)
+    })
+    .ToList();
+
+
+
+
+
+private List<string> GetProfils()
+{
+    if (_segmentationDistributiveFiltree != null && _segmentationDistributiveFiltree.Any())
+    {
+        return _segmentationDistributiveFiltree
+            .Select(x => x.TypeConseiller)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
+            .Distinct()
+            .OrderBy(x => x)
+            .ToList();
+    }
+    ...
+
+
+
+
+
+
+return _segmentationDistributiveFiltree
+    .Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
+    .Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
+    .Where(x => !x.TypeConseiller.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
+    .GroupBy(x => new
+    {
+        x.MatriculeConseiller,
+        x.TypeConseiller
+    })
