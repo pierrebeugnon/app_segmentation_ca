@@ -1,1 +1,40 @@
-<tr class="@(row.IsTotal ? "ca-dim-tr-total" : "ca-dim-tr-data")" style="@(_estPortefeuilleMutualise && !row.IsTotal && !IsGpStandard(row.Segment) ? "opacity:0.35;background:#F5F5F5" : "")">
+dataRows.Add(new DimMatrixRow
+{
+    Segment = vueEtp ? "Charge totale ETP par portefeuille" : "Nombre de clients total par portefeuille",
+    IsTotal = true,
+    ...
+
+
+<!-- Colonnes Concordance + Rotation -->
+                            @if (vueEtp)
+                            {
+                                <th colspan="2"
+                                    style="text-align:center;padding:5px 6px;font-size:10px;font-weight:700;color:white;letter-spacing:.3px;text-transform:uppercase;
+                                           border-left:2px solid rgba(255,255,255,0.15)">
+                                    KPI clé par segment
+                                </th>
+                            }
+
+
+
+@if (vueEtp)
+                            {
+                                <th class="ca-dim-th-profil" style="background:#4A8FA6;color:white">Taux de concordance par segment ("pureté" des portefeuilles)</th>
+                                <th class="ca-dim-th-profil" style="background:#4A8FA6;color:white">Taux de rotation des clients par segment</th>
+                            }
+
+
+
+@if (vueEtp)
+                        {
+                            <col style="min-width:82px;width:82px" />
+                            <col style="min-width:82px;width:82px" />
+                        }
+                    </colgroup>
+
+
+
+<!-- ── Colonne Taux de rotation par segment ── -->
+                                <td style="text-align:center;padding:4px 3px;background:#EDF4F6">
+
+
