@@ -1,5 +1,6 @@
 var profilsFromData = data
     .Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
+    .Where(x => !x.TypeConseiller.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
     .Select(x => ProfilNormalizer.Normaliser(x.TypeConseiller))
     .Distinct(StringComparer.OrdinalIgnoreCase)
     .Select(profil => new ReferentielProfilResponse
