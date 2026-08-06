@@ -1,27 +1,34 @@
-private async Task ExportExcel()
+/// <summary>
+/// Réponse de l'export global — toutes agences confondues.
+/// </summary>
+public class DimensionnementPortefeuilleEtpAllResponse
 {
-    var data = await DimensionnementEtpService.GetAllAsync();
+    public List<DimensionnementPortefeuilleEtpAllLigne> Lignes { get; set; } = new();
+    public List<DimensionnementPortefeuilleEtpAllCharge> Charges { get; set; } = new();
+}
 
-    if (data is null || (!data.Lignes.Any() && !data.Charges.Any()))
-    {
-        Snackbar.Add("Aucune donnée de dimensionnement à exporter.", Severity.Warning);
-        return;
-    }
+public class DimensionnementPortefeuilleEtpAllLigne
+{
+    public string LibRegion { get; set; } = "";
+    public string LibSecteur { get; set; } = "";
+    public string LibAgence { get; set; } = "";
+    public string Segment { get; set; } = "";
+    public string ProfilConseiller { get; set; } = "";
+    public string? MatriculeConseiller { get; set; }
+    public string SlotLabel { get; set; } = "";
+    public bool IsActuel { get; set; }
+    public bool IsCible { get; set; }
+    public double? EtpExistant { get; set; }
+    public double? EtpCible { get; set; }
+    public double CapaciteEtpActuel { get; set; }
+    public double CapaciteEtpCible { get; set; }
+}
 
-    var sb = new System.Text.StringBuilder();
-
-    sb.AppendLine("DIMENSIONNEMENT PORTEFEUILLE ETP");
-    sb.AppendLine("Région;Secteur;Agence;Segment;Profil Conseiller;Matricule;Label;Actuel;Cible;ETP Existant;ETP Cible;Capacité ETP Actuel;Capacité ETP Cible");
-    foreach (var l in data.Lignes)
-        sb.AppendLine($"{l.LibRegion};{l.LibSecteur};{l.LibAgence};{l.Segment};{l.ProfilConseiller};{l.MatriculeConseiller};{l.SlotLabel};{(l.IsActuel ? "Oui" : "Non")};{(l.IsCible ? "Oui" : "Non")};{l.EtpExistant:F4};{l.EtpCible:F4};{l.CapaciteEtpActuel:F4};{l.CapaciteEtpCible:F4}");
-
-    sb.AppendLine();
-    sb.AppendLine("CHARGES MANUELLES PAR SEGMENT");
-    sb.AppendLine("Agence;Segment;Charge à transférer BP;Charge reçue BP;Charge à transférer mutualisé");
-    foreach (var c in data.Charges)
-        sb.AppendLine($"{c.LibAgence};{c.Segment};{c.ChargeATransfererBP:F4};{c.ChargeRecueBP:F4};{c.ChargeATransfererMutualise:F4}");
-
-    var csv = sb.ToString();
-    var fileName = $"dimensionnement_portefeuille_CA_{DateTime.Now:yyyyMMdd_HHmm}.csv";
-    await JS.InvokeVoidAsync("downloadCsvFile", fileName, csv);
+public class DimensionnementPortefeuilleEtpAllCharge
+{
+    public string LibAgence { get; set; } = "";
+    public string Segment { get; set; } = "";
+    public double? ChargeATransfererBP { get; set; }
+    public double? ChargeRecueBP { get; set; }
+    public double? ChargeATransfererMutualise { get; set; }
 }
