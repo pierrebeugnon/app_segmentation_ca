@@ -1,16 +1,46 @@
-private double? GetTauxRotationForRow(DimMatrixRow row)
+/// <summary>
+/// Segments dont la répartition cible a été commencée (au moins une valeur
+/// saisie) mais n'est pas terminée (la somme des cibles ne couvre pas
+/// exactement la charge à répartir — "Aide à la répartition" différente
+/// de OK). Les segments jamais touchés (aucune saisie) ne sont pas
+/// concernés par cette règle.
+/// </summary>
+private List<string> GetSegmentsRepartitionIncomplete()
 {
-    if (row.IsTotal) return null;
-    var cible = Math.Round(GetRowCibleTotal(row) ?? 0, 2);
-    if (cible <= 0) return null;
-
-    // Rotation = somme des mouvements absolus par conseiller (redistribution
-    // entre portefeuilles), même si le total du segment reste inchangé.
-    var mouvement = _slots.Sum(s =>
-        Math.Abs(
-            Math.Round(row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0, 2)
-            - Math.Round(row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0, 2)
-        ));
-
-    return Math.Round(mouvement, 2) / cible * 100.0;
+    return rows
+        .Where(r => !r.IsTotal)
+        .Where(r => (GetRowCibleTotal(r) ?? 0) > 0.001)
+        .Where(r =>
+        {
+            var diff = GetCoverageDiff(r);
+            return diff.HasValue && Math.Abs(diff.Value) > 0.01;
+        })
+        .Select(r => r.Segment)
+        .ToList();
 }
+
+
+
+
+
+
+
+private async Task EnregistrerDimensionnementEtp()
+{
+    if (string.IsNullOrWhiteSpace(filtreAgence))
+    {
+        Snackbar.Add("Sélectionnez une agence avant d'enregistrer.", Severity.Warning);
+        return;
+    }
+
+    var segmentsIncomplets = GetSegmentsRepartitionIncomplete();
+    if (segmentsIncomplets.Any())
+    {
+        Snackbar.Add(
+            $"Répartition incomplète sur : {string.Join(", ", segmentsIncomplets)}. " +
+            "Terminez la répartition de la charge cible sur ces segments avant d'enregistrer.",
+            Severity.Warning);
+        return;
+    }
+
+    _isSaving = true;
