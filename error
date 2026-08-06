@@ -1,175 +1,45 @@
-using Segmentation.Client.Models;
-using Segmentation.Shared.Models;
-
-namespace Segmentation.Client.Services
+private double? GetRealEtpForSlot(string segment, ConseillerSlot slot)
 {
-	/// <summary>
-	/// Service de conversion Nombre de clients → ETP
-	/// Reproduit la logique de l'Excel CANDF_TEST_Outils de dimensionnementV7
-	///
-	/// Principe :
-	///   1. Calcul de la charge totale ETP par segment au niveau agence :
-	///        charge = nbClientsAgenceSegment / tailleTheoriqueSegment
-	///
-	///   2. Répartition de cette charge entre les conseillers au prorata
-	///      de leurs clients dans le segment :
-	///        etpConseiller = chargeTotale
-	///                        * clientsConseillerSegment
-	///                        / clientsAgenceSegment
-	///
-	/// La taille théorique de portefeuille par segment n'est plus figée :
-	/// elle est calculée dynamiquement via ReglesHypothesesCalculService,
-	/// à partir des paramètres saisis dans Règles &amp; Hypothèses (volets 1 et 2),
-	/// garantissant que toute modification de ces paramètres se répercute
-	/// immédiatement sur les calculs de la page Portefeuille.
-	/// </summary>
-	public class EtpConversionService
-	{
-		private readonly ReglesHypothesesCalculService _calculService;
+    var matricule = ExtractMatriculeFromSlotLabel(slot.Label);
 
-		public EtpConversionService(ReglesHypothesesCalculService calculService)
-		{
-			_calculService = calculService;
-		}
-
-		// ── Public API ────────────────────────────────────────────────
-
-		/// <summary>
-		/// Charge totale ETP d'un segment sur le périmètre donné (agence, secteur, région)
-		/// </summary>
-		public double? GetChargeTotaleEtpForSegment(
-			IReadOnlyList<SegmentationDistributiveData> perimetre,
-			string segment,
-			ReglesHypothesesModel? reglesModel)
-		{
-			if (perimetre is null || perimetre.Count == 0)
-				return null;
-
-			var clientsTotal = perimetre.Sum(x => GetClientCountForSegment(x, segment));
-
-			if (clientsTotal <= 0)
-				return null;
-
-			var taille = GetTailleTheoriqueForSegment(segment, reglesModel);
-
-			if (!taille.HasValue || taille.Value <= 0)
-				return null;
-
-			return Math.Round(clientsTotal / taille.Value, 4);
-		}
-
-		/// <summary>
-		/// ETP porté par un conseiller sur un segment donné,
-		/// calculé au prorata de ses clients / total agence.
-		/// </summary>
-		public double? GetEtpForConseiller(
-			IReadOnlyList<SegmentationDistributiveData> perimetre,
-			string segment,
-			string matriculeConseiller,
-			ReglesHypothesesModel? reglesModel)
-		{
-			if (perimetre is null || perimetre.Count == 0)
-				return null;
-
-			if (string.IsNullOrWhiteSpace(matriculeConseiller))
-				return null;
-
-			var clientsAgence = perimetre.Sum(x => GetClientCountForSegment(x, segment));
-			if (clientsAgence <= 0)
-				return null;
-
-			var clientsConseiller = perimetre
-				.Where(x => string.Equals(
-					x.MatriculeConseiller,
-					matriculeConseiller,
-					StringComparison.OrdinalIgnoreCase))
-				.Sum(x => GetClientCountForSegment(x, segment));
-
-			if (clientsConseiller <= 0)
-				return null;
-
-			var chargeTotale = GetChargeTotaleEtpForSegment(perimetre, segment, reglesModel);
-			if (!chargeTotale.HasValue || chargeTotale.Value <= 0)
-				return null;
-
-			return Math.Round(
-				chargeTotale.Value * clientsConseiller / clientsAgence,
-				4
-			);
-		}
-
-		/// <summary>
-		/// Nombre de clients d'une ligne pour un segment donné.
-		/// </summary>
-		public int GetClientCountForSegment(
-			SegmentationDistributiveData row,
-			string segment)
-		{
-			if (row is null)
-				return 0;
-
-			return NormalizeSegment(segment) switch
-			{
-				"HDG Premium Potentiel" => row.HDGPremiumPotentiel,
-				"HDG Premium Standard" => row.HDGPremiumStandard,
-				"HDG Potentiel" => row.HDGPotentiel,
-				"HDG Senior Epargnant" => row.HDGSeniorEpargnant,
-				"HDG Standard" => row.HDGStandard,
-
-				"CI Potentiel" => row.CIPotentiel,
-				"CI Standard" => row.CIStandard,
-
-				"GP Potentiel" => row.GPPotentiel,
-				"GP Standard" => row.GPStandard,
-
-				"Non segmenté" => row.NonSegmente,
-				"Non classé" => row.NonClasse,
-
-				_ => 0
-			};
-		}
-
-		/// <summary>
-		/// Nombre de clients correspondant à un ETP donné pour un segment.
-		/// </summary>
-		public double? GetClientCountFromEtp(
-			double? etp,
-			string segment,
-			ReglesHypothesesModel? reglesModel)
-		{
-			if (!etp.HasValue || etp.Value <= 0)
-				return null;
-
-			var taille = GetTailleTheoriqueForSegment(segment, reglesModel);
-			if (!taille.HasValue || taille.Value <= 0)
-				return null;
-
-			return Math.Round(etp.Value * taille.Value, 2);
-		}
-
-		/// <summary>
-		/// Taille théorique de portefeuille pour un segment, calculée
-		/// dynamiquement depuis les paramètres Règles &amp; Hypothèses
-		/// (Volume horaire du type d'agence ÷ Intensité relationnelle du segment) —
-		/// exactement la même formule que le volet 4 de la page R&amp;H.
-		/// </summary>
-		public double? GetTailleTheoriqueForSegment(
-			string segment,
-			ReglesHypothesesModel? reglesModel)
-		{
-			if (reglesModel == null)
-				return null;
-
-			var taille = _calculService.GetTailleTheoriqueParSegment(reglesModel, segment);
-
-			return taille > 0 ? taille : null;
-		}
-
-		// ── Helpers ────────────────────────────────────────────────────
-
-		private static string NormalizeSegment(string segment)
-		{
-			return (segment ?? string.Empty).Trim();
-		}
-	}
+    return EtpService.GetEtpForConseiller(
+        _segmentationDistributiveFiltree,
+        segment,
+        matricule,
+        StateService.Regles
+    );
 }
+
+
+
+
+
+private double? ToDisplayValue(double? etpValue, string segment) =>
+    vueEtp ? etpValue : EtpService.GetClientCountFromEtp(etpValue, segment, StateService.Regles);
+
+
+
+
+private double? GetDisplayCoverageDiff(DimMatrixRow row)
+{
+    if (row.IsTotal) return null;
+    var activeSlots = _slots.Where(s => s.IsCible).ToList();
+    var totalCib = activeSlots.Sum(s => EtpService.GetClientCountFromEtp(row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id), row.Segment, StateService.Regles) ?? 0);
+    var totalExist = EtpService.GetClientCountFromEtp(GetChargeTotaleAffichee(row), row.Segment, StateService.Regles) ?? 0;
+    if (totalCib <= 0 && totalExist <= 0) return null;
+    return totalCib - totalExist;
+}
+
+
+
+
+private double GetDisplayEntreesCell(DimMatrixRow row, string slotId)
+{
+    var cibClients = EtpService.GetClientCountFromEtp(row.EtpCibleSaisieParProfil.GetValueOrDefault(slotId), row.Segment, StateService.Regles) ?? 0;
+    var existClients = EtpService.GetClientCountFromEtp(row.EtpParProfil.GetValueOrDefault(slotId), row.Segment, StateService.Regles) ?? 0;
+    return Math.Max(0, cibClients - existClients);
+}
+
+
+
+
