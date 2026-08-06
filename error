@@ -1,20 +1,135 @@
-using Segmentation.Core.Entities;
+using MapsterMapper;
+using MediatR;
+using Microsoft.AspNetCore.Mvc;
+using Segmentation.Application.Commands.DimensionnementPortefeuille;
+using Segmentation.Application.Queries.DimensionnementPortefeuille;
+using Segmentation.Shared.Models;
 
-namespace Segmentation.Core.Repositories;
-
-public interface IDimensionnementPortefeuilleEtpRepository
+namespace Segmentation.Server.Controllers
 {
-    Task SaveAsync(
-        string agence,
-        List<DimensionnementPortefeuilleEtp> lignes,
-        List<DimensionnementPortefeuilleEtpCharge> charges,
-        CancellationToken cancellationToken = default);
+	public class DimensionnementPortefeuilleEtpDetailController
+		: SegmentationBaseController
+	{
+		public DimensionnementPortefeuilleEtpDetailController(
+			IMediator mediator,
+			IMapper mapper)
+			: base(mediator, mapper)
+		{
+		}
 
-    Task<List<DimensionnementPortefeuilleEtp>> GetByAgenceAsync(
-        string agence,
-        CancellationToken cancellationToken = default);
+		/// <summary>
+		/// Sauvegarde le dimensionnement ETP d'une agence.
+		/// La sauvegarde remplace intégralement les données
+		/// déjà enregistrées pour cette agence.
+		/// </summary>
+		[HttpPost(Name = "SaveDimensionnementPortefeuilleEtpDetail")]
+		public async Task<IActionResult> SaveDimensionnementPortefeuilleEtp(
+			[FromBody] SaveDimensionnementPortefeuilleEtpData data)
+		{
+			if (data is null)
+			{
+				return BadRequest(
+					"Les données de sauvegarde sont vides.");
+			}
+			if (string.IsNullOrWhiteSpace(data.LibAgence))
+			{
+				return BadRequest(
+					"L'agence est obligatoire pour enregistrer le dimensionnement.");
+			}
+			var command = new SaveDimensionnementPortefeuilleEtpCommand
+			{
+				LibRegion = data.LibRegion,
+				LibSecteur = data.LibSecteur,
+				LibAgence = data.LibAgence,
+				Lignes = (data.Lignes ?? new())
+					.Select(x => new SaveDimensionnementPortefeuilleEtpItem
+					{
+						Segment = x.Segment,
+						ProfilConseiller = x.ProfilConseiller,
+						MatriculeConseiller = x.MatriculeConseiller,
+						SlotLabel = x.SlotLabel,
+						IsActuel = x.IsActuel,
+						IsCible = x.IsCible,
+						EtpExistant = x.EtpExistant,
+						EtpCible = x.EtpCible,
+						CapaciteEtpActuel = x.CapaciteEtpActuel,
+						CapaciteEtpCible = x.CapaciteEtpCible
+					})
+					.ToList(),
+				Charges = (data.Charges ?? new())
+					.Select(x => new SaveDimensionnementPortefeuilleEtpChargeItem
+					{
+						Segment = x.Segment,
+						ChargeATransfererBP =
+							x.ChargeATransfererBP,
+						ChargeRecueBP =
+							x.ChargeRecueBP,
+						ChargeATransfererMutualise =
+							x.ChargeATransfererMutualise
+					})
+					.ToList()
+			};
+			var saved = await _mediator.Send(command);
+			return Ok(new
+			{
+				saved
+			});
+		}
 
-    Task<List<DimensionnementPortefeuilleEtpCharge>> GetChargesAsync(
-        string agence,
-        CancellationToken cancellationToken = default);
+		/// <summary>
+		/// Récupère le dimensionnement ETP sauvegardé pour une agence.
+		/// Retourne null (204) si aucune sauvegarde n'existe.
+		/// </summary>
+		[HttpGet("{libAgence}", Name = "GetDimensionnementPortefeuilleEtpDetail")]
+		public async Task<IActionResult> GetDimensionnementPortefeuilleEtp(
+			string libAgence)
+		{
+			if (string.IsNullOrWhiteSpace(libAgence))
+			{
+				return BadRequest(
+					"L'agence est obligatoire pour récupérer le dimensionnement.");
+			}
+
+			var query = new GetDimensionnementPortefeuilleEtpQuery(libAgence);
+			var result = await _mediator.Send(query);
+
+			if (result is null)
+			{
+				return NoContent();
+			}
+
+			var data = new SaveDimensionnementPortefeuilleEtpData
+			{
+				LibRegion = result.LibRegion,
+				LibSecteur = result.LibSecteur,
+				LibAgence = result.LibAgence,
+				Lignes = result.Lignes
+					.Select(x => new DimensionnementPortefeuilleEtpData
+					{
+						Segment = x.Segment,
+						ProfilConseiller = x.ProfilConseiller,
+						MatriculeConseiller = x.MatriculeConseiller,
+						SlotLabel = x.SlotLabel,
+						IsActuel = x.IsActuel,
+						IsCible = x.IsCible,
+						EtpExistant = x.EtpExistant,
+						EtpCible = x.EtpCible,
+						CapaciteEtpActuel = x.CapaciteEtpActuel,
+						CapaciteEtpCible = x.CapaciteEtpCible
+					})
+					.ToList(),
+				Charges = result.Charges
+					.Select(x => new DimensionnementPortefeuilleEtpChargeData
+					{
+						Segment = x.Segment,
+						ChargeATransfererBP = x.ChargeATransfererBP,
+						ChargeRecueBP = x.ChargeRecueBP,
+						ChargeATransfererMutualise = x.ChargeATransfererMutualise
+					})
+					.ToList()
+			};
+
+			return Ok(data);
+		}
+	}
 }
