@@ -741,3 +741,4 @@ public partial class PortefeuilleDimensionnement : ComponentBase, IDisposable
 		v < 0 ? (positifBon ? "color:#EF9A9A;font-weight:700" : "color:#A5D6A7;font-weight:700") :
 		"color:rgba(255,255,255,0.6);font-weight:600";
 }
+
