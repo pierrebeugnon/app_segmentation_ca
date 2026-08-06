@@ -34,3 +34,13 @@ private double? GetTauxRotationForRow(DimMatrixRow row)
     var exist = Math.Round(GetChargeTotaleAffichee(row) ?? 0, 2);
     return Math.Round(cible - exist, 2) / cible * 100.0;
 }
+
+
+
+private double? GetTotalTauxRotation()
+{
+    var cible = rows.Where(r => !r.IsTotal).Sum(r => GetRowCibleTotal(r) ?? 0);
+    if (cible <= 0) return null;
+    var exist = rows.Where(r => !r.IsTotal).Sum(r => GetChargeTotaleAffichee(r) ?? 0);
+    return Math.Round(cible - exist, 2) / cible * 100.0;
+}
