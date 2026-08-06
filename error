@@ -12,6 +12,7 @@ namespace Segmentation.Client.Services
 	///   de réutiliser exactement les mêmes règles.
 	///
 	/// Modèle métier :
+
 	/// - Volet 1 : Intensité relationnelle des segments
 	/// - Volet 2 : Temps commercial (défini par TYPE D'AGENCE : BP ou Retail)
 	/// - Volet 3 : Affectation des conseillers → n'intervient PAS dans les calculs
