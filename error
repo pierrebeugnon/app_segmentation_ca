@@ -1,219 +1,171 @@
-using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using Segmentation.Core.Entities;
+using Segmentation.Core.Repositories;
+using Segmentation.Infrastructure.Data;
 
-namespace Segmentation.Client.Services;
+namespace Segmentation.Infrastructure.Repositories;
 
-public class DimensionnementPortefeuilleEtpService
+public class DimensionnementPortefeuilleEtpRepository
+	: IDimensionnementPortefeuilleEtpRepository
 {
-	private readonly HttpClient _http;
+	private readonly SegmentationContext _context;
 
-	public DimensionnementPortefeuilleEtpService(
-		HttpClient http)
+	public DimensionnementPortefeuilleEtpRepository(
+		SegmentationContext context)
 	{
-		_http = http;
+		_context = context
+			?? throw new ArgumentNullException(nameof(context));
 	}
 
 	/// <summary>
 	/// Enregistre le dimensionnement ETP d'une agence.
-	/// La sauvegarde remplace les données précédemment
-	/// enregistrées pour cette agence.
+	/// Les anciennes données de l'agence sont supprimées,
+	/// puis remplacées par les nouvelles données.
 	/// </summary>
-	public async Task<bool> SaveAsync(
-	SaveDimensionnementPortefeuilleEtpRequest request,
-	CancellationToken cancellationToken = default)
+	public async Task SaveAsync(
+		string agence,
+		List<DimensionnementPortefeuilleEtp> lignes,
+		List<DimensionnementPortefeuilleEtpCharge> charges,
+		CancellationToken cancellationToken = default)
 	{
-		if (request == null)
-			throw new ArgumentNullException(nameof(request));
-
-		if (string.IsNullOrWhiteSpace(request.LibAgence))
+		if (string.IsNullOrWhiteSpace(agence))
+		{
 			throw new ArgumentException(
 				"L'agence est obligatoire.",
-				nameof(request.LibAgence));
+				nameof(agence));
+		}
+
+		var agenceTrim = agence.Trim();
+
+		lignes ??= new List<DimensionnementPortefeuilleEtp>();
+
+		charges ??= new List<DimensionnementPortefeuilleEtpCharge>();
+
+		/*
+         * On utilise les DbSet déclarés explicitement dans SegmentationContext.
+         * Cela évite toute ambiguïté avec un repository ou un contexte générique.
+         */
+
+		var lignesExistantes = await _context
+			.DimensionnementPortefeuilleEtps
+			.Where(x => x.LibAgence == agenceTrim)
+			.ToListAsync(cancellationToken);
+
+		var chargesExistantes = await _context
+			.DimensionnementPortefeuilleEtpCharges
+			.Where(x => x.LibAgence == agenceTrim)
+			.ToListAsync(cancellationToken);
+
+		await using var transaction =
+			await _context.Database.BeginTransactionAsync(
+				cancellationToken);
 
 		try
 		{
-			var response = await _http.PostAsJsonAsync(
-				"api/DimensionnementPortefeuilleEtpDetail",
-				request,
-				cancellationToken);
+			/*
+             * Suppression physique des anciennes données.
+             * La nouvelle sauvegarde remplace entièrement
+             * la précédente pour l'agence.
+             */
 
-			if (!response.IsSuccessStatusCode)
+			if (lignesExistantes.Count > 0)
 			{
-				var errorContent =
-					await response.Content.ReadAsStringAsync(
-						cancellationToken);
-
-				Console.WriteLine(
-					$">>> DimensionnementPortefeuilleEtp SaveAsync " +
-					$"status : {response.StatusCode}");
-
-				Console.WriteLine(
-					$">>> Réponse API : {errorContent}");
-
-				return false;
+				_context
+					.DimensionnementPortefeuilleEtps
+					.RemoveRange(lignesExistantes);
 			}
 
-			var result = await response.Content
-				.ReadFromJsonAsync<SaveDimensionnementPortefeuilleEtpResponse>(
-					cancellationToken: cancellationToken);
+			if (chargesExistantes.Count > 0)
+			{
+				_context
+					.DimensionnementPortefeuilleEtpCharges
+					.RemoveRange(chargesExistantes);
+			}
 
-			return result?.Saved ?? false;
+			/*
+             * Ajout des nouvelles lignes de répartition ETP.
+             */
+
+			if (lignes.Count > 0)
+			{
+				await _context
+					.DimensionnementPortefeuilleEtps
+					.AddRangeAsync(
+						lignes,
+						cancellationToken);
+			}
+
+			/*
+             * Ajout des nouvelles charges manuelles.
+             */
+
+			if (charges.Count > 0)
+			{
+				await _context
+					.DimensionnementPortefeuilleEtpCharges
+					.AddRangeAsync(
+						charges,
+						cancellationToken);
+			}
+
+			await _context.SaveChangesAsync(cancellationToken);
+
+			await transaction.CommitAsync(cancellationToken);
 		}
-		catch (OperationCanceledException)
+		catch
 		{
-			Console.WriteLine(
-				">>> Enregistrement du dimensionnement ETP annulé.");
-
-			return false;
-		}
-		catch (Exception ex)
-		{
-			Console.WriteLine(
-				$">>> Erreur DimensionnementPortefeuilleEtp SaveAsync : " +
-				$"{ex.Message}");
-
-			return false;
+			await transaction.RollbackAsync(cancellationToken);
+			throw;
 		}
 	}
 
 	/// <summary>
-	/// Récupère la sauvegarde ETP existante pour une agence.
-	/// Retourne null si aucune sauvegarde n'existe (204),
-	/// ou en cas d'erreur.
+	/// Récupère les lignes de dimensionnement ETP
+	/// enregistrées pour une agence.
 	/// </summary>
-	public async Task<SaveDimensionnementPortefeuilleEtpRequest?> GetAsync(
-		string libAgence,
-		CancellationToken cancellationToken = default)
+	public async Task<List<DimensionnementPortefeuilleEtp>>
+		GetByAgenceAsync(
+			string agence,
+			CancellationToken cancellationToken = default)
 	{
-		if (string.IsNullOrWhiteSpace(libAgence))
-			return null;
-
-		try
+		if (string.IsNullOrWhiteSpace(agence))
 		{
-			var url =
-				$"api/DimensionnementPortefeuilleEtpDetail/{Uri.EscapeDataString(libAgence)}";
-
-			var response = await _http.GetAsync(url, cancellationToken);
-
-			if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
-			{
-				// Aucune sauvegarde existante pour cette agence.
-				return null;
-			}
-
-			if (!response.IsSuccessStatusCode)
-			{
-				var errorContent =
-					await response.Content.ReadAsStringAsync(
-						cancellationToken);
-
-				Console.WriteLine(
-					$">>> DimensionnementPortefeuilleEtp GetAsync " +
-					$"status : {response.StatusCode}");
-
-				Console.WriteLine(
-					$">>> Réponse API : {errorContent}");
-
-				return null;
-			}
-
-			var result = await response.Content
-				.ReadFromJsonAsync<SaveDimensionnementPortefeuilleEtpRequest>(
-					cancellationToken: cancellationToken);
-
-			return result;
+			return new List<DimensionnementPortefeuilleEtp>();
 		}
-		catch (OperationCanceledException)
-		{
-			Console.WriteLine(
-				">>> Chargement du dimensionnement ETP annulé.");
 
-			return null;
-		}
-		catch (Exception ex)
-		{
-			Console.WriteLine(
-				$">>> Erreur DimensionnementPortefeuilleEtp GetAsync : " +
-				$"{ex.Message}");
+		var agenceTrim = agence.Trim();
 
-			return null;
-		}
+		return await _context
+			.DimensionnementPortefeuilleEtps
+			.AsNoTracking()
+			.Where(x => x.LibAgence == agenceTrim)
+			.OrderBy(x => x.Segment)
+			.ThenBy(x => x.ProfilConseiller)
+			.ThenBy(x => x.SlotLabel)
+			.ToListAsync(cancellationToken);
 	}
-}
 
-/// <summary>
-/// Contrat envoyé par le Client à l'API.
-///
-/// Les noms des propriétés doivent rester identiques à ceux
-/// de SaveDimensionnementPortefeuilleEtpCommand côté Application,
-/// afin que la désérialisation JSON du Controller fonctionne.
-/// </summary>
-public class SaveDimensionnementPortefeuilleEtpRequest
-{
-	public string? LibRegion { get; set; }
-
-	public string? LibSecteur { get; set; }
-
-	public string LibAgence { get; set; } = string.Empty;
-
-	public List<SaveDimensionnementPortefeuilleEtpLigneRequest> Lignes
+	/// <summary>
+	/// Récupère les charges manuelles enregistrées
+	/// pour une agence.
+	/// </summary>
+	public async Task<List<DimensionnementPortefeuilleEtpCharge>>
+		GetChargesAsync(
+			string agence,
+			CancellationToken cancellationToken = default)
 	{
-		get;
-		set;
-	} = new();
+		if (string.IsNullOrWhiteSpace(agence))
+		{
+			return new List<DimensionnementPortefeuilleEtpCharge>();
+		}
 
-	public List<SaveDimensionnementPortefeuilleEtpChargeRequest> Charges
-	{
-		get;
-		set;
-	} = new();
-}
+		var agenceTrim = agence.Trim();
 
-/// <summary>
-/// Correspond au format { "saved": bool } renvoyé par le Controller
-/// (Ok(new { saved })).
-/// </summary>
-public class SaveDimensionnementPortefeuilleEtpResponse
-{
-	public bool Saved { get; set; }
-}
-
-/// <summary>
-/// Ligne de répartition ETP correspondant à une cellule :
-/// segment × conseiller.
-/// </summary>
-public class SaveDimensionnementPortefeuilleEtpLigneRequest
-{
-	public string Segment { get; set; } = string.Empty;
-
-	public string ProfilConseiller { get; set; } = string.Empty;
-
-	public string? MatriculeConseiller { get; set; }
-
-	public string SlotLabel { get; set; } = string.Empty;
-
-	public bool IsActuel { get; set; }
-
-	public bool IsCible { get; set; }
-
-	public double? EtpExistant { get; set; }
-
-	public double? EtpCible { get; set; }
-
-	public double CapaciteEtpActuel { get; set; }
-
-	public double CapaciteEtpCible { get; set; }
-}
-
-/// <summary>
-/// Charges manuelles enregistrées au niveau d'un segment.
-/// </summary>
-public class SaveDimensionnementPortefeuilleEtpChargeRequest
-{
-	public string Segment { get; set; } = string.Empty;
-
-	public double? ChargeATransfererBP { get; set; }
-
-	public double? ChargeRecueBP { get; set; }
-
-	public double? ChargeATransfererMutualise { get; set; }
+		return await _context
+			.DimensionnementPortefeuilleEtpCharges
+			.AsNoTracking()
+			.Where(x => x.LibAgence == agenceTrim)
+			.OrderBy(x => x.Segment)
+			.ToListAsync(cancellationToken);
+	}
 }
