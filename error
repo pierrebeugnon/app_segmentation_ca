@@ -1,1 +1,33 @@
-_repartition = DashboardService.ComputeRepartitionParSegment(_dataFiltree, StateService.Regles);
+/// <summary>
+/// Total de la charge ETP/clients "ajustée" (existant ± transferts BP/Agence/
+/// Mutualisé), sommée sur tous les segments — utilisé comme référence cible
+/// dans la ligne Total : avant toute redistribution manuelle entre
+/// conseillers, la cible logique à couvrir est cette charge ajustée, pas la
+/// somme des saisies individuelles déjà réparties dans le tableau.
+/// </summary>
+private double? GetChargeAjusteeTotal()
+{
+    return rows.Where(r => !r.IsTotal)
+        .Sum(r => ToDisplayValue(GetChargeTotaleAffichee(r), r.Segment));
+}
+
+
+
+
+
+<td style="text-align:center;padding:6px 4px;background:#EDF4F6">
+                                    @if (row.IsTotal)
+                                    {
+                                        <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+                                            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
+                                                @FormatTotal(GetChargeAjusteeTotal())
+                                            </span>
+                                            <div style="border-top:1.5px solid #C5CAD0;width:55%;margin:1px 0"></div>
+                                            <span style="font-size:10px;font-weight:600;font-style:italic;color:#E65100">
+                                                @FormatTotal(GetDisplayRowTotal(row, false))
+                                            </span>
+                                        </div>
+                                    }
+
+
+
