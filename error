@@ -43,7 +43,7 @@ namespace Segmentation.Client.Services
 							+ x.NonSegmente + x.NonClasse);
 
 			// 3. ETP nécessaires (somme des charges théoriques par segment)
-			var etpNecessaires = ComputeTotalEtpBesoin(data);
+			var etpNecessaires = ComputeTotalEtpBesoin(data, regles);
 
 			// 4. Cible théorique de conseillers = arrondi de l'ETP nécessaire
 			var conseillersCibles = (int)Math.Round(etpNecessaires);
@@ -168,7 +168,8 @@ namespace Segmentation.Client.Services
 		//   Ordre métier respecté (BP → HDG → CI → GP)
 		// ═══════════════════════════════════════════════════════════
 		public List<SegmentRepartition> ComputeRepartitionParSegment(
-			List<SegmentationDistributiveData> data)
+			List<SegmentationDistributiveData> data,
+			ReglesHypothesesModel? regles)
 		{
 			if (data == null || !data.Any())
 				return new List<SegmentRepartition>();
@@ -195,7 +196,7 @@ namespace Segmentation.Client.Services
 				{
 					var nbClients = data.Sum(x => s.Get(x));
 
-					var chargeEtp = _etpService.GetChargeTotaleEtpForSegment(data, s.Nom) ?? 0;
+					var chargeEtp = _etpService.GetChargeTotaleEtpForSegment(data, s.Nom, regles) ?? 0;
 
 					var conseillersConcernes = data
 						.Where(x => s.Get(x) > 0)
@@ -374,11 +375,11 @@ namespace Segmentation.Client.Services
 				+ x.GPPotentiel + x.GPStandard);
 
 			var etpBesoinBP = segmentsBP
-				.Select(seg => _etpService.GetChargeTotaleEtpForSegment(data, seg) ?? 0)
+				.Select(seg => _etpService.GetChargeTotaleEtpForSegment(data, seg, regles) ?? 0)
 				.Sum();
 
 			var etpBesoinRetail = segmentsRetail
-				.Select(seg => _etpService.GetChargeTotaleEtpForSegment(data, seg) ?? 0)
+				.Select(seg => _etpService.GetChargeTotaleEtpForSegment(data, seg, regles) ?? 0)
 				.Sum();
 
 			var conseillersCiblesBP = (int)Math.Round(etpBesoinBP);
@@ -453,7 +454,9 @@ namespace Segmentation.Client.Services
 		//   HELPERS PRIVÉS
 		// ═══════════════════════════════════════════════════════════
 
-		private double ComputeTotalEtpBesoin(List<SegmentationDistributiveData> data)
+		private double ComputeTotalEtpBesoin(
+			List<SegmentationDistributiveData> data,
+			ReglesHypothesesModel? regles)
 		{
 			var segments = new[]
 			{
@@ -466,7 +469,7 @@ namespace Segmentation.Client.Services
 			var totalEtp = 0.0;
 			foreach (var seg in segments)
 			{
-				var charge = _etpService.GetChargeTotaleEtpForSegment(data, seg);
+				var charge = _etpService.GetChargeTotaleEtpForSegment(data, seg, regles);
 				if (charge.HasValue) totalEtp += charge.Value;
 			}
 
