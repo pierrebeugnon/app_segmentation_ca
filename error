@@ -1,171 +1,34 @@
-using Microsoft.EntityFrameworkCore;
 using Segmentation.Core.Entities;
-using Segmentation.Core.Repositories;
-using Segmentation.Infrastructure.Data;
 
-namespace Segmentation.Infrastructure.Repositories;
+namespace Segmentation.Core.Repositories;
 
-public class DimensionnementPortefeuilleEtpRepository
-	: IDimensionnementPortefeuilleEtpRepository
+public interface IDimensionnementPortefeuilleEtpRepository
 {
-	private readonly SegmentationContext _context;
+    Task SaveAsync(
+        string agence,
+        List<DimensionnementPortefeuilleEtp> lignes,
+        List<DimensionnementPortefeuilleEtpCharge> charges,
+        CancellationToken cancellationToken = default);
 
-	public DimensionnementPortefeuilleEtpRepository(
-		SegmentationContext context)
-	{
-		_context = context
-			?? throw new ArgumentNullException(nameof(context));
-	}
+    Task<List<DimensionnementPortefeuilleEtp>> GetByAgenceAsync(
+        string agence,
+        CancellationToken cancellationToken = default);
 
-	/// <summary>
-	/// Enregistre le dimensionnement ETP d'une agence.
-	/// Les anciennes données de l'agence sont supprimées,
-	/// puis remplacées par les nouvelles données.
-	/// </summary>
-	public async Task SaveAsync(
-		string agence,
-		List<DimensionnementPortefeuilleEtp> lignes,
-		List<DimensionnementPortefeuilleEtpCharge> charges,
-		CancellationToken cancellationToken = default)
-	{
-		if (string.IsNullOrWhiteSpace(agence))
-		{
-			throw new ArgumentException(
-				"L'agence est obligatoire.",
-				nameof(agence));
-		}
+    Task<List<DimensionnementPortefeuilleEtpCharge>> GetChargesAsync(
+        string agence,
+        CancellationToken cancellationToken = default);
 
-		var agenceTrim = agence.Trim();
+    /// <summary>
+    /// Récupère toutes les lignes de la table, toutes agences confondues.
+    /// Utilisé pour l'export global (bouton "Export" de la page R&H).
+    /// </summary>
+    Task<List<DimensionnementPortefeuilleEtp>> GetAllAsync(
+        CancellationToken cancellationToken = default);
 
-		lignes ??= new List<DimensionnementPortefeuilleEtp>();
-
-		charges ??= new List<DimensionnementPortefeuilleEtpCharge>();
-
-		/*
-         * On utilise les DbSet déclarés explicitement dans SegmentationContext.
-         * Cela évite toute ambiguïté avec un repository ou un contexte générique.
-         */
-
-		var lignesExistantes = await _context
-			.DimensionnementPortefeuilleEtps
-			.Where(x => x.LibAgence == agenceTrim)
-			.ToListAsync(cancellationToken);
-
-		var chargesExistantes = await _context
-			.DimensionnementPortefeuilleEtpCharges
-			.Where(x => x.LibAgence == agenceTrim)
-			.ToListAsync(cancellationToken);
-
-		await using var transaction =
-			await _context.Database.BeginTransactionAsync(
-				cancellationToken);
-
-		try
-		{
-			/*
-             * Suppression physique des anciennes données.
-             * La nouvelle sauvegarde remplace entièrement
-             * la précédente pour l'agence.
-             */
-
-			if (lignesExistantes.Count > 0)
-			{
-				_context
-					.DimensionnementPortefeuilleEtps
-					.RemoveRange(lignesExistantes);
-			}
-
-			if (chargesExistantes.Count > 0)
-			{
-				_context
-					.DimensionnementPortefeuilleEtpCharges
-					.RemoveRange(chargesExistantes);
-			}
-
-			/*
-             * Ajout des nouvelles lignes de répartition ETP.
-             */
-
-			if (lignes.Count > 0)
-			{
-				await _context
-					.DimensionnementPortefeuilleEtps
-					.AddRangeAsync(
-						lignes,
-						cancellationToken);
-			}
-
-			/*
-             * Ajout des nouvelles charges manuelles.
-             */
-
-			if (charges.Count > 0)
-			{
-				await _context
-					.DimensionnementPortefeuilleEtpCharges
-					.AddRangeAsync(
-						charges,
-						cancellationToken);
-			}
-
-			await _context.SaveChangesAsync(cancellationToken);
-
-			await transaction.CommitAsync(cancellationToken);
-		}
-		catch
-		{
-			await transaction.RollbackAsync(cancellationToken);
-			throw;
-		}
-	}
-
-	/// <summary>
-	/// Récupère les lignes de dimensionnement ETP
-	/// enregistrées pour une agence.
-	/// </summary>
-	public async Task<List<DimensionnementPortefeuilleEtp>>
-		GetByAgenceAsync(
-			string agence,
-			CancellationToken cancellationToken = default)
-	{
-		if (string.IsNullOrWhiteSpace(agence))
-		{
-			return new List<DimensionnementPortefeuilleEtp>();
-		}
-
-		var agenceTrim = agence.Trim();
-
-		return await _context
-			.DimensionnementPortefeuilleEtps
-			.AsNoTracking()
-			.Where(x => x.LibAgence == agenceTrim)
-			.OrderBy(x => x.Segment)
-			.ThenBy(x => x.ProfilConseiller)
-			.ThenBy(x => x.SlotLabel)
-			.ToListAsync(cancellationToken);
-	}
-
-	/// <summary>
-	/// Récupère les charges manuelles enregistrées
-	/// pour une agence.
-	/// </summary>
-	public async Task<List<DimensionnementPortefeuilleEtpCharge>>
-		GetChargesAsync(
-			string agence,
-			CancellationToken cancellationToken = default)
-	{
-		if (string.IsNullOrWhiteSpace(agence))
-		{
-			return new List<DimensionnementPortefeuilleEtpCharge>();
-		}
-
-		var agenceTrim = agence.Trim();
-
-		return await _context
-			.DimensionnementPortefeuilleEtpCharges
-			.AsNoTracking()
-			.Where(x => x.LibAgence == agenceTrim)
-			.OrderBy(x => x.Segment)
-			.ToListAsync(cancellationToken);
-	}
+    /// <summary>
+    /// Récupère toutes les charges, toutes agences confondues.
+    /// Utilisé pour l'export global (bouton "Export" de la page R&H).
+    /// </summary>
+    Task<List<DimensionnementPortefeuilleEtpCharge>> GetAllChargesAsync(
+        CancellationToken cancellationToken = default);
 }
