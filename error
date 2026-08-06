@@ -1,55 +1,18 @@
-using MediatR;
 using Segmentation.Application.Queries.DimensionnementPortefeuille;
-using Segmentation.Core.Repositories;
+// (ajoute ce using en haut du fichier, à côté des autres)
 
-namespace Segmentation.Application.Handlers.DimensionnementPortefeuille
+
+
+
+
+/// <summary>
+/// Récupère toutes les lignes de dimensionnement ETP et leurs charges,
+/// toutes agences confondues. Utilisé pour l'export global.
+/// </summary>
+[HttpGet("all", Name = "GetAllDimensionnementPortefeuilleEtp")]
+public async Task<IActionResult> GetAllDimensionnementPortefeuilleEtp()
 {
-	internal class GetAllDimensionnementPortefeuilleEtpQueryHandler
-		: IRequestHandler<GetAllDimensionnementPortefeuilleEtpQuery, GetAllDimensionnementPortefeuilleEtpResult>
-	{
-		private readonly IDimensionnementPortefeuilleEtpRepository _repository;
-
-		public GetAllDimensionnementPortefeuilleEtpQueryHandler(
-			IDimensionnementPortefeuilleEtpRepository repository)
-		{
-			_repository = repository;
-		}
-
-		public async Task<GetAllDimensionnementPortefeuilleEtpResult> Handle(
-			GetAllDimensionnementPortefeuilleEtpQuery request,
-			CancellationToken cancellationToken)
-		{
-			var lignes = await _repository.GetAllAsync(cancellationToken);
-			var charges = await _repository.GetAllChargesAsync(cancellationToken);
-
-			return new GetAllDimensionnementPortefeuilleEtpResult
-			{
-				Lignes = lignes.Select(x => new GetAllDimensionnementPortefeuilleEtpItem
-				{
-					LibRegion = x.LibRegion,
-					LibSecteur = x.LibSecteur,
-					LibAgence = x.LibAgence,
-					Segment = x.Segment,
-					ProfilConseiller = x.ProfilConseiller,
-					MatriculeConseiller = x.MatriculeConseiller,
-					SlotLabel = x.SlotLabel,
-					IsActuel = x.IsActuel,
-					IsCible = x.IsCible,
-					EtpExistant = x.EtpExistant,
-					EtpCible = x.EtpCible,
-					CapaciteEtpActuel = x.CapaciteEtpActuel,
-					CapaciteEtpCible = x.CapaciteEtpCible
-				}).ToList(),
-
-				Charges = charges.Select(x => new GetAllDimensionnementPortefeuilleEtpChargeItem
-				{
-					LibAgence = x.LibAgence,
-					Segment = x.Segment,
-					ChargeATransfererBP = x.ChargeATransfererBP,
-					ChargeRecueBP = x.ChargeRecueBP,
-					ChargeATransfererMutualise = x.ChargeATransfererMutualise
-				}).ToList()
-			};
-		}
-	}
+	var query = new GetAllDimensionnementPortefeuilleEtpQuery();
+	var result = await _mediator.Send(query);
+	return Ok(result);
 }
