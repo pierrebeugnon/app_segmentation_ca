@@ -1,36 +1,37 @@
-private bool _estPortefeuilleMutualise = false;
-
-_estSecteurBanquePrivee = filtreSecteur?.Contains("Banque", StringComparison.OrdinalIgnoreCase) == true;
-
-if (string.IsNullOrEmpty(filtreAgence) && allAgences.Any() && !_estSecteurBanquePrivee)
-{
-    filtreAgence = allAgences.First();
-}
-
-_estPortefeuilleMutualise = filtreAgence?.Contains("Portefeuille mutualisé", StringComparison.OrdinalIgnoreCase) == true;
+ValueChanged="@(v => { _chargeATransfererBP[segT] = v.HasValue ? Math.Max(0, v.Value) : v; StateHasChanged(); })"
 
 
 
 
-private double? GetChargeTotaleAffichee(DimMatrixRow row)
+ValueChanged="@(v => { _chargeRecueBP[segR] = v.HasValue ? Math.Max(0, v.Value) : v; StateHasChanged(); })"
+
+
+
+ValueChanged="@(v => { _chargeATransfererMutualise[segM] = v.HasValue ? Math.Max(0, v.Value) : v; StateHasChanged(); })"
+
+
+private double? GetCoverageDiff(DimMatrixRow row)
 {
     if (row.IsTotal) return null;
-
-    var original = GetRowExistantTotal(row) ?? 0;
-    var transBP = _chargeATransfererBP.GetValueOrDefault(row.Segment) ?? 0;
-    var recueBP = _chargeRecueBP.GetValueOrDefault(row.Segment) ?? 0;
-    var transMut = _chargeATransfererMutualise.GetValueOrDefault(row.Segment) ?? 0;
-
-    // Le sens des 3 transferts change selon le point de vue :
-    // - Agence  : Agence→BP soustrait, BP→Agence ajouté, vers Mutualisé soustrait
-    // - Banque Privée : Agence→BP ajouté, BP→Agence soustrait, vers Mutualisé soustrait
-    // - Portefeuille Mutualisé : Agence→BP soustrait, BP→Agence soustrait, vers Mutualisé ajouté
-    if (_estPortefeuilleMutualise)
-        return (original - transBP - recueBP) + transMut;
-
-    if (_estSecteurBanquePrivee)
-        return (original + transBP - recueBP) - transMut;
-
-    return (original - transBP + recueBP) - transMut;
+    var activeSlots = _slots.Where(s => s.IsCible).ToList();
+    var totalCible  = activeSlots.Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
+    // On compare à la charge ajustée (après transferts), pas à la charge
+    // brute existante — cohérent avec la colonne "Charge Totale ETP par
+    // segment" affichée juste à côté.
+    var totalExist  = GetChargeTotaleAffichee(row) ?? 0;
+    if (totalCible <= 0 && totalExist <= 0) return null;
+    return totalCible - totalExist;
 }
 
+
+
+private double? GetDisplayCoverageDiff(DimMatrixRow row)
+{
+    if (row.IsTotal) return null;
+    var activeSlots = _slots.Where(s => s.IsCible).ToList();
+    var totalCib = activeSlots.Sum(s => EtpService.GetClientCountFromEtp(row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id), row.Segment) ?? 0);
+    var totalExist = EtpService.GetClientCountFromEtp(GetChargeTotaleAffichee(row), row.Segment) ?? 0;
+    if (totalCib <= 0 && totalExist <= 0) return null;
+    return totalCib - totalExist;
+}
+ss
