@@ -1,40 +1,119 @@
-dataRows.Add(new DimMatrixRow
-{
-    Segment = vueEtp ? "Charge totale ETP par portefeuille" : "Nombre de clients total par portefeuille",
-    IsTotal = true,
-    ...
 
-
-<!-- Colonnes Concordance + Rotation -->
-                            @if (vueEtp)
-                            {
-                                <th colspan="2"
-                                    style="text-align:center;padding:5px 6px;font-size:10px;font-weight:700;color:white;letter-spacing:.3px;text-transform:uppercase;
-                                           border-left:2px solid rgba(255,255,255,0.15)">
-                                    KPI clé par segment
-                                </th>
-                            }
-
-
-
-@if (vueEtp)
-                            {
-                                <th class="ca-dim-th-profil" style="background:#4A8FA6;color:white">Taux de concordance par segment ("pureté" des portefeuilles)</th>
-                                <th class="ca-dim-th-profil" style="background:#4A8FA6;color:white">Taux de rotation des clients par segment</th>
-                            }
-
-
-
-@if (vueEtp)
-                        {
-                            <col style="min-width:82px;width:82px" />
-                            <col style="min-width:82px;width:82px" />
-                        }
-                    </colgroup>
-
-
-
-<!-- ── Colonne Taux de rotation par segment ── -->
+                                @if (vueEtp)
+                                {
+                                <!-- ── Colonne Concordance ── -->
                                 <td style="text-align:center;padding:4px 3px;background:#EDF4F6">
+                                    @if (row.IsTotal)
+                                    {
+                                        var totalConcCib = GetTotalConcordance();
+                                        var totalConcExi = GetTotalConcordanceExistant();
+                                        var (bgCib, fgCib) = GetConcordanceColors(totalConcCib);
+                                        var (bgExi, fgExi) = GetConcordanceColors(totalConcExi);
+                                        <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+                                            <div style="background:@bgCib;border-radius:5px;padding:2px 6px;min-width:48px">
+                                                <span style="font-size:12px;font-weight:700;color:@fgCib">
+                                                    @(totalConcCib.HasValue ? $"{totalConcCib.Value:F0}%" : "—")
+                                                </span>
+                                            </div>
+                                            <div style="border-top:1.5px solid #C5CAD0;width:55%;margin:1px 0"></div>
+                                            <div style="background:@bgExi;border-radius:5px;padding:2px 6px;min-width:48px">
+                                                <span style="font-size:9px;font-weight:700;color:@fgExi">
+                                                    @(totalConcExi.HasValue ? $"{totalConcExi.Value:F0}%" : "—")
+                                                </span>
+                                            </div>
+                                        </div>
+                                    }
+                                    else if (concordance.pct.HasValue || concordanceExistant.pct.HasValue)
+                                    {
+                                        var (bgCib, fgCib) = GetConcordanceColors(concordance.pct);
+                                        var (bgExi, fgExi) = GetConcordanceColors(concordanceExistant.pct);
+                                        <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+                                            <MudTooltip Text="@concordance.tooltip">
+                                                <div style="background:@bgCib;border-radius:5px;padding:2px 6px;min-width:48px">
+                                                    <span style="font-size:12px;font-weight:700;color:@fgCib">
+                                                        @(concordance.pct.HasValue ? $"{concordance.pct.Value:F0}%" : "—")
+                                                    </span>
+                                                </div>
+                                            </MudTooltip>
+                                            <div style="border-top:1.5px solid #C5CAD0;width:55%;margin:1px 0"></div>
+                                            <MudTooltip Text="@concordanceExistant.tooltip">
+                                                <div style="background:@bgExi;border-radius:5px;padding:2px 6px;min-width:48px">
+                                                    <span style="font-size:9px;font-weight:700;color:@fgExi">
+                                                        @(concordanceExistant.pct.HasValue ? $"{concordanceExistant.pct.Value:F0}%" : "—")
+                                                    </span>
+                                                </div>
+                                            </MudTooltip>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span style="color:#BDBDBD;font-size:11px">—</span>
+                                    }
+                                </td>
 
+                                <!-- ── Colonne Taux de rotation par segment ── -->
+                                <td style="text-align:center;padding:4px 3px;background:#EDF4F6">
+                                    @{
+                                        var rotRow = GetTauxRotationForRow(row);
+                                        var rotRowExi = GetTauxRotationExistant(row);
+                                    }
+                                    @if (row.IsTotal)
+                                    {
+                                        var rotTotalCib = GetTotalTauxRotation();
+                                        var rotTotalExi = GetTotalTauxRotationExistant();
+                                        var rotColorTotalCib = (rotTotalCib ?? 0) switch
+                                        {
+                                            > 0 => "#2E7D32",
+                                            < 0 => "#C62828",
+                                            _ => "#6C7A89"
+                                        };
+                                        var rotColorTotalExi = (rotTotalExi ?? 0) switch
+                                        {
+                                            > 0 => "#2E7D32",
+                                            < 0 => "#C62828",
+                                            _ => "#6C7A89"
+                                        };
+                                        <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+                                            <span style="font-size:12px;font-weight:700;color:@rotColorTotalCib">
+                                                @(rotTotalCib.HasValue ? (rotTotalCib.Value >= 0 ? "+" : "") + rotTotalCib.Value.ToString("F0") + "%" : "—")
+                                            </span>
+                                            <div style="border-top:1.5px solid #C5CAD0;width:55%;margin:1px 0"></div>
+                                            <span style="font-size:9px;font-weight:700;color:@rotColorTotalExi">
+                                                @(rotTotalExi.HasValue ? (rotTotalExi.Value >= 0 ? "+" : "") + rotTotalExi.Value.ToString("F0") + "%" : "—")
+                                            </span>
+                                        </div>
+                                    }
+                                    else if (rotRow.HasValue || rotRowExi.HasValue)
+                                    {
+                                        var rotColorCib = (rotRow ?? 0) switch
+                                        {
+                                            > 0 => "#2E7D32",
+                                            < 0 => "#C62828",
+                                            _ => "#6C7A89"
+                                        };
+                                        var rotColorExi = (rotRowExi ?? 0) switch
+                                        {
+                                            > 0 => "#2E7D32",
+                                            < 0 => "#C62828",
+                                            _ => "#6C7A89"
+                                        };
+                                        <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+                                            <span style="font-size:12px;font-weight:700;color:@rotColorCib">
+                                                @(rotRow.HasValue ? (rotRow.Value >= 0 ? "+" : "") + rotRow.Value.ToString("F0") + "%" : "—")
+                                            </span>
+                                            <div style="border-top:1.5px solid #C5CAD0;width:55%;margin:1px 0"></div>
+                                            <span style="font-size:9px;font-weight:700;color:@rotColorExi">
+                                                @(rotRowExi.HasValue ? (rotRowExi.Value >= 0 ? "+" : "") + rotRowExi.Value.ToString("F0") + "%" : "—")
+                                            </span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span style="color:#BDBDBD;font-size:11px">—</span>
+                                    }
+                                </td>
 
+                            </tr>
+                        }
+                    </tbody>
+                            }
