@@ -1,226 +1,246 @@
 @using Segmentation.Client.Services
 
-<MudPaper Elevation="0" Class="dash-repartition">
+<MudPaper Elevation="0" Class="dash-dg-card">
 
     <div class="dash-section-title">
-        <span>Volume clients par segment distributif</span>
+        <span>Répartition géographique des clients par segment distributif</span>
     </div>
 
-    @if (Repartition == null || !Repartition.Any())
+    <!-- ── Tag switcher ── -->
+    <div class="dash-dim-tags">
+        <button class="dash-dim-tag @(Dimension == "Region" ? "active" : "")"
+                @onclick="@(() => Switch("Region"))">Région</button>
+        <button class="dash-dim-tag @(Dimension == "Secteur" ? "active" : "")"
+                @onclick="@(() => Switch("Secteur"))">Secteur</button>
+        <button class="dash-dim-tag @(Dimension == "Agence" ? "active" : "")"
+                @onclick="@(() => Switch("Agence"))">Agence</button>
+    </div>
+
+    @if (Distribution == null || !Distribution.Any() || !Colonnes.Any())
     {
         <div class="dash-placeholder">Aucune donnée disponible</div>
     }
     else
     {
-        var maxRep = Repartition.Max(x => x.NbClients);
+        <div class="dash-dg-tablewrap">
+            <table class="dash-dg-table">
+                <thead>
+                    <tr>
+                        <th class="dash-dg-col-segment">Segments distributif</th>
+                        @foreach (var c in Colonnes)
+                        {
+                            <th class="dash-dg-col-region" title="@c">@Abrege(c)</th>
+                        }
+                        <th class="dash-dg-col-total">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Distribution)
+                    {
+                        var total = row.Value.Values.Sum();
+                        var maxVal = row.Value.Values.DefaultIfEmpty(0).Max();
 
-        <div class="dash-rep-list">
-
-            <!-- En-tête -->
-            <div class="dash-rep-header">
-                <div>Segments distributif</div>
-                <div>Nombre de clients</div>
-                <div>Nb de clients (CC)</div>
-                <div>Part de CC/CR</div>
-                <div>Charge totale cible (ETP)</div>
-            </div>
-
-            <!-- Lignes segments -->
-            @foreach (var seg in Repartition)
-            {
-                var barWidth = maxRep > 0 ? seg.NbClients * 100.0 / maxRep : 0;
-                var segColor = GetSegmentColor(seg.Segment);
-
-                <div class="dash-rep-row">
-                    <div class="dash-rep-label">@seg.Segment</div>
-                    <div class="dash-rep-barwrap">
-                        <div class="dash-rep-bar"
-                             style="width:@(barWidth.ToString("F0"))%;background:@segColor">
-                        </div>
-                    </div>
-                    <div class="dash-rep-val">@seg.NbClients.ToString("N0")</div>
-                    <div class="dash-rep-pct">@seg.Pourcentage.ToString("F0")%</div>
-                    <div class="dash-rep-etp">@seg.ChargeEtp.ToString("F1")</div>
-                </div>
-            }
-
-            <!-- Ligne TOTAL -->
-            @{
-                var totalClients = Repartition.Sum(s => s.NbClients);
-                var totalEtp = Repartition.Sum(s => s.ChargeEtp);
-                var totalCons = Repartition.Sum(s => s.ConseillersConcernes);
-            }
-
-            <div class="dash-rep-row dash-rep-total">
-                <div class="dash-rep-label">Total</div>
-                <div></div>
-                <div class="dash-rep-val">@totalClients.ToString("N0")</div>
-                <div class="dash-rep-pct">100%</div>
-                <div class="dash-rep-etp">@totalEtp.ToString("F1")</div>
-            </div>
+                        <tr>
+                            <td class="dash-dg-col-segment dash-dg-seg-label">@row.Key</td>
+                            @foreach (var c in Colonnes)
+                            {
+                                var val = row.Value.GetValueOrDefault(c, 0);
+                                var intensity = maxVal > 0 ? val * 100.0 / maxVal : 0;
+                                <td class="dash-dg-cell" style="@GetCellStyle(intensity)">
+                                    @(val > 0 ? FormatCompact(val) : "—")
+                                </td>
+                            }
+                            <td class="dash-dg-col-total">@FormatCompact(total)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
     }
 </MudPaper>
 
 <style>
-    .dash-repartition {
+    .dash-dg-card {
         background: white;
         border-radius: 12px;
-        padding: 20px 24px;
-        min-height: 300px;
+        padding: 14px 18px;
+        min-width: 0;
     }
 
-        .dash-repartition .dash-section-title {
-            display: flex;
-            align-items: baseline;
-            justify-content: space-between;
-            margin-bottom: 16px;
-        }
-
-            .dash-repartition .dash-section-title span:first-child {
-                font-size: 15px;
-                font-weight: 700;
-                color: #1A4E6B;
-            }
-
-        .dash-repartition .dash-section-hint {
-            font-size: 11px;
-            color: #8A97A8;
-            font-style: italic;
-        }
-
-    .dash-rep-list {
+    .dash-dg-card .dash-section-title {
         display: flex;
-        flex-direction: column;
-        gap: 8px;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 10px;
     }
 
-    .dash-rep-header,
-    .dash-rep-row {
-        display: grid;
-        grid-template-columns: 150px 1fr 60px 45px 55px;
-        align-items: center;
-        gap: 10px;
+    .dash-dg-card .dash-section-title span:first-child {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1A4E6B;
     }
 
-    .dash-rep-header {
+    .dash-dg-card .dash-section-hint {
+        font-size: 11px;
+        color: #8A97A8;
+        font-style: italic;
+    }
+
+    /* ── Tag switcher ── */
+    .dash-dim-tags {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 12px;
+    }
+
+    .dash-dim-tag {
+        background: #F0F3F7;
+        color: #6C7A89;
+        border: none;
+        padding: 4px 12px;
         font-size: 10px;
         font-weight: 700;
-        color: #8A97A8;
-        letter-spacing: 1px;
+        letter-spacing: 0.6px;
         text-transform: uppercase;
-        padding-bottom: 6px;
-        border-bottom: 1px solid #EEF1F5;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.15s ease;
     }
 
-        .dash-rep-header div:nth-child(3),
-        .dash-rep-header div:nth-child(4),
-        .dash-rep-header div:nth-child(5) {
-            text-align: right;
-        }
+    .dash-dim-tag:hover {
+        background: #E1E7EF;
+    }
 
-    .dash-rep-label {
-        font-size: 12px;
-        font-weight: 600;
-        color: #2C3E50;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    .dash-dim-tag.active {
+        background: #1A4E6B;
+        color: white;
+    }
+
+    .dash-dg-tablewrap {
+        overflow-x: auto;
+    }
+
+    .dash-dg-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Calibri', sans-serif;
+    }
+
+    .dash-dg-table th {
+        font-size: 9px;
+        font-weight: 700;
+        color: #8A97A8;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        padding: 6px 4px;
+        border-bottom: 1px solid #EEF1F5;
+        text-align: center;
         white-space: nowrap;
     }
 
-    .dash-rep-barwrap {
-        height: 14px;
-        background: #F0F3F7;
-        border-radius: 3px;
-        overflow: hidden;
+    .dash-dg-col-segment {
+        text-align: left !important;
+        padding-left: 4px !important;
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background: white;
+        box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.15);
     }
 
-    .dash-rep-bar {
-        height: 100%;
-        border-radius: 3px;
-        transition: width 0.4s ease;
+    .dash-dg-table thead .dash-dg-col-segment {
+        z-index: 3;
     }
 
-    .dash-rep-val,
-    .dash-rep-pct,
-    .dash-rep-etp,
-    .dash-rep-cons {
-        text-align: right;
-        font-size: 12px;
-        font-weight: 700;
-    }
-
-    .dash-rep-val {
-        color: #1A4E6B;
-    }
-
-    .dash-rep-pct {
-        color: #8A97A8;
-    }
-
-    .dash-rep-etp {
-        color: #E65100;
-    }
-
-    .dash-rep-cons {
-        color: #1A4E6B;
-    }
-
-    /* ── Ligne TOTAL ── */
-    .dash-rep-total {
-        border-top: 2px solid #1A4E6B;
+    .dash-dg-col-total {
         background: #F7FBFE;
-        border-radius: 4px;
-        padding: 8px 6px;
-        margin-top: 4px;
+        font-weight: 700;
+        color: #1A4E6B !important;
     }
 
-        .dash-rep-total .dash-rep-label {
-            font-weight: 700;
-            color: #1A4E6B;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-size: 11px;
-        }
+    .dash-dg-table tbody tr {
+        border-bottom: 1px solid #F5F7FA;
+        transition: background 0.12s ease;
+    }
 
-        .dash-rep-total .dash-rep-val,
-        .dash-rep-total .dash-rep-pct,
-        .dash-rep-total .dash-rep-etp,
-        .dash-rep-total .dash-rep-cons {
-            font-size: 13px;
-            font-weight: 700;
-        }
+    .dash-dg-table tbody tr:hover {
+        background: #FAFBFC;
+    }
 
-    .dash-repartition .dash-placeholder {
+    .dash-dg-table tbody tr:hover .dash-dg-col-segment {
+        background: #FAFBFC;
+    }
+
+    .dash-dg-table tbody td {
+        padding: 9px 4px;
+        font-size: 11px;
+        text-align: center;
+        color: #2C3E50;
+    }
+
+    .dash-dg-seg-label {
+        text-align: left !important;
+        font-weight: 600;
+        color: #1A4E6B;
+        font-size: 11px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 140px;
+    }
+
+    .dash-dg-cell {
+        font-weight: 600;
+        border-radius: 3px;
+    }
+
+    .dash-dg-card .dash-placeholder {
         color: #B0BAC5;
         text-align: center;
-        padding: 40px;
+        padding: 30px;
         font-style: italic;
-        font-size: 13px;
+        font-size: 12px;
     }
 </style>
 
 @code {
-    [Parameter]
-    public List<SegmentRepartition>? Repartition { get; set; }
+    [Parameter] public Dictionary<string, Dictionary<string, int>>? Distribution { get; set; }
+    [Parameter] public List<string> Colonnes { get; set; } = new();
+    [Parameter] public string Dimension { get; set; } = "Region";
+    [Parameter] public EventCallback<string> DimensionChanged { get; set; }
 
-    private string GetSegmentColor(string segment)
+    private async Task Switch(string dim)
     {
-        if (segment.Contains("Premium", StringComparison.OrdinalIgnoreCase))
-            return "#0A2540";
-        if (segment.StartsWith("HDG", StringComparison.OrdinalIgnoreCase))
-            return "#1A4E6B";
-        if (segment.StartsWith("CI", StringComparison.OrdinalIgnoreCase))
-            return "#4A80B5";
-        if (segment.StartsWith("GP", StringComparison.OrdinalIgnoreCase))
-            return "#5CA6D9";
-        return "#B0BAC5";
+        if (dim == Dimension) return;
+        Dimension = dim;
+        await DimensionChanged.InvokeAsync(dim);
+    }
+
+    private string LabelDim() => Dimension switch
+    {
+        "Secteur" => "secteur",
+        "Agence"  => "agence",
+        _         => "région"
+    };
+
+    private string GetCellStyle(double intensity)
+    {
+        if (intensity <= 0) return "color:#C5CBD3";
+        var opacity = intensity / 100.0 * 0.7;
+        return $"background:rgba(74,128,181,{opacity.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)});color:{(intensity > 50 ? "#0A2540" : "#1A4E6B")}";
+    }
+
+    private string Abrege(string nom)
+    {
+        if (string.IsNullOrWhiteSpace(nom)) return "";
+        if (nom.Length <= 12) return nom;
+        return nom[..12] + "…";
     }
 
     private string FormatCompact(int value)
     {
         if (value >= 1_000_000) return $"{value / 1_000_000.0:F1}M";
-        if (value >= 1_000) return $"{value / 1_000.0:F0}K";
+        if (value >= 1_000)     return $"{value / 1_000.0:F0}K";
         return value.ToString("N0");
     }
 }
