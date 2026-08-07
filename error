@@ -222,8 +222,21 @@ namespace Segmentation.Client.Services
 				return new List<TerritoireRow>();
 
 			return data
-				.Where(x => !string.IsNullOrWhiteSpace(x.LibAgence))
-				.GroupBy(x => new { x.LibAgence, x.LibSecteur, x.LibRegion })
+				.Where(x => !string.IsNullOrWhiteSpace(x.LibAgence) || !string.IsNullOrWhiteSpace(x.LibSecteur))
+				.GroupBy(x => new
+				{
+					// La Banque Privée n'a pas de subdivision par agence :
+					// LibAgence y est vide par construction, et c'est le
+					// secteur qui sert d'identifiant — même règle que
+					// AgenceEffective sur la page Portefeuille. Sans ce
+					// repli, ces lignes étaient silencieusement exclues du
+					// tableau et du total réseau.
+					LibAgence = !string.IsNullOrWhiteSpace(x.LibAgence)
+						? x.LibAgence
+						: x.LibSecteur,
+					x.LibSecteur,
+					x.LibRegion
+				})
 				.Select(g =>
 				{
 					var gData = g.ToList();
