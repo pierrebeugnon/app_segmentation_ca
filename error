@@ -1,33 +1,27 @@
-    <!-- ── Colonne Taux de rotation par segment ── -->
-    <td style="text-align:center;padding:4px 3px;background:#EDF4F6">
-        @{
-            var rotRow = GetTauxRotationForRow(row);
-        }
-        @if (row.IsTotal)
-        {
-                var rotTotalCib = GetTotalTauxRotation();
-                var rotColorTotalCib = RotationColor(rotTotalCib);
-
-
-
-            <span style="font-size:12px;font-weight:700;color:@rotColorTotalCib">
-                @(rotTotalCib.HasValue ? (rotTotalCib.Value >= 0 ? "+" : "") + rotTotalCib.Value.ToString("F0") + "%" : "-")
-            </span>
-        }
-        else if (rotRow.HasValue)
-        {
-                var rotColorCib = RotationColor(rotRow);
-
-
-
-            <span style="font-size:12px;font-weight:700;color:@rotColorCib">
-                @(rotRow.HasValue ? (rotRow.Value >= 0 ? "+" : "") + rotRow.Value.ToString("F0") + "%" : "—")
-            </span>
-        }
-        else
-        {
-            <span style="color:#BDBDBD;font-size:11px">—</span>
-        }
-    </td>
-    }
+<!-- ── Colonne Taux de rotation par segment ── -->
+    <td style="text-align:center;padding:4px 3px;background:#EDF4F6">
+        @{
+            var rotRow = GetTauxRotationForRow(row);
+        }
+        @if (row.IsTotal)
+        {
+                var rotTotalCib = GetTotalTauxRotation();
+                var rotColorTotalCib = RotationColor(rotTotalCib);
+            <span style="font-size:12px;font-weight:700;color:@rotColorTotalCib">
+                @(rotTotalCib.HasValue ? rotTotalCib.Value.ToString("F0") + "%" : "—")
+            </span>
+        }
+        else if (rotRow.HasValue)
+        {
+                var rotColorCib = RotationColor(rotRow);
+            <span style="font-size:12px;font-weight:700;color:@rotColorCib">
+                @(rotRow.HasValue ? rotRow.Value.ToString("F0") + "%" : "—")
+            </span>
+        }
+        else
+        {
+            <span style="color:#BDBDBD;font-size:11px">—</span>
+        }
+    </td>
+    }
 </tr>
