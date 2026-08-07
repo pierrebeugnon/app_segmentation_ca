@@ -47,11 +47,15 @@ namespace Segmentation.Client.Services
 			var etpNecessaires = ComputeTotalEtpBesoin(data, regles);
 
 			// 4. Cible théorique de conseillers = arrondi de l'ETP nécessaire
-			var conseillersCibles = (int)Math.Round(etpNecessaires);
+			//    (utilisée uniquement comme référence pour le Taux de
+			//    couverture — pas affichée directement sur la carte KPI
+			//    "Nombre de conseillers", qui montre la vraie cible
+			//    sauvegardée — voir plus bas, effectifCibleReel).
+			var conseillersCiblesTheorique = (int)Math.Round(etpNecessaires);
 
 			// 5. Taux de couverture (référence = cible théorique)
-			var tauxCouverture = conseillersCibles > 0
-				? (double)conseillersExistants / conseillersCibles * 100.0
+			var tauxCouverture = conseillersCiblesTheorique > 0
+				? (double)conseillersExistants / conseillersCiblesTheorique * 100.0
 				: 0;
 
 			// 6. Concordance moyenne
@@ -97,7 +101,7 @@ namespace Segmentation.Client.Services
 			return new DashboardKpis
 			{
 				ConseillersExistants = conseillersExistants,
-				ConseillersCibles = conseillersCibles,
+				ConseillersCibles = effectifCibleReel,
 				ClientsCommerciaux = clientsCommerciaux,
 				EtpNecessaires = Math.Round(etpNecessaires, 1),
 				TauxCouverture = Math.Round(tauxCouverture, 0),
