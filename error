@@ -1,2 +1,22 @@
-LibRegion	LibSecteur	LibAgence	Segment	ChargeATransfererBP	ChargeRecueBP	ChargeATransfererMutualise
-ARTOIS CAMBRESIS	ARRAS-BACHELET	ACHICOURT REX	HDG Premium Potentiel	0.2260	NULL	NULL
+private string? AgenceEffective =>
+    !string.IsNullOrWhiteSpace(filtreAgence) ? filtreAgence : filtreSecteur;
+
+
+private async Task EnregistrerDimensionnementEtp()
+{
+    if (string.IsNullOrWhiteSpace(AgenceEffective))
+    {
+        Snackbar.Add("Sélectionnez une agence ou un secteur avant d'enregistrer.", Severity.Warning);
+        return;
+    }
+
+
+LibAgence = AgenceEffective,
+
+
+private async Task RestaurerSauvegardeEtp()
+{
+    if (string.IsNullOrWhiteSpace(AgenceEffective))
+        return;
+
+    var sauvegarde = await DimensionnementEtpService.GetAsync(AgenceEffective);
