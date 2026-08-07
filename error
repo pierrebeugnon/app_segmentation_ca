@@ -1,27 +1,24 @@
-<!-- ── Colonne Taux de rotation par segment ── -->
-    <td style="text-align:center;padding:4px 3px;background:#EDF4F6">
-        @{
-            var rotRow = GetTauxRotationForRow(row);
-        }
-        @if (row.IsTotal)
-        {
-                var rotTotalCib = GetTotalTauxRotation();
-                var rotColorTotalCib = RotationColor(rotTotalCib);
-            <span style="font-size:12px;font-weight:700;color:@rotColorTotalCib">
-                @(rotTotalCib.HasValue ? rotTotalCib.Value.ToString("F0") + "%" : "—")
-            </span>
-        }
-        else if (rotRow.HasValue)
-        {
-                var rotColorCib = RotationColor(rotRow);
-            <span style="font-size:12px;font-weight:700;color:@rotColorCib">
-                @(rotRow.HasValue ? rotRow.Value.ToString("F0") + "%" : "—")
-            </span>
-        }
-        else
-        {
-            <span style="color:#BDBDBD;font-size:11px">—</span>
-        }
-    </td>
-    }
-</tr>
+@foreach (var profil in profils)
+                            {
+                                if (_collapsedProfils.Contains(profil))
+                                {
+                                    var ent = vueEtp ? GetTauxEntreeForProfil(profil) : GetDisplayTauxEntreeForProfil(profil);
+                                    <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;color:white">
+                                        @(ent.HasValue ? ent.Value.ToString("F0") + "%" : "—")
+                                    </td>
+                                }
+                                else
+                                {
+                                    foreach (var slot in SlotsForProfilDisplay(profil))
+                                    {
+                                        var ent = vueEtp ? GetTauxEntreeSlot(slot) : GetDisplayTauxEntreeSlot(slot);
+                                        <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
+                                            @(ent.HasValue ? ent.Value.ToString("F0") + "%" : "—")
+                                        </td>
+                                    }
+                                }
+                            }
+                            <td style="background:#24507A"></td>
+                            <td style="text-align:center;padding:6px 4px;font-size:12px;font-weight:700;color:white;background:#1C3C5E">
+                                @(kpiEntTotal.HasValue ? kpiEntTotal.Value.ToString("F0") + "%" : "—")
+                            </td>
