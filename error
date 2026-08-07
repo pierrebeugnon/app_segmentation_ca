@@ -1,648 +1,227 @@
-@page "/dashboard"
-@inject SegmentationStateService StateService
-@inject DashboardService DashboardService
-@inject HttpClient Http
-@inject ReglesHypothesesService ReglesService
-@inject DimensionnementPortefeuilleEtpService DimensionnementEtpService
 @using Segmentation.Client.Services
-@using Segmentation.Client.Models
-@using Segmentation.Shared.Models
-@using Segmentation.Shared.Referentiels
-@using System.Net.Http.Json
-@using Segmentation.Client.Components.Dashboard
 
-<PageTitle>Pilotage — CA Segmentation</PageTitle>
+<MudPaper Elevation="0" Class="dash-dg-card">
 
-<div class="dash-page">
+    <div class="dash-section-title">
+        <span>Répartition géographique des clients par segment distributif</span>
+    </div>
 
-    @if (_isLoading)
+    <!-- ── Tag switcher ── -->
+    <div class="dash-dim-tags">
+        <button class="dash-dim-tag @(Dimension == "Region" ? "active" : "")"
+                @onclick="@(() => Switch("Region"))">Région</button>
+        <button class="dash-dim-tag @(Dimension == "Secteur" ? "active" : "")"
+                @onclick="@(() => Switch("Secteur"))">Secteur</button>
+        <button class="dash-dim-tag @(Dimension == "Agence" ? "active" : "")"
+                @onclick="@(() => Switch("Agence"))">Agence</button>
+    </div>
+
+    @if (Distribution == null || !Distribution.Any() || !Colonnes.Any())
     {
-        <div class="dash-loader">
-            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+        <div class="dash-placeholder">Aucune donnée disponible</div>
+    }
+    else
+    {
+        <div class="dash-dg-tablewrap">
+            <table class="dash-dg-table">
+                <thead>
+                    <tr>
+                        <th class="dash-dg-col-segment">Segments distributif</th>
+                        @foreach (var c in Colonnes)
+                        {
+                            <th class="dash-dg-col-region" title="@c">@Abrege(c)</th>
+                        }
+                        <th class="dash-dg-col-total">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Distribution)
+                    {
+                        var total = row.Value.Values.Sum();
+                        var maxVal = row.Value.Values.DefaultIfEmpty(0).Max();
+
+                        <tr>
+                            <td class="dash-dg-col-segment dash-dg-seg-label">@row.Key</td>
+                            @foreach (var c in Colonnes)
+                            {
+                                var val = row.Value.GetValueOrDefault(c, 0);
+                                var intensity = maxVal > 0 ? val * 100.0 / maxVal : 0;
+                                <td class="dash-dg-cell" style="@GetCellStyle(intensity)">
+                                    @(val > 0 ? FormatCompact(val) : "—")
+                                </td>
+                            }
+                            <td class="dash-dg-col-total">@FormatCompact(total)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
     }
+</MudPaper>
 
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 1 — En-tête
-    ═══════════════════════════════════════════════════════ -->
-    <div class="dash-header">
-        <div>
-            <div class="dash-title">Tableau de bord - dimensionnement des portefeuilles</div>
-            <div class="dash-subtitle">Vue d'ensemble du réseau CA Nord de France</div>
-        </div>
-        <div class="dash-header-meta">
-            <MudIcon Icon="@Icons.Material.Outlined.Schedule" Style="font-size:15px" />
-            Actualisé à l'instant
-        </div>
-    </div>
+<style>
+    .dash-dg-card {
+        background: white;
+        border-radius: 12px;
+        padding: 14px 18px;
+        min-width: 0;
+    }
 
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 1B — Filtres cascadés
-    ═══════════════════════════════════════════════════════ -->
-    <div class="dash-filters">
-        <div class="dash-filters-inner">
-            <span class="dash-filter-label">FILTRER PAR</span>
+    .dash-dg-card .dash-section-title {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
 
-            <MudSelect T="string" Label="Région" Dense="true" Margin="Margin.Dense"
-                       Variant="Variant.Outlined" Style="min-width:180px"
-                       Value="@filtreRegion" ValueChanged="OnRegionChanged"
-                       Clearable="true">
-                @foreach (var r in allRegions)
-                {
-                    <MudSelectItem Value="@r">@r</MudSelectItem>
-                }
-            </MudSelect>
+    .dash-dg-card .dash-section-title span:first-child {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1A4E6B;
+    }
 
-            <MudSelect T="string" Label="Secteur" Dense="true" Margin="Margin.Dense"
-                       Variant="Variant.Outlined" Style="min-width:200px"
-                       Value="@filtreSecteur" ValueChanged="OnSecteurChanged"
-                       Clearable="true">
-                @foreach (var s in allSecteurs)
-                {
-                    <MudSelectItem Value="@s">@s</MudSelectItem>
-                }
-            </MudSelect>
+    .dash-dg-card .dash-section-hint {
+        font-size: 11px;
+        color: #8A97A8;
+        font-style: italic;
+    }
 
-            <MudSelect T="string" Label="Agence" Dense="true" Margin="Margin.Dense"
-                       Variant="Variant.Outlined" Style="min-width:220px"
-                       Value="@filtreAgence" ValueChanged="OnAgenceChanged"
-                       Clearable="true">
-                @foreach (var a in allAgences)
-                {
-                    <MudSelectItem Value="@a">@a</MudSelectItem>
-                }
-            </MudSelect>
+    /* ── Tag switcher ── */
+    .dash-dim-tags {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 12px;
+    }
 
-            <button type="button" class="ca-btn-primary"
-                    disabled="@(!HasPendingFilterChanges || _isLoading)"
-                    @onclick="ApplyFilters">
-                <MudIcon Icon="@Icons.Material.Filled.Check" Style="font-size:14px" />
-                Valider
-            </button>
+    .dash-dim-tag {
+        background: #F0F3F7;
+        color: #6C7A89;
+        border: none;
+        padding: 4px 12px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
 
-            @if (!string.IsNullOrEmpty(filtreRegion) || !string.IsNullOrEmpty(filtreSecteur) || !string.IsNullOrEmpty(filtreAgence))
-            {
-                <button type="button" class="ca-btn-ghost" @onclick="ClearFilters">
-                    Effacer
-                </button>
-            }
-        </div>
-    </div>
+    .dash-dim-tag:hover {
+        background: #E1E7EF;
+    }
 
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 2 — 6 KPI HÉROS
-    ═══════════════════════════════════════════════════════ -->
-    <div class="dash-kpi-grid">
+    .dash-dim-tag.active {
+        background: #1A4E6B;
+        color: white;
+    }
 
-        <!-- KPI 1 — Nombre de Clients Commerciaux -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-icon dash-kpi-icon-neutral">
-                <MudIcon Icon="@Icons.Material.Filled.Groups" Style="font-size:17px" />
-            </div>
-            <div class="dash-kpi-label">Nombre de total de clients</div>
-            <div class="dash-kpi-value dash-kpi-neutral">
-                @_kpis.ClientsCommerciaux.ToString("N0")
-            </div>
-        </div>
+    .dash-dg-tablewrap {
+        overflow-x: auto;
+    }
 
-        <!-- KPI 2 — Nombre de conseillers (2 colonnes verticales) -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-icon dash-kpi-icon-neutral">
-                <MudIcon Icon="@Icons.Material.Filled.Badge" Style="font-size:17px" />
-            </div>
-            <div class="dash-kpi-label">Nombre de conseillers</div>
+    .dash-dg-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Calibri', sans-serif;
+    }
 
-            @{
-                var deltaConseillers = _kpis.ConseillersExistants - _kpis.ConseillersCibles;
-                var ratioConseillers = _kpis.ConseillersCibles > 0
-                    ? (double)_kpis.ConseillersExistants / _kpis.ConseillersCibles * 100
-                    : 0;
-            }
+    .dash-dg-table th {
+        font-size: 9px;
+        font-weight: 700;
+        color: #8A97A8;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        padding: 6px 4px;
+        border-bottom: 1px solid #EEF1F5;
+        text-align: center;
+        white-space: nowrap;
+    }
 
-            <div class="dash-kpi-cols">
-                <div class="dash-kpi-col dash-kpi-line-existant">
-                    <div class="dash-kpi-col-value">@_kpis.ConseillersExistants</div>
-                    <div class="dash-kpi-col-label">Existant</div>
-                </div>
-                <div class="dash-kpi-col dash-kpi-line-cible">
-                    <div class="dash-kpi-col-value">@_kpis.ConseillersCibles</div>
-                    <div class="dash-kpi-col-label">Cible</div>
-                </div>
-            </div>
+    .dash-dg-col-segment {
+        text-align: left !important;
+        padding-left: 4px !important;
+    }
 
-            <div class="dash-kpi-delta @(deltaConseillers >= 0 ? "dash-delta-good" : "dash-delta-critical")">
-                @(deltaConseillers >= 0 ? "+" : "")@deltaConseillers vs cible (@ratioConseillers.ToString("F0")%)
-            </div>
-        </div>
+    .dash-dg-col-total {
+        background: #F7FBFE;
+        font-weight: 700;
+        color: #1A4E6B !important;
+    }
 
-        <!-- KPI 3 — Taux de couverture -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-icon @GetKpiIconClass(_kpis.TauxCouverture, 100, 90)">
-                <MudIcon Icon="@Icons.Material.Filled.DonutLarge" Style="font-size:17px" />
-            </div>
-            <div class="dash-kpi-label">Taux de remplissage des portefeuilles</div>
-            <div class="dash-kpi-cols">
-                <div class="dash-kpi-col dash-kpi-line-existant">
-                    <div class="dash-kpi-col-value">@_kpis.TauxCouvertureExistant.ToString("F0")%</div>
-                    <div class="dash-kpi-col-label">Existant</div>
-                </div>
-                <div class="dash-kpi-col dash-kpi-line-cible">
-                    <div class="dash-kpi-col-value">@_kpis.TauxCouverture.ToString("F0")%</div>
-                    <div class="dash-kpi-col-label">Cible</div>
-                </div>
-            </div>
-        </div>
+    .dash-dg-table tbody tr {
+        border-bottom: 1px solid #F5F7FA;
+        transition: background 0.12s ease;
+    }
 
-        <!-- KPI 4 — Ecart effectif cible vs charge ETP -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-icon @(_kpis.EcartEffectifChargeEtp >= 0 ? "dash-kpi-icon-good" : "dash-kpi-icon-critical")">
-                <MudIcon Icon="@Icons.Material.Filled.Balance" Style="font-size:17px" />
-            </div>
-            <div class="dash-kpi-label">Ecart effectif cible vs charge totale (ETP)</div>
-            <div class="dash-kpi-value @(_kpis.EcartEffectifChargeEtp >= 0 ? "dash-kpi-good" : "dash-kpi-critical")">
-                @(_kpis.EcartEffectifChargeEtp >= 0 ? "+" : "")@_kpis.EcartEffectifChargeEtp.ToString("F1")
-            </div>
-        </div>
+    .dash-dg-table tbody tr:hover {
+        background: #FAFBFC;
+    }
 
-        <!-- KPI 5 — Concordance moyenne -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-icon @GetKpiIconClass(_kpis.Concordance, 80, 60)">
-                <MudIcon Icon="@Icons.Material.Filled.Verified" Style="font-size:17px" />
-            </div>
-            <div class="dash-kpi-label">Taux de concordance</div>
-            <div class="dash-kpi-cols">
-                <div class="dash-kpi-col dash-kpi-line-existant">
-                    <div class="dash-kpi-col-value">@_kpis.ConcordanceExistant.ToString("F0")%</div>
-                    <div class="dash-kpi-col-label">Existant</div>
-                </div>
-                <div class="dash-kpi-col dash-kpi-line-cible">
-                    <div class="dash-kpi-col-value">@_kpis.Concordance.ToString("F0")%</div>
-                    <div class="dash-kpi-col-label">Cible</div>
-                </div>
-            </div>
-        </div>
+    .dash-dg-table tbody td {
+        padding: 9px 4px;
+        font-size: 11px;
+        text-align: center;
+        color: #2C3E50;
+    }
 
-        <!-- KPI 6 — Taux de rotation des clients (entrées uniquement) -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-icon @GetKpiIconClassRotation(_kpis.TauxRotationEntrees)">
-                <MudIcon Icon="@Icons.Material.Filled.Autorenew" Style="font-size:17px" />
-            </div>
-            <div class="dash-kpi-label">Taux de rotation des clients</div>
-            <div class="dash-kpi-value @GetKpiClassRotation(_kpis.TauxRotationEntrees)">
-                @_kpis.TauxRotationEntrees.ToString("F0")<span class="dash-kpi-unit">%</span>
-            </div>
-        </div>
+    .dash-dg-seg-label {
+        text-align: left !important;
+        font-weight: 600;
+        color: #1A4E6B;
+        font-size: 11px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 140px;
+    }
 
-    </div>
+    .dash-dg-cell {
+        font-weight: 600;
+        border-radius: 3px;
+    }
 
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 3 — Grille 2 colonnes
-    ═══════════════════════════════════════════════════════ -->
-    <div class="dash-bottom-grid">
-
-        <div class="dash-bottom-left">
-            <DashboardRepartitionSegment
-                Repartition="@_repartition" />
-
-            <DashboardDistributionGeographique
-                Distribution="@_distributionGeo"
-                Colonnes="@_regionsGeo"
-                Dimension="@_dimensionAffichage"
-                DimensionChanged="OnDimensionChanged" />
-        </div>
-
-        <DashboardRepartitionConseillers
-            Repartition="@_repartitionConseillers" />
-
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 3B — SUIVI DES TRANSFERTS EN ATTENTE
-    ═══════════════════════════════════════════════════════ -->
-    <DashboardTableauTransferts Charges="@_charges"
-                                FiltreRegion="@filtreRegionApplique"
-                                FiltreSecteur="@filtreSecteurApplique"
-                                FiltreAgence="@filtreAgenceApplique" />
-
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 4 — VUE DÉTAILLÉE PAR AGENCE
-    ═══════════════════════════════════════════════════════ -->
-    <div class="dash-heatmap">
-
-        <div class="dash-section-title dash-heatmap-title">
-            <span>Vue détaillée par agence</span>
-            <div class="dash-hm-toolbar">
-                <span class="dash-section-hint">@_heatmap.Count @GetHeatmapUnit()</span>
-                <div class="dash-hm-search-wrap">
-                    <MudIcon Icon="@Icons.Material.Outlined.Search" Style="font-size:15px;color:#B0BAC5" />
-                    <input class="dash-hm-search" type="text" placeholder="Rechercher une agence…"
-                           @bind="_heatmapSearch" @bind:event="oninput" />
-                </div>
-            </div>
-        </div>
-
-        @{
-            var displayedHeatmap = SortedHeatmap.ToList();
-        }
-
-        @if (!_heatmap.Any())
-        {
-            <div class="dash-placeholder">Aucune donnée à afficher</div>
-        }
-        else if (!displayedHeatmap.Any())
-        {
-            <div class="dash-placeholder">Aucune agence ne correspond à "@_heatmapSearch"</div>
-        }
-        else
-        {
-            var maxClients = displayedHeatmap.Max(x => x.ClientsGeres);
-
-            <div class="dash-hm-scroll">
-                <!-- En-tête de colonnes (triable) -->
-                <div class="dash-hm-header">
-                    <div class="dash-hm-sortable" @onclick='() => SetSort("Nom")'>Agence @SortIcon("Nom")</div>
-                    <div class="dash-hm-sortable" @onclick='() => SetSort("ClientsGeres")'>Nombre de clients @SortIcon("ClientsGeres")</div>
-                    <div class="dash-hm-col-consei dash-hm-sortable" @onclick='() => SetSort("ConseillersActifs")'>Cons. existants @SortIcon("ConseillersActifs")</div>
-                    <div class="dash-hm-col-consei dash-hm-sortable" @onclick='() => SetSort("ConseillersCibles")'>Cons. cibles @SortIcon("ConseillersCibles")</div>
-                    <div class="dash-hm-col-etp dash-hm-sortable" @onclick='() => SetSort("EtpNecessaires")'>Charge ETP totale cible @SortIcon("EtpNecessaires")</div>
-                    <div class="dash-hm-col-couv dash-hm-sortable" @onclick='() => SetSort("TauxCouverture")'>Taux de remplissage @SortIcon("TauxCouverture")</div>
-                    <div class="dash-hm-col-conc dash-hm-sortable" @onclick='() => SetSort("Concordance")'>Taux de concordance @SortIcon("Concordance")</div>
-                    <div class="dash-hm-col-rot dash-hm-sortable" @onclick='() => SetSort("TauxRotation")'>Taux de rotation @SortIcon("TauxRotation")</div>
-                    <div class="dash-hm-col-pur dash-hm-sortable" @onclick='() => SetSort("TauxPurete")'>Taux de pureté @SortIcon("TauxPurete")</div>
-                </div>
-
-                <!-- Lignes agences -->
-                @foreach (var row in displayedHeatmap)
-                {
-                    var barWidth = maxClients > 0 ? row.ClientsGeres * 100.0 / maxClients : 0;
-                    var statusColor = GetStatusColor(row);
-
-                    <div class="dash-hm-row">
-                        <div class="dash-hm-col-nom">
-                            <span class="dash-hm-status-dot" style="background:@statusColor"></span>
-                            <span class="dash-hm-nom">@row.Nom</span>
-                        </div>
-
-                        <div class="dash-hm-col-volume">
-                            <div class="dash-hm-barwrap">
-                                <div class="dash-hm-bar" style="width:@(barWidth.ToString("F0"))%"></div>
-                            </div>
-                            <span class="dash-hm-barval">@FormatCompact(row.ClientsGeres)</span>
-                        </div>
-
-                        <div class="dash-hm-col-consei dash-hm-existant">@row.ConseillersActifs</div>
-                        <div class="dash-hm-col-consei dash-hm-cible">@row.ConseillersCibles</div>
-
-                        <div class="dash-hm-col-etp">@row.EtpNecessaires.ToString("F1")</div>
-
-                        <div class="dash-hm-col-couv">
-                            <span class="dash-hm-pill @GetPillClass(row.TauxCouverture, 100, 90)">
-                                @row.TauxCouverture.ToString("F0")%
-                            </span>
-                        </div>
-
-                        <div class="dash-hm-col-conc">
-                            <span class="dash-hm-pill @GetPillClass(row.Concordance, 80, 60)">
-                                @row.Concordance.ToString("F0")%
-                            </span>
-                        </div>
-
-                        <div class="dash-hm-col-rot">
-                            <span class="dash-hm-pill @GetPillClassRotation(row.TauxRotation)">
-                                @row.TauxRotation.ToString("F0")%
-                            </span>
-                        </div>
-
-                        <div class="dash-hm-col-pur">
-                            <span class="dash-hm-pill @GetPillClass(row.TauxPurete, 80, 60)">
-                                @row.TauxPurete.ToString("F0")%
-                            </span>
-                        </div>
-                    </div>
-                }
-            </div>
-
-            <!-- Ligne TOTAL (toujours visible, hors zone de scroll) -->
-            var totalClientsAg = displayedHeatmap.Sum(r => r.ClientsGeres);
-            var totalExistAg = displayedHeatmap.Sum(r => r.ConseillersActifs);
-            var totalCibleAg = displayedHeatmap.Sum(r => r.ConseillersCibles);
-            var totalEtpAg = displayedHeatmap.Sum(r => r.EtpNecessaires);
-            var avgCouv = displayedHeatmap.Any() ? displayedHeatmap.Average(r => r.TauxCouverture) : 0;
-            var avgConc = displayedHeatmap.Any() ? displayedHeatmap.Average(r => r.Concordance) : 0;
-            var avgRot = displayedHeatmap.Any() ? displayedHeatmap.Average(r => r.TauxRotation) : 0;
-            var avgPurete = displayedHeatmap.Any() ? displayedHeatmap.Average(r => r.TauxPurete) : 0;
-
-            <div class="dash-hm-row dash-hm-total-row">
-                <div class="dash-hm-col-nom">
-                    <span class="dash-hm-total-label">TOTAL</span>
-                </div>
-
-                <div class="dash-hm-col-volume">
-                    <span class="dash-hm-barval dash-hm-total-val">@FormatCompact(totalClientsAg)</span>
-                </div>
-
-                <div class="dash-hm-col-consei dash-hm-existant">@totalExistAg</div>
-                <div class="dash-hm-col-consei dash-hm-cible">@totalCibleAg</div>
-
-                <div class="dash-hm-col-etp">@totalEtpAg.ToString("F1")</div>
-
-                <div class="dash-hm-col-couv">
-                    <span class="dash-hm-pill @GetPillClass(avgCouv, 100, 90)">
-                        @avgCouv.ToString("F0")%
-                    </span>
-                </div>
-
-                <div class="dash-hm-col-conc">
-                    <span class="dash-hm-pill @GetPillClass(avgConc, 80, 60)">
-                        @avgConc.ToString("F0")%
-                    </span>
-                </div>
-
-                <div class="dash-hm-col-rot">
-                    <span class="dash-hm-pill @GetPillClassRotation(avgRot)">
-                        @avgRot.ToString("F0")%
-                    </span>
-                </div>
-
-                <div class="dash-hm-col-pur">
-                    <span class="dash-hm-pill @GetPillClass(avgPurete, 80, 60)">
-                        @avgPurete.ToString("F0")%
-                    </span>
-                </div>
-            </div>
-        }
-    </div>
-
-    <div class="dash-footer">
-        © 2026 CA Nord de France — Pilotage réseau
-    </div>
-</div>
+    .dash-dg-card .dash-placeholder {
+        color: #B0BAC5;
+        text-align: center;
+        padding: 30px;
+        font-style: italic;
+        font-size: 12px;
+    }
+</style>
 
 @code {
+    [Parameter] public Dictionary<string, Dictionary<string, int>>? Distribution { get; set; }
+    [Parameter] public List<string> Colonnes { get; set; } = new();
+    [Parameter] public string Dimension { get; set; } = "Region";
+    [Parameter] public EventCallback<string> DimensionChanged { get; set; }
 
-    // ── État ────────────────────────────────────────
-    private bool _isLoading = false;
-    private DashboardKpis _kpis = new();
-    private List<TerritoireRow> _heatmap = new();
-    private List<SegmentationDistributiveData> _data = new();
-    private List<SegmentationDistributiveData> _dataFiltree = new();
-    private List<SegmentRepartition> _repartition = new();
-    private List<LigneMetierRepartition> _repartitionConseillers = new();
-    private List<DimensionnementPortefeuilleEtpAllCharge> _charges = new();
-    private List<DimensionnementPortefeuilleEtpAllLigne> _lignesEtp = new();
-
-    // ── Distribution géographique ───────────────────
-    private Dictionary<string, Dictionary<string, int>> _distributionGeo = new();
-    private List<string> _regionsGeo = new();
-
-    // ── Dimension d'affichage partagée par les 3 blocs du bas ──
-    private string _dimensionAffichage = "Region";
-
-    // ── Heatmap : recherche + tri ────────────────────
-    private string _heatmapSearch = "";
-    private string _hmSortColumn = "ClientsGeres";
-    private bool _hmSortAsc = false;
-
-    // ── Filtres ────────────────────────────────────
-    private string? filtreRegion, filtreSecteur, filtreAgence;
-    private string? filtreRegionApplique, filtreSecteurApplique, filtreAgenceApplique;
-
-    private List<string> allRegions = new();
-    private List<string> allSecteurs = new();
-    private List<string> allAgences = new();
-
-    private bool HasPendingFilterChanges =>
-        filtreRegion  != filtreRegionApplique ||
-        filtreSecteur != filtreSecteurApplique ||
-        filtreAgence  != filtreAgenceApplique;
-
-    /// <summary>
-    /// S'assure que les Règles & Hypothèses sont chargées depuis la base
-    /// avant que le Dashboard les utilise. Nécessaire quand l'utilisateur
-    /// arrive directement sur /dashboard sans être passé par
-    /// /regles-hypotheses ou /portefeuille au préalable.
-    /// </summary>
-    private async Task EnsureReglesLoadedAsync()
+    private async Task Switch(string dim)
     {
-        if (StateService.IsLoaded)
-            return;
-
-        try
-        {
-            var bundle = await ReglesService.LoadAllAsync();
-
-            var reglesModel = new ReglesHypothesesModel
-            {
-                HeuresParSemaine = bundle.Parametres?.HeuresParSemaine ?? 0,
-                NbSemainesParAn = bundle.Parametres?.NbSemainesParAn ?? 0,
-
-                SegmentsIntensite = bundle.Segments.Select(x => new SegmentIntensite
-                {
-                    LigneMetier = x.LigneMetier,
-                    Segment = x.Segment,
-                    NombreRdvParAn = x.NombreRdvParAn,
-                    DureeRdvHeures = x.DureeRdvHeures
-                }).ToList(),
-
-                ConseillersProfils = bundle.Profils.Select(x => new ConseillerTempsProfil
-                {
-                    LigneMetier = x.LigneMetier,
-                    Profil = x.Profil,
-                    PartTempsCommercialPct = x.PartTempsCommercialPct
-                }).ToList(),
-
-                ReglesAffectationSegments = bundle.Regles.Select(x => new RegleAffectationSegment
-                {
-                    Segment = x.Segment,
-                    ConseillerPrioritaire = x.ConseillerPrioritaire,
-                    ConseillerSecondaire = x.ConseillerSecondaire,
-                    ConseillerTertiaire = x.ConseillerTertiaire
-                }).ToList()
-            };
-
-            StateService.UpdateRegles(reglesModel);
-
-            Console.WriteLine(
-                $">>> Règles chargées depuis Dashboard : " +
-                $"{reglesModel.SegmentsIntensite.Count} segments, " +
-                $"{reglesModel.ConseillersProfils.Count} profils, " +
-                $"{reglesModel.ReglesAffectationSegments.Count} règles");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($">>> Erreur chargement Règles depuis Dashboard : {ex.Message}");
-        }
+        if (dim == Dimension) return;
+        Dimension = dim;
+        await DimensionChanged.InvokeAsync(dim);
     }
 
-    // ── Lifecycle ──────────────────────────────────
-    protected override async Task OnInitializedAsync()
+    private string LabelDim() => Dimension switch
     {
-        _isLoading = true;
-        try
-        {
-            await EnsureReglesLoadedAsync();
+        "Secteur" => "secteur",
+        "Agence"  => "agence",
+        _         => "région"
+    };
 
-            _data = await Http.GetFromJsonAsync<List<SegmentationDistributiveData>>(
-                "api/SegmentationDistributive") ?? new();
-
-            var allDim = await DimensionnementEtpService.GetAllAsync();
-            _charges = allDim?.Charges ?? new();
-            _lignesEtp = allDim?.Lignes ?? new();
-
-            _dataFiltree = _data.ToList();
-
-            BuildFilterOptions();
-            RecomputeAll();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Erreur Dashboard : {ex.Message}");
-        }
-        finally
-        {
-            _isLoading = false;
-        }
+    private string GetCellStyle(double intensity)
+    {
+        if (intensity <= 0) return "color:#C5CBD3";
+        var opacity = intensity / 100.0 * 0.7;
+        return $"background:rgba(74,128,181,{opacity.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)});color:{(intensity > 50 ? "#0A2540" : "#1A4E6B")}";
     }
 
-    // ── Recalcul global ────────────────────────────
-    private void RecomputeAll()
+    private string Abrege(string nom)
     {
-        _kpis = DashboardService.ComputeGlobalKpis(_dataFiltree, StateService.Regles, _lignesEtp);
-
-        _heatmap = DashboardService.ComputeHeatmapAgences(
-            _dataFiltree, StateService.Regles, _lignesEtp);
-
-        _repartition = DashboardService.ComputeRepartitionParSegment(_dataFiltree, StateService.Regles);
-
-        _repartitionConseillers = DashboardService.ComputeRepartitionConseillers(
-            _dataFiltree, StateService.Regles);
-
-        var geoResult = DashboardService.ComputeDistributionGeographique(
-            _dataFiltree, _dimensionAffichage);
-        _distributionGeo = geoResult.Distribution;
-        _regionsGeo = geoResult.Colonnes;
-    }
-
-    // ── Changement de dimension pour la distribution géo ──
-    private void OnDimensionChanged(string dim)
-    {
-        _dimensionAffichage = dim;
-
-        var geoResult = DashboardService.ComputeDistributionGeographique(
-            _dataFiltree, _dimensionAffichage);
-        _distributionGeo = geoResult.Distribution;
-        _regionsGeo = geoResult.Colonnes;
-
-        StateHasChanged();
-    }
-
-    // ── Handlers de filtres ────────────────────────
-    private void OnRegionChanged(string? r)
-    {
-        filtreRegion = r;
-        filtreSecteur = null;
-        filtreAgence = null;
-        BuildFilterOptions();
-    }
-
-    private void OnSecteurChanged(string? s)
-    {
-        filtreSecteur = s;
-        filtreAgence = null;
-        BuildFilterOptions();
-    }
-
-    private void OnAgenceChanged(string? a)
-    {
-        filtreAgence = a;
-    }
-
-    private async Task ApplyFilters()
-    {
-        _isLoading = true;
-        StateHasChanged();
-        await Task.Delay(1);
-
-        try
-        {
-            _dataFiltree = _data
-                .Where(x => string.IsNullOrEmpty(filtreRegion)  || x.LibRegion  == filtreRegion)
-                .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
-                .Where(x => string.IsNullOrEmpty(filtreAgence)  || x.LibAgence  == filtreAgence)
-                .ToList();
-
-            filtreRegionApplique  = filtreRegion;
-            filtreSecteurApplique = filtreSecteur;
-            filtreAgenceApplique  = filtreAgence;
-
-            BuildFilterOptions();
-            RecomputeAll();
-        }
-        finally
-        {
-            _isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task ClearFilters()
-    {
-        filtreRegion = filtreSecteur = filtreAgence = null;
-        await ApplyFilters();
-    }
-
-    private void BuildFilterOptions()
-    {
-        allRegions = _data.Select(x => x.LibRegion)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
-
-        allSecteurs = _data
-            .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-            .Select(x => x.LibSecteur)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
-
-        allAgences = _data
-            .Where(x => string.IsNullOrEmpty(filtreRegion)  || x.LibRegion  == filtreRegion)
-            .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
-            .Select(x => x.LibAgence)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
-    }
-
-    // ── Helpers UI KPIs ────────────────────────────
-    private string GetKpiClass(double value, double greenThreshold, double orangeThreshold)
-    {
-        if (value >= greenThreshold)  return "dash-kpi-good";
-        if (value >= orangeThreshold) return "dash-kpi-warn";
-        return "dash-kpi-critical";
-    }
-
-    private string GetKpiIconClass(double value, double greenThreshold, double orangeThreshold)
-    {
-        if (value >= greenThreshold)  return "dash-kpi-icon-good";
-        if (value >= orangeThreshold) return "dash-kpi-icon-warn";
-        return "dash-kpi-icon-critical";
-    }
-
-    /// <summary>
-    /// Code couleur du taux de rotation (KPI Dashboard) : logique inversée
-    /// (bas = bon), mêmes seuils que sur la page Portefeuille.
-    /// 0-20% vert · 20-50% orange · &gt;50% rouge
-    /// </summary>
-    private string GetKpiClassRotation(double value)
-    {
-        if (value <= 20) return "dash-kpi-good";
-        if (value <= 50) return "dash-kpi-warn";
-        return "dash-kpi-critical";
-    }
-
-    private string GetKpiIconClassRotation(double value)
-    {
-        if (value <= 20) return "dash-kpi-icon-good";
-        if (value <= 50) return "dash-kpi-icon-warn";
-        return "dash-kpi-icon-critical";
+        if (string.IsNullOrWhiteSpace(nom)) return "";
+        if (nom.Length <= 12) return nom;
+        return nom[..12] + "…";
     }
 
     private string FormatCompact(int value)
@@ -650,69 +229,5 @@
         if (value >= 1_000_000) return $"{value / 1_000_000.0:F1}M";
         if (value >= 1_000)     return $"{value / 1_000.0:F0}K";
         return value.ToString("N0");
-    }
-
-    // ── Helpers heatmap agences ────────────────────
-    private string GetHeatmapUnit() =>
-        _heatmap.Count > 1 ? "agences" : "agence";
-
-    private IEnumerable<TerritoireRow> FilteredHeatmap =>
-        string.IsNullOrWhiteSpace(_heatmapSearch)
-            ? _heatmap
-            : _heatmap.Where(r => r.Nom.Contains(_heatmapSearch, StringComparison.OrdinalIgnoreCase));
-
-    private IEnumerable<TerritoireRow> SortedHeatmap
-    {
-        get
-        {
-            var src = FilteredHeatmap;
-            Func<TerritoireRow, object> keySelector = _hmSortColumn switch
-            {
-                "Nom"               => r => r.Nom,
-                "ConseillersActifs" => r => r.ConseillersActifs,
-                "ConseillersCibles" => r => r.ConseillersCibles,
-                "EtpNecessaires"    => r => r.EtpNecessaires,
-                "TauxCouverture"    => r => r.TauxCouverture,
-                "Concordance"       => r => r.Concordance,
-                "TauxRotation"      => r => r.TauxRotation,
-                "TauxPurete"        => r => r.TauxPurete,
-                _                   => r => r.ClientsGeres
-            };
-            return _hmSortAsc ? src.OrderBy(keySelector) : src.OrderByDescending(keySelector);
-        }
-    }
-
-    private void SetSort(string column)
-    {
-        if (_hmSortColumn == column) _hmSortAsc = !_hmSortAsc;
-        else { _hmSortColumn = column; _hmSortAsc = false; }
-    }
-
-    private string SortIcon(string column) =>
-        _hmSortColumn != column ? "" : (_hmSortAsc ? "▲" : "▼");
-
-    private string GetPillClass(double value, double greenThreshold, double orangeThreshold)
-    {
-        if (value >= greenThreshold)  return "dash-hm-pill-good";
-        if (value >= orangeThreshold) return "dash-hm-pill-warn";
-        return "dash-hm-pill-critical";
-    }
-
-    /// <summary>
-    /// Code couleur du taux de rotation : logique inversée (bas = bon).
-    /// ≤10% vert · ≤20% orange · >20% rouge
-    /// </summary>
-    private string GetPillClassRotation(double value)
-    {
-        if (value <= 10) return "dash-hm-pill-good";
-        if (value <= 20) return "dash-hm-pill-warn";
-        return "dash-hm-pill-critical";
-    }
-
-    private string GetStatusColor(TerritoireRow row)
-    {
-        if (row.Concordance >= 80 && row.TauxCouverture >= 100) return "#1B5E20";
-        if (row.Concordance >= 60 && row.TauxCouverture >= 90)  return "#E65100";
-        return "#C62828";
     }
 }
