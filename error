@@ -433,7 +433,7 @@
                                                         </div>
                                                         <div class="ca-dim-cell-bottom">
                                                             <span style="color:#E65100;font-size:10px;font-weight:600;font-style:italic">
-                                                                @FormatDisplay(etp, row.Segment)
+                                                                @(GetRealClientCountForSlot(row.Segment, s) is { } realCount ? realCount.ToString("F0") : "—")
                                                             </span>
                                                         </div>
                                                     </div>
@@ -1968,6 +1968,46 @@
         );
     }
 
+    /// <summary>
+    /// Nombre de clients RÉEL d'un conseiller sur un segment, compté
+    /// directement depuis SegmentationDistributive — sans jamais passer
+    /// par l'ETP. Utilisé pour l'affichage "Existant" en vue "Nombre de
+    /// clients", pour garantir que le total ne varie jamais avec la
+    /// précision de la conversion clients ↔ ETP.
+    /// </summary>
+    private double? GetRealClientCountForSlot(string segment, ConseillerSlot slot)
+    {
+        var matricule = ExtractMatriculeFromSlotLabel(slot.Label);
+        if (string.IsNullOrWhiteSpace(matricule))
+            return null;
+
+        var lignes = _segmentationDistributiveFiltree
+            .Where(x => string.Equals(x.MatriculeConseiller, matricule, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (!lignes.Any())
+            return null;
+
+        var total = lignes.Sum(x => EtpService.GetClientCountForSegment(x, segment));
+        return total > 0 ? (double)total : (double?)null;
+    }
+
+    /// <summary>
+    /// Total réel de clients d'un conseiller, tous segments confondus —
+    /// somme des comptages réels par segment, garantissant que ce total
+    /// correspond exactement à la somme des cellules affichées (pas de
+    /// dérive d'arrondi comme avec une conversion ETP → clients).
+    /// </summary>
+    private double? GetRealClientCountTotalForSlot(ConseillerSlot slot)
+    {
+        var vals = segments
+            .Select(seg => GetRealClientCountForSlot(seg, slot))
+            .Where(v => v.HasValue)
+            .ToList();
+
+        return vals.Any() ? vals.Sum(v => v!.Value) : null;
+    }
+
     private static string ExtractMatriculeFromSlotLabel(string label)
     {
         var idx = label.LastIndexOf('-');
@@ -2081,6 +2121,15 @@
 
     private double? GetDisplayTotalForSlot(string slotId, bool cible)
     {
+        // Existant en vue "Nombre de clients" : comptage réel direct
+        // (jamais reconverti depuis l'ETP), pour que ce total corresponde
+        // toujours exactement à la somme des cellules affichées.
+        if (!cible && !vueEtp)
+        {
+            var slot = _slots.FirstOrDefault(s => s.Id == slotId);
+            return slot != null ? GetRealClientCountTotalForSlot(slot) : null;
+        }
+
         return rows.Where(r => !r.IsTotal)
                  .Sum(r => ToDisplayValue(
                      cible ? r.EtpCibleSaisieParProfil.GetValueOrDefault(slotId)
