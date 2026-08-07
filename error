@@ -1,9 +1,9 @@
 @using Segmentation.Client.Services
 
-<MudPaper Elevation="0" Class="dash-rc-card">
+<MudPaper Elevation="0" Class="dash-repartition">
 
     <div class="dash-section-title">
-        <span>Effectif conseiller vs portefeuilles cible par ligne métier</span>
+        <span>Volume clients par segment distributif</span>
     </div>
 
     @if (Repartition == null || !Repartition.Any())
@@ -12,314 +12,186 @@
     }
     else
     {
-        <div class="dash-rc-tablewrap">
-            <table class="dash-rc-table">
-                <thead>
-                    <!-- Ligne 1 : groupes de colonnes -->
-                    <tr class="dash-rc-header-group">
-                        <th class="dash-rc-col-metier">&nbsp;</th>
-                        <th colspan="3" class="dash-rc-group-conseillers">
-                            Nombre de conseillers
-                        </th>
-                        <th colspan="3" class="dash-rc-group-taille">
-                            Taille moyenne du portefeuille
-                        </th>
-                    </tr>
+        var maxRep = Repartition.Max(x => x.NbClients);
 
-                    <!-- Ligne 2 : colonnes détaillées -->
-                    <tr class="dash-rc-header-cols">
-                        <th class="dash-rc-col-metier">Ligne métier</th>
+        <div class="dash-rep-list">
 
-                        <th class="dash-rc-col-existant">Existant</th>
-                        <th class="dash-rc-col-cible">Cible</th>
-                        <th class="dash-rc-col-delta">Δ</th>
+            <!-- En-tête -->
+            <div class="dash-rep-header">
+                <div>Segments distributif</div>
+                <div>Nombre de clients</div>
+                <div>Nb de clients (CC)</div>
+                <div>Part de CC/CR</div>
+                <div>Charge totale cible (ETP)</div>
+            </div>
 
-                        <th class="dash-rc-col-existant dash-rc-taille">Existant</th>
-                        <th class="dash-rc-col-cible dash-rc-taille">Cible</th>
-                        <th class="dash-rc-col-delta dash-rc-taille">Δ</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var l in Repartition)
-                    {
-                        var deltaConsClass = GetDeltaClass(l.DeltaConseillers);
-                        var deltaTailleClass = GetDeltaClass(l.DeltaTaillePortefeuille);
+            <!-- Lignes segments -->
+            @foreach (var seg in Repartition)
+            {
+                var barWidth = maxRep > 0 ? seg.NbClients * 100.0 / maxRep : 0;
+                var segColor = GetSegmentColor(seg.Segment);
 
-                        <!-- Row en-tête LIGNE MÉTIER (agrégé) -->
-                        <tr class="dash-rc-lm-row">
-                            <td class="dash-rc-col-metier dash-rc-lm-label">
-                                @l.LigneMetier.ToUpper()
-                            </td>
+                <div class="dash-rep-row">
+                    <div class="dash-rep-label">@seg.Segment</div>
+                    <div class="dash-rep-barwrap">
+                        <div class="dash-rep-bar"
+                             style="width:@(barWidth.ToString("F0"))%;background:@segColor">
+                        </div>
+                    </div>
+                    <div class="dash-rep-val">@seg.NbClients.ToString("N0")</div>
+                    <div class="dash-rep-pct">@seg.Pourcentage.ToString("F0")%</div>
+                    <div class="dash-rep-etp">@seg.ChargeEtp.ToString("F1")</div>
+                </div>
+            }
 
-                            <td class="dash-rc-val-existant">@l.ConseillersExistants</td>
-                            <td class="dash-rc-val-cible">@l.ConseillersCibles</td>
-                            <td class="@deltaConsClass">@FormatDelta(l.DeltaConseillers)</td>
+            <!-- Ligne TOTAL -->
+            @{
+                var totalClients = Repartition.Sum(s => s.NbClients);
+                var totalEtp = Repartition.Sum(s => s.ChargeEtp);
+                var totalCons = Repartition.Sum(s => s.ConseillersConcernes);
+            }
 
-                            <td class="dash-rc-val-existant dash-rc-taille">
-                                @l.TaillePortefeuilleExistant.ToString("N0")
-                            </td>
-                            <td class="dash-rc-val-cible dash-rc-taille">
-                                @l.TaillePortefeuilleCible.ToString("N0")
-                            </td>
-                            <td class="dash-rc-taille @deltaTailleClass">
-                                @FormatDelta(l.DeltaTaillePortefeuille, "N0")
-                            </td>
-                        </tr>
-
-                        <!-- Rows détail par profil -->
-                        @foreach (var p in l.Profils)
-                        {
-                            var deltaProfilClass = GetDeltaClass(p.DeltaConseillers);
-                            var deltaTailleProfil = p.TaillePortefeuilleCible - p.TaillePortefeuilleExistant;
-                            var deltaTailleProfilClass = GetDeltaClass(deltaTailleProfil);
-
-                            <tr class="dash-rc-profil-row">
-                                <td class="dash-rc-col-metier dash-rc-profil-label">
-                                    @p.Profil
-                                </td>
-
-                                <td class="dash-rc-val-existant dash-rc-profil-val">@p.ConseillersExistants</td>
-                                <td class="dash-rc-val-cible dash-rc-profil-val">@p.ConseillersCibles</td>
-                                <td class="dash-rc-profil-val @deltaProfilClass">
-                                    @FormatDelta(p.DeltaConseillers)
-                                </td>
-
-                                <td class="dash-rc-val-existant dash-rc-taille dash-rc-profil-val">
-                                    @(p.TaillePortefeuilleExistant > 0 ? p.TaillePortefeuilleExistant.ToString("N0") : "—")
-                                </td>
-                                <td class="dash-rc-val-cible dash-rc-taille dash-rc-profil-val">
-                                    @(p.TaillePortefeuilleCible > 0 ? p.TaillePortefeuilleCible.ToString("N0") : "—")
-                                </td>
-                                <td class="dash-rc-taille dash-rc-profil-val @deltaTailleProfilClass">
-                                    @(p.TaillePortefeuilleExistant > 0 || p.TaillePortefeuilleCible > 0 ? FormatDelta(deltaTailleProfil, "N0") : "—")
-                                </td>
-                            </tr>
-                        }
-                    }
-
-                    <!-- Ligne TOTAL -->
-                    @{
-                        var totalExist = Repartition.Sum(l => l.ConseillersExistants);
-                        var totalCible = Repartition.Sum(l => l.ConseillersCibles);
-                        var totalDeltaCons = totalCible - totalExist;
-                        var deltaConsTotalClass = GetDeltaClass(totalDeltaCons);
-                    }
-
-                    <tr class="dash-rc-total-row">
-                        <td class="dash-rc-col-metier dash-rc-total-label">TOTAL</td>
-
-                        <td class="dash-rc-val-existant">@totalExist</td>
-                        <td class="dash-rc-val-cible">@totalCible</td>
-                        <td class="@deltaConsTotalClass">@FormatDelta(totalDeltaCons)</td>
-
-                        <!-- Taille portefeuille : non sommable (ratios différents) -->
-                        <td class="dash-rc-taille dash-rc-empty">—</td>
-                        <td class="dash-rc-taille dash-rc-empty">—</td>
-                        <td class="dash-rc-taille dash-rc-empty">—</td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="dash-rep-row dash-rep-total">
+                <div class="dash-rep-label">Total</div>
+                <div></div>
+                <div class="dash-rep-val">@totalClients.ToString("N0")</div>
+                <div class="dash-rep-pct">100%</div>
+                <div class="dash-rep-etp">@totalEtp.ToString("F1")</div>
+            </div>
         </div>
     }
 </MudPaper>
 
 <style>
-    .dash-rc-card {
+    .dash-repartition {
         background: white;
         border-radius: 12px;
         padding: 20px 24px;
         min-height: 300px;
-        min-width: 0;
     }
 
-    .dash-rc-card .dash-section-title {
+        .dash-repartition .dash-section-title {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+            .dash-repartition .dash-section-title span:first-child {
+                font-size: 15px;
+                font-weight: 700;
+                color: #1A4E6B;
+            }
+
+        .dash-repartition .dash-section-hint {
+            font-size: 11px;
+            color: #8A97A8;
+            font-style: italic;
+        }
+
+    .dash-rep-list {
         display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        margin-bottom: 16px;
+        flex-direction: column;
+        gap: 8px;
     }
 
-    .dash-rc-card .dash-section-title span:first-child {
-        font-size: 15px;
-        font-weight: 700;
-        color: #1A4E6B;
+    .dash-rep-header,
+    .dash-rep-row {
+        display: grid;
+        grid-template-columns: 150px 1fr 60px 45px 55px;
+        align-items: center;
+        gap: 10px;
     }
 
-    .dash-rc-card .dash-section-hint {
-        font-size: 11px;
-        color: #8A97A8;
-        font-style: italic;
-    }
-
-    /* ── Tableau ── */
-    .dash-rc-tablewrap {
-        overflow-x: auto;
-    }
-
-    .dash-rc-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-family: 'Calibri', sans-serif;
-    }
-
-    .dash-rc-header-group th {
+    .dash-rep-header {
         font-size: 10px;
         font-weight: 700;
         color: #8A97A8;
-        letter-spacing: 1.2px;
+        letter-spacing: 1px;
         text-transform: uppercase;
-        padding: 8px 6px;
-        text-align: center;
-    }
-
-    .dash-rc-group-conseillers {
-        border-bottom: 2px solid #E1E7EF;
-    }
-
-    .dash-rc-group-taille {
-        background: #F4F9FD;
-        border-bottom: 2px solid #D4E4F0;
-        border-radius: 6px 6px 0 0;
-    }
-
-    .dash-rc-header-cols th {
-        font-size: 10px;
-        font-weight: 700;
-        color: #6C7A89;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        padding: 8px 6px;
-        text-align: center;
+        padding-bottom: 6px;
         border-bottom: 1px solid #EEF1F5;
     }
 
-    .dash-rc-header-cols .dash-rc-col-metier {
-        text-align: left;
-        color: #8A97A8;
+        .dash-rep-header div:nth-child(3),
+        .dash-rep-header div:nth-child(4),
+        .dash-rep-header div:nth-child(5) {
+            text-align: right;
+        }
+
+    .dash-rep-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #2C3E50;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
-    .dash-rc-col-existant { color: #E65100; }
-    .dash-rc-col-cible    { color: #1A4E6B; }
-    .dash-rc-col-delta    { color: #6C7A89; }
-
-    .dash-rc-taille {
-        background: #F7FBFE;
+    .dash-rep-barwrap {
+        height: 14px;
+        background: #F0F3F7;
+        border-radius: 3px;
+        overflow: hidden;
     }
 
-    /* ── Row en-tête LIGNE MÉTIER ── */
-    .dash-rc-lm-row {
-        background: #EEF1F5;
-        border-top: 1px solid #DAE0E7;
-        border-bottom: 1px solid #DAE0E7;
+    .dash-rep-bar {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.4s ease;
     }
 
-    .dash-rc-lm-row:hover {
-        background: #E5E9EF;
-    }
-
-    .dash-rc-lm-row .dash-rc-taille {
-        background: #EAF2FA;
-    }
-
-    .dash-rc-lm-row:hover .dash-rc-taille {
-        background: #E0EBF5;
-    }
-
-    .dash-rc-lm-label {
-        font-size: 12px !important;
-        font-weight: 400 !important;
-        letter-spacing: 2px;
-        color: #1A4E6B;
-        text-transform: uppercase;
-    }
-
-    .dash-rc-lm-row td {
-        padding: 8.3px 6px;
-        text-align: center;
-        font-size: 14px;
+    .dash-rep-val,
+    .dash-rep-pct,
+    .dash-rep-etp,
+    .dash-rep-cons {
+        text-align: right;
+        font-size: 12px;
         font-weight: 700;
     }
 
-    .dash-rc-lm-row .dash-rc-col-metier {
-        text-align: left;
-        padding-left: 10px;
+    .dash-rep-val {
+        color: #1A4E6B;
     }
 
-    /* ── Row détail PROFIL ── */
-    .dash-rc-profil-row {
-        background: white;
+    .dash-rep-pct {
+        color: #8A97A8;
     }
 
-    .dash-rc-profil-row:hover {
-        background: #FAFBFC;
+    .dash-rep-etp {
+        color: #E65100;
     }
 
-    .dash-rc-profil-row .dash-rc-taille {
-        background: #F7FBFE;
-    }
-
-    .dash-rc-profil-row:hover .dash-rc-taille {
-        background: #EDF4FA;
-    }
-
-    .dash-rc-profil-row td {
-        padding: 8.3px 6px;
-        text-align: center;
-        font-size: 11px;
-    }
-
-    .dash-rc-profil-label {
-        text-align: left !important;
-        padding-left: 26px !important;
-        color: #4A5568;
-        font-size: 12px;
-        font-weight: 500;
-    }
-
-    .dash-rc-profil-val {
-        font-weight: 600;
-    }
-
-    .dash-rc-empty {
-        color: #C5CBD3 !important;
-        font-weight: 400 !important;
-        font-style: italic;
+    .dash-rep-cons {
+        color: #1A4E6B;
     }
 
     /* ── Ligne TOTAL ── */
-    .dash-rc-total-row {
-        background: #DFE7F0 !important;
-        border-top: 2px solid #1A4E6B !important;
+    .dash-rep-total {
+        border-top: 2px solid #1A4E6B;
+        background: #F7FBFE;
+        border-radius: 4px;
+        padding: 8px 6px;
+        margin-top: 4px;
     }
 
-    .dash-rc-total-row:hover {
-        background: #D5DEE8 !important;
-    }
+        .dash-rep-total .dash-rep-label {
+            font-weight: 700;
+            color: #1A4E6B;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 11px;
+        }
 
-    .dash-rc-total-row td {
-        padding: 12px 6px !important;
-        font-size: 15px !important;
-        font-weight: 700 !important;
-    }
+        .dash-rep-total .dash-rep-val,
+        .dash-rep-total .dash-rep-pct,
+        .dash-rep-total .dash-rep-etp,
+        .dash-rep-total .dash-rep-cons {
+            font-size: 13px;
+            font-weight: 700;
+        }
 
-    .dash-rc-total-label {
-        text-align: left !important;
-        padding-left: 10px !important;
-        color: #1A4E6B !important;
-        letter-spacing: 2px;
-        font-size: 13px !important;
-    }
-
-    .dash-rc-total-row .dash-rc-taille {
-        background: #C7D6E5 !important;
-    }
-
-    /* ── Delta colors ── */
-    .dash-delta-good     { color: #1B5E20; }
-    .dash-delta-critical { color: #C62828; }
-    .dash-delta-neutral  { color: #6C7A89; }
-
-    .dash-rc-card .dash-placeholder {
+    .dash-repartition .dash-placeholder {
         color: #B0BAC5;
         text-align: center;
         padding: 40px;
@@ -329,38 +201,26 @@
 </style>
 
 @code {
-    /// <summary>
-    /// Répartition par ligne métier (BP / Retail) avec détail par type de conseiller.
-    /// </summary>
     [Parameter]
-    public List<LigneMetierRepartition>? Repartition { get; set; }
+    public List<SegmentRepartition>? Repartition { get; set; }
 
-    private string GetDeltaClass(int delta)
+    private string GetSegmentColor(string segment)
     {
-        // delta = Cible − Existant : positif = sous-staffé (manque de
-        // conseillers) → rouge ; négatif = sur-staffé → vert.
-        if (delta > 0)  return "dash-delta-critical";
-        if (delta < 0)  return "dash-delta-good";
-        return "dash-delta-neutral";
+        if (segment.Contains("Premium", StringComparison.OrdinalIgnoreCase))
+            return "#0A2540";
+        if (segment.StartsWith("HDG", StringComparison.OrdinalIgnoreCase))
+            return "#1A4E6B";
+        if (segment.StartsWith("CI", StringComparison.OrdinalIgnoreCase))
+            return "#4A80B5";
+        if (segment.StartsWith("GP", StringComparison.OrdinalIgnoreCase))
+            return "#5CA6D9";
+        return "#B0BAC5";
     }
 
-    private string GetDeltaClass(double delta)
+    private string FormatCompact(int value)
     {
-        if (delta > 0)  return "dash-delta-critical";
-        if (delta < 0)  return "dash-delta-good";
-        return "dash-delta-neutral";
-    }
-
-    private string FormatDelta(int delta)
-    {
-        if (delta == 0) return "0";
-        return delta > 0 ? $"+{delta}" : delta.ToString();
-    }
-
-    private string FormatDelta(double delta, string format = "N0")
-    {
-        if (delta == 0) return "0";
-        var v = delta.ToString(format);
-        return delta > 0 ? $"+{v}" : v;
+        if (value >= 1_000_000) return $"{value / 1_000_000.0:F1}M";
+        if (value >= 1_000) return $"{value / 1_000.0:F0}K";
+        return value.ToString("N0");
     }
 }
