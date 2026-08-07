@@ -470,7 +470,7 @@
                                                                 background:@diffBg;border-radius:5px;padding:2px 4px;min-width:48px">
                                                     <MudIcon Icon="@diffIcon" Style="@($"font-size:14px;color:{diffFg};line-height:1")" />
                                                     <span style="font-size:10px;font-weight:700;color:@diffFg;line-height:1.2">
-                                                        @(absDiff < 0.01 ? "OK" : (diff > 0 ? "+" : "") + diff.ToString("F2"))
+                                                        @(absDiff < 0.01 ? "OK" : (diff > 0 ? "+" : "") + diff.ToString(vueEtp ? "F2" : "F0"))
                                                     </span>
                                                 </div>
                                             </MudTooltip>
@@ -1557,6 +1557,7 @@
         allRegions = _segmentationDistributive
             .Select(x => x.LibRegion)
             .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(x => x)
             .ToList();
@@ -1565,6 +1566,7 @@
             .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
             .Select(x => x.LibSecteur)
             .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(x => x)
             .ToList();
@@ -1574,6 +1576,7 @@
             .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
             .Select(x => x.LibAgence)
             .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(x => x)
             .ToList();
