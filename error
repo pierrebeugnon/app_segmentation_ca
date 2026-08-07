@@ -1,3 +1,2 @@
-SELECT LibRegion, LibSecteur, LibAgence, Segment, ChargeATransfererBP, ChargeRecueBP, ChargeATransfererMutualise
-FROM DimensionnementPortefeuilleEtpCharge
-WHERE ChargeATransfererBP > 0 OR ChargeRecueBP > 0 OR ChargeATransfererMutualise > 0;
+LibRegion	LibSecteur	LibAgence	Segment	ChargeATransfererBP	ChargeRecueBP	ChargeATransfererMutualise
+ARTOIS CAMBRESIS	ARRAS-BACHELET	ACHICOURT REX	HDG Premium Potentiel	0.2260	NULL	NULL
