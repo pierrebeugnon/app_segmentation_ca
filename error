@@ -2145,6 +2145,18 @@
 
     private double? GetDisplayRowTotal(DimMatrixRow row, bool cible)
     {
+        // Existant en vue "Nombre de clients" : comptage réel direct,
+        // jamais reconverti depuis l'ETP — garantit que ce total ne bouge
+        // jamais avec la précision de la conversion clients ↔ ETP.
+        if (!cible && !vueEtp)
+        {
+            var valsReel = _slots
+                .Select(GetRealClientCountTotalForSlot)
+                .Where(v => v.HasValue)
+                .ToList();
+            return valsReel.Any() ? valsReel.Sum(v => v!.Value) : null;
+        }
+
         // Appelée uniquement pour la ligne Total : on ne peut pas convertir une
         // valeur déjà sommée cross-segments avec row.Segment (qui n'est pas un
         // vrai segment ici). On reconstruit donc le total en sommant, pour
