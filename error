@@ -308,7 +308,7 @@
 .dash-hm-header,
 .dash-hm-row {
     display: grid;
-    grid-template-columns: 2fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+    grid-template-columns: 2fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1.2fr 1.2fr 1.2fr;
     align-items: center;
     padding: 12px 24px;
     gap: 16px;
@@ -404,7 +404,8 @@
 }
 
 .dash-hm-col-consei,
-.dash-hm-col-etp {
+.dash-hm-col-etp,
+.dash-hm-col-transfert {
     text-align: center;
     font-weight: 600;
     color: #1A4E6B;
@@ -422,8 +423,7 @@
 
 .dash-hm-col-couv,
 .dash-hm-col-conc,
-.dash-hm-col-rot,
-.dash-hm-col-pur {
+.dash-hm-col-rot {
     text-align: center;
 }
 
