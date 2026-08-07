@@ -1,24 +1,26 @@
--- Catégorie 1 : LibAgence = 'NON REPARTI' (valeur explicite)
 SELECT 
-    SUM(HDGPremiumPotentiel + HDGPremiumStandard + HDGPotentiel + HDGSeniorEpargnant 
+    SegmentationDistributiveID,
+    LibRegion,
+    CodeRegion,
+    LibSecteur,
+    LibAgence,
+    CodeAgence,
+    MatriculeConseiller,
+    TypeConseiller,
+    HDGPremiumPotentiel,
+    HDGPremiumStandard,
+    HDGPotentiel,
+    HDGSeniorEpargnant,
+    HDGStandard,
+    CIPotentiel,
+    CIStandard,
+    GPPotentiel,
+    GPStandard,
+    NonSegmente,
+    NonClasse,
+    (HDGPremiumPotentiel + HDGPremiumStandard + HDGPotentiel + HDGSeniorEpargnant 
         + HDGStandard + CIPotentiel + CIStandard + GPPotentiel + GPStandard 
-        + NonSegmente + NonClasse) AS Total_NonReparti
+        + NonSegmente + NonClasse) AS TotalClientsLigne
 FROM SegmentationDistributive
-WHERE LibAgence = 'NON REPARTI';
-
--- Catégorie 2 : LibAgence réellement vide/NULL
-SELECT 
-    SUM(HDGPremiumPotentiel + HDGPremiumStandard + HDGPotentiel + HDGSeniorEpargnant 
-        + HDGStandard + CIPotentiel + CIStandard + GPPotentiel + GPStandard 
-        + NonSegmente + NonClasse) AS Total_LibAgenceVide,
-    COUNT(*) AS NbLignes
-FROM SegmentationDistributive
-WHERE LibAgence IS NULL OR LTRIM(RTRIM(LibAgence)) = '';
-
--- Contrôle : tout le reste (agences normales)
-SELECT 
-    SUM(HDGPremiumPotentiel + HDGPremiumStandard + HDGPotentiel + HDGSeniorEpargnant 
-        + HDGStandard + CIPotentiel + CIStandard + GPPotentiel + GPStandard 
-        + NonSegmente + NonClasse) AS Total_AgencesNormales
-FROM SegmentationDistributive
-WHERE LibAgence IS NOT NULL AND LTRIM(RTRIM(LibAgence)) != '' AND LibAgence != 'NON REPARTI';
+WHERE LibAgence IS NULL OR LTRIM(RTRIM(LibAgence)) = ''
+ORDER BY LibRegion, LibSecteur, TypeConseiller;
