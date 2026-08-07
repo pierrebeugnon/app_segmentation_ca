@@ -203,6 +203,14 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════
+         ZONE 3B — SUIVI DES TRANSFERTS EN ATTENTE
+    ═══════════════════════════════════════════════════════ -->
+    <DashboardTableauTransferts Charges="@_charges"
+                                FiltreRegion="@filtreRegionApplique"
+                                FiltreSecteur="@filtreSecteurApplique"
+                                FiltreAgence="@filtreAgenceApplique" />
+
+    <!-- ═══════════════════════════════════════════════════════
          ZONE 4 — VUE DÉTAILLÉE PAR AGENCE
     ═══════════════════════════════════════════════════════ -->
     <div class="dash-heatmap">
@@ -366,7 +374,7 @@
     private List<SegmentationDistributiveData> _dataFiltree = new();
     private List<SegmentRepartition> _repartition = new();
     private List<LigneMetierRepartition> _repartitionConseillers = new();
-    private List<DimensionnementPortefeuilleEtpAllCharge> _charge = new();
+    private List<DimensionnementPortefeuilleEtpAllCharge> _charges = new();
 
     // ── Distribution géographique ───────────────────
     private Dictionary<string, Dictionary<string, int>> _distributionGeo = new();
