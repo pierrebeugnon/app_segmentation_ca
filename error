@@ -1,3 +1,22 @@
-SELECT SUM(NonSegmente) AS NonSegmente, SUM(NonClasse) AS NonClasse
-FROM SegmentationDistributive
+SELECT 
+    SUM(HDGPremiumPotentiel)  AS HDG_Premium_Potentiel,
+    SUM(HDGPremiumStandard)   AS HDG_Premium_Standard,
+    SUM(HDGPotentiel)         AS HDG_Potentiel,
+    SUM(HDGSeniorEpargnant)   AS HDG_Senior_Epargnant,
+    SUM(HDGStandard)          AS HDG_Standard,
+    SUM(CIPotentiel)          AS CI_Potentiel,
+    SUM(CIStandard)           AS CI_Standard,
+    SUM(GPPotentiel)          AS GP_Potentiel,
+    SUM(GPStandard)           AS GP_Standard,
+    SUM(NonSegmente)          AS Non_Segmente,
+    SUM(NonClasse)            AS Non_Classe,
+    SUM(HDGPremiumPotentiel + HDGPremiumStandard + HDGPotentiel + HDGSeniorEpargnant 
+        + HDGStandard + CIPotentiel + CIStandard + GPPotentiel + GPStandard 
+        + NonSegmente + NonClasse) AS Total
+FROM dbo.SegmentationDistributives
 WHERE LibAgence = 'SOLESMES';
+
+
+
+HDG_Premium_Potentiel	HDG_Premium_Standard	HDG_Potentiel	HDG_Senior_Epargnant	HDG_Standard	CI_Potentiel	CI_Standard	GP_Potentiel	GP_Standard	Non_Segmente	Non_Classe	Total
+22	37	35	144	100	199	817	86	1126	73	0	2639
