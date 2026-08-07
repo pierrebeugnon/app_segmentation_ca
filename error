@@ -1,57 +1,33 @@
-private static string RotationColor(double? pct) =>
-    !pct.HasValue ? "#6C7A89" :
-    pct.Value <= 20 ? "#2E7D32" :   // vert
-    pct.Value <= 50 ? "#E65100" :   // orange
-                       "#C62828";   // rouge
+    <!-- ── Colonne Taux de rotation par segment ── -->
+    <td style="text-align:center;padding:4px 3px;background:#EDF4F6">
+        @{
+            var rotRow = GetTauxRotationForRow(row);
+        }
+        @if (row.IsTotal)
+        {
+                var rotTotalCib = GetTotalTauxRotation();
+                var rotColorTotalCib = RotationColor(rotTotalCib);
 
 
-var rotTotalCib = GetTotalTauxRotation();
-                                        var rotColorTotalCib = RotationColor(rotTotalCib);
+
+            <span style="font-size:12px;font-weight:700;color:@rotColorTotalCib">
+                @(rotTotalCib.HasValue ? (rotTotalCib.Value >= 0 ? "+" : "") + rotTotalCib.Value.ToString("F0") + "%" : "-")
+            </span>
+        }
+        else if (rotRow.HasValue)
+        {
+                var rotColorCib = RotationColor(rotRow);
 
 
 
-var rotColorCib = RotationColor(rotRow);
-
-
-private double? GetTauxEntreeSlot(ConseillerSlot slot)
-{
-    var chargeAjusteeTotal = rows.Where(r => !r.IsTotal).Sum(r => GetChargeTotaleAffichee(r) ?? 0);
-    if (chargeAjusteeTotal <= 0) return null;
-    var entrees = rows.Where(r => !r.IsTotal).Sum(r => GetEntreesCell(r, slot.Id));
-    return Math.Round(entrees, 2) / chargeAjusteeTotal * 100.0;
-}
-
-private double? GetTauxEntreeForProfil(string profil)
-{
-    var chargeAjusteeTotal = rows.Where(r => !r.IsTotal).Sum(r => GetChargeTotaleAffichee(r) ?? 0);
-    if (chargeAjusteeTotal <= 0) return null;
-    var slots = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
-    var entrees = rows.Where(r => !r.IsTotal).Sum(r => slots.Sum(s => GetEntreesCell(r, s.Id)));
-    return Math.Round(entrees, 2) / chargeAjusteeTotal * 100.0;
-}
-
-private double? GetTauxEntreeTotal()
-{
-    var chargeAjusteeTotal = rows.Where(r => !r.IsTotal).Sum(r => GetChargeTotaleAffichee(r) ?? 0);
-    if (chargeAjusteeTotal <= 0) return null;
-    var activeSlots = _slots.Where(s => s.IsCible).ToList();
-    var entrees = rows.Where(r => !r.IsTotal).Sum(r => activeSlots.Sum(s => GetEntreesCell(r, s.Id)));
-    return Math.Round(entrees, 2) / chargeAjusteeTotal * 100.0;
-}
-
-
-private double? GetTauxRotation(ConseillerSlot slot)
-{
-    var cible = Math.Round(GetEtpCibleSaisieTotal(slot.Id) ?? 0, 2);
-    if (cible <= 0) return null;
-
-    var gains = rows.Where(r => !r.IsTotal).Sum(r => GetEntreesCell(r, slot.Id));
-
-    return Math.Round(gains, 2) / cible * 100.0;
-}
-
-
-var rotAllCible = Math.Round(_slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2);
-var activeSlotsRot = _slots.Where(s => s.IsCible).ToList();
-var rotAllGains = rows.Where(r => !r.IsTotal).Sum(r => activeSlotsRot.Sum(s => GetEntreesCell(r, s.Id)));
-double? kpiRotTotal = rotAllCible > 0 ? Math.Round(rotAllGains, 2) / rotAllCible * 100.0 : null;
+            <span style="font-size:12px;font-weight:700;color:@rotColorCib">
+                @(rotRow.HasValue ? (rotRow.Value >= 0 ? "+" : "") + rotRow.Value.ToString("F0") + "%" : "—")
+            </span>
+        }
+        else
+        {
+            <span style="color:#BDBDBD;font-size:11px">—</span>
+        }
+    </td>
+    }
+</tr>
