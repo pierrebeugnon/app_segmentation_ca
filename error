@@ -1,1277 +1,426 @@
-@page "/portefeuille"
+@page "/dashboard"
 @inject SegmentationStateService StateService
-@inject IDialogService DialogService
-@inject ISnackbar Snackbar
-@inject RepartitionAutomatiqueService RepartitionService
-@inject EtpConversionService EtpService
+@inject DashboardService DashboardService
+@inject HttpClient Http
 @inject ReglesHypothesesService ReglesService
-@implements IDisposable
-@using Segmentation.Client.Components.Dialogs
+@inject DimensionnementPortefeuilleEtpService DimensionnementEtpService
 @using Segmentation.Client.Services
 @using Segmentation.Client.Models
-@using Segmentation.Client.Components.Dim
 @using Segmentation.Shared.Models
 @using Segmentation.Shared.Referentiels
 @using System.Net.Http.Json
-@inject HttpClient Http
-@inject DimensionnementPortefeuilleEtpService DimensionnementEtpService
+@using Segmentation.Client.Components.Dashboard
 
-<PageTitle>Dimensionnement Portefeuilles — CA Segmentation</PageTitle>
+<PageTitle>Pilotage — CA Segmentation</PageTitle>
 
-<div class="ca-page">
+<div class="dash-page">
 
     @if (_isLoading)
     {
-        <div style="position:fixed;top:0;left:0;width:100%;height:100%;
-                    background:rgba(255,255,255,0.7);z-index:9999;
-                    display:flex;align-items:center;justify-content:center;
-                    flex-direction:column;gap:16px">
+        <div class="dash-loader">
             <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-            <MudText Typo="Typo.body1" Style="color:#1A4E6B;font-weight:600">
-                Chargement en cours...
-            </MudText>
         </div>
     }
 
-    <!-- ══════════════════════════════════════════════════════════
-         En-tête + toggle ETP / Volume
-    ══════════════════════════════════════════════════════════ -->
-    <div class="ca-page-header">
-
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 1 — En-tête
+    ═══════════════════════════════════════════════════════ -->
+    <div class="dash-header">
         <div>
-            <MudText Typo="Typo.h5" Class="ca-page-title">Dimensionnement des Portefeuilles</MudText>
-            <MudText Typo="Typo.caption" Class="ca-page-subtitle">
-                @(vueEtp
-                                ? "Vue ETP — simulation des charges cibles par agence"
-                                : "Vue Nombre de clients — projection informative")
-            </MudText>
+            <div class="dash-title">Tableau de bord - dimensionnement des portefeuilles</div>
+            <div class="dash-subtitle">Vue d'ensemble du réseau CA Nord de France</div>
         </div>
-
-
-        <div style="display:flex;align-items:center;gap:10px">
-            @if (vueEtp)
-            {
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Primary"
-                           Size="Size.Small"
-                           StartIcon="@Icons.Material.Filled.Save"
-                           Disabled="@_isSaving"
-                           OnClick="EnregistrerDimensionnementEtp">
-                    @(_isSaving ? "Enregistrement..." : "Enregistrer")
-                </MudButton>
-            }
-
-            <button type="button" class="ca-help-btn" @onclick="ShowAide">
-                <MudIcon Icon="@Icons.Material.Outlined.HelpOutline" Style="font-size:15px" />
-                Aide
-            </button>
-
-            <div class="ca-view-toggle">
-                <button class="@(vueEtp ? "ca-view-toggle-btn active" : "ca-view-toggle-btn")"
-                        @onclick="@(() => vueEtp = true)">
-                    <MudIcon Icon="@Icons.Material.Filled.BarChart" Style="font-size:15px" />
-                    ETP
-                </button>
-                <button class="@(!vueEtp ? "ca-view-toggle-btn active" : "ca-view-toggle-btn")"
-                        @onclick="@(() => vueEtp = false)">
-                    <MudIcon Icon="@Icons.Material.Filled.People" Style="font-size:15px" />
-                    Nombre de clients
-                </button>
-            </div>
+        <div class="dash-header-meta">
+            <MudIcon Icon="@Icons.Material.Outlined.Schedule" Style="font-size:15px" />
+            Actualisé à l'instant
         </div>
     </div>
 
-    <!-- ── Filtres organisationnels ────────────────────────────────────── -->
-    <DimFiltresBar Region="@filtreRegion"
-                   RegionChanged="OnRegionChanged"
-                   Secteur="@filtreSecteur"
-                   SecteurChanged="OnSecteurChanged"
-                   Agence="@filtreAgence"
-                   AgenceChanged="OnAgenceChanged"
-                   Regions="@allRegions"
-                   Secteurs="@allSecteurs"
-                   Agences="@allAgences"
-                   IsLoading="@_isLoading"
-                   HasPendingFilterChanges="@HasPendingFilterChanges"
-                   ApplyFilters="ApplyFilters"
-                   ClearFilters="ClearFilters" />
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 1B — Filtres cascadés
+    ═══════════════════════════════════════════════════════ -->
+    <div class="dash-filters">
+        <div class="dash-filters-inner">
+            <span class="dash-filter-label">FILTRER PAR</span>
 
-    <MudAlert Severity="Severity.Info" Class="mt-2">
-        <div><strong>DEBUG :</strong></div>
-        <div>SegmentationDistributive : @_segmentationDistributive.Count</div>
-        <div>SegmentationDistributiveFiltree : @_segmentationDistributiveFiltree.Count</div>
-        <div>Slots : @_slots.Count</div>
-        <div>Segments : @segments.Count</div>
-        <div>Profils : @profils.Count</div>
-        <div>Filtre agence : @(filtreAgence ?? "aucun")</div>
-    </MudAlert>
-
-    @if (!segments.Any())
-    {
-        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mt-2">
-            Aucune donnée disponible.
-        </MudAlert>
-    }
-    else
-    {
-        @if (!_slots.Any())
-        {
-            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-2">
-                Aucun conseiller avec matricule renseigné pour cette agence. Vous pouvez ajouter des effectifs manuellement ci-dessous.
-            </MudAlert>
-        }
-        <DimTableauEffectifs Slots="_slots"
-                               Profils="ProfilsDisponibles"
-                               ReadOnly="@(!vueEtp)"
-                               OnAddSlot="AddSlot"
-                               OnRemoveCibleSlot="RemoveCibleForExistingSlot"
-                               OnRestoreCible="RestoreCible"
-                               OnRemoveNewSlot="RemoveNewSlot"
-                               OnEtpCibleChanged="StateHasChanged" />
-
-        <!-- ══════════════════════════════════════════════════════════
-             BLOC 1 — RÉPARTITION DES CHARGES — Existant (▲) + Cible (▼)
-             Colonnes = conseillers individuels (slots)
-        ══════════════════════════════════════════════════════════ -->
-        <MudPaper Elevation="2" Style="border-radius:8px;overflow:hidden">
-            <div class="ca-section-header" style="display:flex;align-items:center;gap:10px">
-                Répartition des charges par agence @(vueEtp ? "(en ETP)" : "(nombre de clients)") — Existant vs Cible
-                <MudTooltip Text="@(vueEtp
-                    ? "Chaque cellule affiche : ▲ la valeur existante (lecture seule) et ▼ la cible à saisir. Les colonnes grisées correspondent aux conseillers supprimés du scénario cible."
-                    : "Vue de consultation uniquement. Les valeurs sont affichées en nombre de clients.")">
-                    <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small"
-                             Style="color:rgba(255,255,255,0.65)" />
-                </MudTooltip>
-                @if (vueEtp)
+            <MudSelect T="string" Label="Région" Dense="true" Margin="Margin.Dense"
+                       Variant="Variant.Outlined" Style="min-width:180px"
+                       Value="@filtreRegion" ValueChanged="OnRegionChanged"
+                       Clearable="true">
+                @foreach (var r in allRegions)
                 {
-                    <div style="margin-left:auto">
-                        <MudTooltip Text="Distribue automatiquement la charge ETP existante par segment vers les conseillers prioritaires. Remplace toutes les valeurs cibles existantes.">
-                            <MudButton Variant="Variant.Outlined" Size="Size.Small"
-                                       StartIcon="@Icons.Material.Filled.AutoFixHigh"
-                                       Style="color:rgba(255,255,255,0.92);border-color:rgba(255,255,255,0.5);font-size:11px;height:28px;text-transform:none"
-                                       OnClick="AutoDistribuerCible">
-                                Proposition de répartition de la charge ETP en cible
-                            </MudButton>
-                        </MudTooltip>
+                    <MudSelectItem Value="@r">@r</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSelect T="string" Label="Secteur" Dense="true" Margin="Margin.Dense"
+                       Variant="Variant.Outlined" Style="min-width:200px"
+                       Value="@filtreSecteur" ValueChanged="OnSecteurChanged"
+                       Clearable="true">
+                @foreach (var s in allSecteurs)
+                {
+                    <MudSelectItem Value="@s">@s</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSelect T="string" Label="Agence" Dense="true" Margin="Margin.Dense"
+                       Variant="Variant.Outlined" Style="min-width:220px"
+                       Value="@filtreAgence" ValueChanged="OnAgenceChanged"
+                       Clearable="true">
+                @foreach (var a in allAgences)
+                {
+                    <MudSelectItem Value="@a">@a</MudSelectItem>
+                }
+            </MudSelect>
+
+            <button type="button" class="ca-btn-primary"
+                    disabled="@(!HasPendingFilterChanges || _isLoading)"
+                    @onclick="ApplyFilters">
+                <MudIcon Icon="@Icons.Material.Filled.Check" Style="font-size:14px" />
+                Valider
+            </button>
+
+            @if (!string.IsNullOrEmpty(filtreRegion) || !string.IsNullOrEmpty(filtreSecteur) || !string.IsNullOrEmpty(filtreAgence))
+            {
+                <button type="button" class="ca-btn-ghost" @onclick="ClearFilters">
+                    Effacer
+                </button>
+            }
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 2 — 6 KPI HÉROS
+    ═══════════════════════════════════════════════════════ -->
+    <div class="dash-kpi-grid">
+
+        <!-- KPI 1 — Nombre de Clients Commerciaux -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-icon dash-kpi-icon-neutral">
+                <MudIcon Icon="@Icons.Material.Filled.Groups" Style="font-size:17px" />
+            </div>
+            <div class="dash-kpi-label">Nombre de total de clients</div>
+            <div class="dash-kpi-value dash-kpi-neutral">
+                @_kpis.ClientsCommerciaux.ToString("N0")
+            </div>
+        </div>
+
+        <!-- KPI 2 — Nombre de conseillers (2 colonnes verticales) -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-icon dash-kpi-icon-neutral">
+                <MudIcon Icon="@Icons.Material.Filled.Badge" Style="font-size:17px" />
+            </div>
+            <div class="dash-kpi-label">Nombre de conseillers</div>
+
+            @{
+                var deltaConseillers = _kpis.ConseillersExistants - _kpis.ConseillersCibles;
+                var ratioConseillers = _kpis.ConseillersCibles > 0
+                    ? (double)_kpis.ConseillersExistants / _kpis.ConseillersCibles * 100
+                    : 0;
+            }
+
+            <div class="dash-kpi-cols">
+                <div class="dash-kpi-col dash-kpi-line-existant">
+                    <div class="dash-kpi-col-value">@_kpis.ConseillersExistants</div>
+                    <div class="dash-kpi-col-label">Existant</div>
+                </div>
+                <div class="dash-kpi-col dash-kpi-line-cible">
+                    <div class="dash-kpi-col-value">@_kpis.ConseillersCibles</div>
+                    <div class="dash-kpi-col-label">Cible</div>
+                </div>
+            </div>
+
+            <div class="dash-kpi-delta @(deltaConseillers >= 0 ? "dash-delta-good" : "dash-delta-critical")">
+                @(deltaConseillers >= 0 ? "+" : "")@deltaConseillers vs cible (@ratioConseillers.ToString("F0")%)
+            </div>
+        </div>
+
+        <!-- KPI 3 — Taux de couverture -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-icon @GetKpiIconClass(_kpis.TauxCouverture, 100, 90)">
+                <MudIcon Icon="@Icons.Material.Filled.DonutLarge" Style="font-size:17px" />
+            </div>
+            <div class="dash-kpi-label">Taux de remplissage des portefeuilles</div>
+            <div class="dash-kpi-cols">
+                <div class="dash-kpi-col dash-kpi-line-existant">
+                    <div class="dash-kpi-col-value">@_kpis.TauxCouvertureExistant.ToString("F0")%</div>
+                    <div class="dash-kpi-col-label">Existant</div>
+                </div>
+                <div class="dash-kpi-col dash-kpi-line-cible">
+                    <div class="dash-kpi-col-value">@_kpis.TauxCouverture.ToString("F0")%</div>
+                    <div class="dash-kpi-col-label">Cible</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI 4 — Ecart effectif cible vs charge ETP -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-icon @(_kpis.EcartEffectifChargeEtp >= 0 ? "dash-kpi-icon-good" : "dash-kpi-icon-critical")">
+                <MudIcon Icon="@Icons.Material.Filled.Balance" Style="font-size:17px" />
+            </div>
+            <div class="dash-kpi-label">Ecart effectif cible vs charge totale (ETP)</div>
+            <div class="dash-kpi-value @(_kpis.EcartEffectifChargeEtp >= 0 ? "dash-kpi-good" : "dash-kpi-critical")">
+                @(_kpis.EcartEffectifChargeEtp >= 0 ? "+" : "")@_kpis.EcartEffectifChargeEtp.ToString("F1")
+            </div>
+        </div>
+
+        <!-- KPI 5 — Concordance moyenne -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-icon @GetKpiIconClass(_kpis.Concordance, 80, 60)">
+                <MudIcon Icon="@Icons.Material.Filled.Verified" Style="font-size:17px" />
+            </div>
+            <div class="dash-kpi-label">Taux de concordance</div>
+            <div class="dash-kpi-cols">
+                <div class="dash-kpi-col dash-kpi-line-existant">
+                    <div class="dash-kpi-col-value">@_kpis.ConcordanceExistant.ToString("F0")%</div>
+                    <div class="dash-kpi-col-label">Existant</div>
+                </div>
+                <div class="dash-kpi-col dash-kpi-line-cible">
+                    <div class="dash-kpi-col-value">@_kpis.Concordance.ToString("F0")%</div>
+                    <div class="dash-kpi-col-label">Cible</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI 6 — Taux de rotation des clients (entrées uniquement) -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-icon @GetKpiIconClassRotation(_kpis.TauxRotationEntrees)">
+                <MudIcon Icon="@Icons.Material.Filled.Autorenew" Style="font-size:17px" />
+            </div>
+            <div class="dash-kpi-label">Taux de rotation des clients</div>
+            <div class="dash-kpi-value @GetKpiClassRotation(_kpis.TauxRotationEntrees)">
+                @_kpis.TauxRotationEntrees.ToString("F0")<span class="dash-kpi-unit">%</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 3 — Grille 2 colonnes
+    ═══════════════════════════════════════════════════════ -->
+    <div class="dash-bottom-grid">
+
+        <div class="dash-bottom-left">
+            <DashboardRepartitionSegment
+                Repartition="@_repartition" />
+
+            <DashboardDistributionGeographique
+                Distribution="@_distributionGeo"
+                Colonnes="@_regionsGeo"
+                Dimension="@_dimensionAffichage"
+                DimensionChanged="OnDimensionChanged" />
+        </div>
+
+        <DashboardRepartitionConseillers
+            Repartition="@_repartitionConseillers" />
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 3B — SUIVI DES TRANSFERTS EN ATTENTE
+    ═══════════════════════════════════════════════════════ -->
+    <DashboardTableauTransferts Charges="@_charges"
+                                FiltreRegion="@filtreRegionApplique"
+                                FiltreSecteur="@filtreSecteurApplique"
+                                FiltreAgence="@filtreAgenceApplique" />
+
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 4 — VUE DÉTAILLÉE PAR AGENCE
+    ═══════════════════════════════════════════════════════ -->
+    <div class="dash-heatmap">
+
+        <div class="dash-section-title dash-heatmap-title">
+            <span>Vue détaillée par agence</span>
+            <div class="dash-hm-toolbar">
+                <span class="dash-section-hint">@_heatmap.Count @GetHeatmapUnit()</span>
+                <div class="dash-hm-search-wrap">
+                    <MudIcon Icon="@Icons.Material.Outlined.Search" Style="font-size:15px;color:#B0BAC5" />
+                    <input class="dash-hm-search" type="text" placeholder="Rechercher une agence…"
+                           @bind="_heatmapSearch" @bind:event="oninput" />
+                </div>
+            </div>
+        </div>
+
+        @{
+            var displayedHeatmap = SortedHeatmap.ToList();
+        }
+
+        @if (!_heatmap.Any())
+        {
+            <div class="dash-placeholder">Aucune donnée à afficher</div>
+        }
+        else if (!displayedHeatmap.Any())
+        {
+            <div class="dash-placeholder">Aucune agence ne correspond à "@_heatmapSearch"</div>
+        }
+        else
+        {
+            var maxClients = displayedHeatmap.Max(x => x.ClientsGeres);
+
+            <div class="dash-hm-scroll">
+                <!-- En-tête de colonnes (triable) -->
+                <div class="dash-hm-header">
+                    <div class="dash-hm-sortable" @onclick='() => SetSort("Nom")'>Agence @SortIcon("Nom")</div>
+                    <div class="dash-hm-sortable" @onclick='() => SetSort("ClientsGeres")'>Nombre de clients @SortIcon("ClientsGeres")</div>
+                    <div class="dash-hm-col-consei dash-hm-sortable" @onclick='() => SetSort("ConseillersActifs")'>Cons. existants @SortIcon("ConseillersActifs")</div>
+                    <div class="dash-hm-col-consei dash-hm-sortable" @onclick='() => SetSort("ConseillersCibles")'>Cons. cibles @SortIcon("ConseillersCibles")</div>
+                    <div class="dash-hm-col-etp dash-hm-sortable" @onclick='() => SetSort("EtpNecessaires")'>Charge ETP totale cible @SortIcon("EtpNecessaires")</div>
+                    <div class="dash-hm-col-couv dash-hm-sortable" @onclick='() => SetSort("TauxCouverture")'>Taux de remplissage @SortIcon("TauxCouverture")</div>
+                    <div class="dash-hm-col-conc dash-hm-sortable" @onclick='() => SetSort("Concordance")'>Taux de concordance @SortIcon("Concordance")</div>
+                    <div class="dash-hm-col-rot dash-hm-sortable" @onclick='() => SetSort("TauxRotation")'>Taux de rotation @SortIcon("TauxRotation")</div>
+                    <div class="dash-hm-col-transfert dash-hm-sortable" @onclick='() => SetSort("ChargeTransfereeBP")'>Charge transférée à la BP @SortIcon("ChargeTransfereeBP")</div>
+                    <div class="dash-hm-col-transfert dash-hm-sortable" @onclick='() => SetSort("ChargeTransfereeAgence")'>Charge transférée en agence @SortIcon("ChargeTransfereeAgence")</div>
+                    <div class="dash-hm-col-transfert dash-hm-sortable" @onclick='() => SetSort("ChargeTransfereeMutualise")'>Charge transférée en portefeuille mutualisé @SortIcon("ChargeTransfereeMutualise")</div>
+                </div>
+
+                <!-- Lignes agences -->
+                @foreach (var row in displayedHeatmap)
+                {
+                    var barWidth = maxClients > 0 ? row.ClientsGeres * 100.0 / maxClients : 0;
+                    var statusColor = GetStatusColor(row);
+
+                    <div class="dash-hm-row">
+                        <div class="dash-hm-col-nom">
+                            <span class="dash-hm-status-dot" style="background:@statusColor"></span>
+                            <span class="dash-hm-nom">@row.Nom</span>
+                        </div>
+
+                        <div class="dash-hm-col-volume">
+                            <div class="dash-hm-barwrap">
+                                <div class="dash-hm-bar" style="width:@(barWidth.ToString("F0"))%"></div>
+                            </div>
+                            <span class="dash-hm-barval">@row.ClientsGeres.ToString("N0")</span>
+                        </div>
+
+                        <div class="dash-hm-col-consei dash-hm-existant">@row.ConseillersActifs</div>
+                        <div class="dash-hm-col-consei dash-hm-cible">@row.ConseillersCibles</div>
+
+                        <div class="dash-hm-col-etp">@row.EtpNecessaires.ToString("F0")</div>
+
+                        <div class="dash-hm-col-couv">
+                            <span class="dash-hm-pill @GetPillClass(row.TauxCouverture, 100, 90)">
+                                @row.TauxCouverture.ToString("F0")%
+                            </span>
+                        </div>
+
+                        <div class="dash-hm-col-conc">
+                            <span class="dash-hm-pill @GetPillClass(row.Concordance, 80, 60)">
+                                @row.Concordance.ToString("F0")%
+                            </span>
+                        </div>
+
+                        <div class="dash-hm-col-rot">
+                            <span class="dash-hm-pill @GetPillClassRotation(row.TauxRotation)">
+                                @row.TauxRotation.ToString("F0")%
+                            </span>
+                        </div>
+
+                        <div class="dash-hm-col-transfert">@(row.ChargeTransfereeBP > 0 ? row.ChargeTransfereeBP.ToString("F2") : "—")</div>
+                        <div class="dash-hm-col-transfert">@(row.ChargeTransfereeAgence > 0 ? row.ChargeTransfereeAgence.ToString("F2") : "—")</div>
+                        <div class="dash-hm-col-transfert">@(row.ChargeTransfereeMutualise > 0 ? row.ChargeTransfereeMutualise.ToString("F2") : "—")</div>
                     </div>
                 }
             </div>
 
-            <div class="ca-dim-scroll-wrapper">
-                <table class="ca-dim-table">
-                    <colgroup>
-                        <col style="min-width:160px;width:160px" />
-                        @foreach (var profil in profils)
-                        {
-                            if (_collapsedProfils.Contains(profil))
-                            {
-                                <col style="min-width:90px;width:90px" />
-                            }
-                            else
-                            {
-                                foreach (var _ in SlotsForProfil(profil))
-                                {
-                                    <col style="min-width:90px;width:90px" />
-                                }
-                            }
-                        }
-                        <col style="min-width:68px;width:68px" />
-                        <col style="min-width:100px;width:100px" />
-                        @if (vueEtp && _showChargesManuelles)
-                        {
-                            <col style="min-width:110px;width:110px" />
-                            <col style="min-width:110px;width:110px" />
-                            <col style="min-width:110px;width:110px" />
-                        }
-                        @if (vueEtp)
-                        {
-                            <col style="min-width:82px;width:82px" />
-                            <col style="min-width:82px;width:82px" />
-                        }
-                    </colgroup>
-                    <thead>
-                        <!-- ── Ligne 1 : super-en-tête par métier + toggle Charge ETP ── -->
-                        <tr>
-                            <th class="ca-dim-sticky-col"
-                                style="z-index:200;min-width:160px;text-align:left;padding:5px 12px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);letter-spacing:.5px;text-transform:uppercase;background:#0A1F30">
-                                Segments distributifs
-                            </th>
-                            @foreach (var profil in profils)
-                            {
-                                var p = profil;
-                                var isCollapsed = _collapsedProfils.Contains(profil);
-                                var slotsGroup = SlotsForProfil(profil).ToList();
-                                var span = isCollapsed ? 1 : Math.Max(slotsGroup.Count, 1);
-                                <th colspan="@span"
-                                    style="text-align:center;padding:5px 6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.90);
-                                           border-left:2px solid rgba(255,255,255,0.15);letter-spacing:.3px;text-transform:uppercase">
-                                    <div style="display:flex;align-items:center;justify-content:center;gap:6px">
-                                        <span>@profil</span>
-                                        <button class="ca-profil-toggle"
-                                                @onclick="@(() => ToggleProfil(p))">
-                                            <MudIcon Icon="@(isCollapsed? Icons.Material.Filled.Add : Icons.Material.Filled.Remove)"
-                                                     Style="font-size:13px;color:white;display:block" />
-                                        </button>
-                                    </div>
-                                    @if (isCollapsed)
-                                    {
-                                        <div style="font-size:8px;font-weight:400;opacity:0.60;margin-top:2px">@slotsGroup.Count conseiller(s)</div>
-                                    }
-                                </th>
-                            }
+            <!-- Ligne TOTAL (toujours visible, hors zone de scroll) -->
+            var totalClientsAg = displayedHeatmap.Sum(r => r.ClientsGeres);
+            var totalExistAg = displayedHeatmap.Sum(r => r.ConseillersActifs);
+            var totalCibleAg = displayedHeatmap.Sum(r => r.ConseillersCibles);
+            var totalEtpAg = displayedHeatmap.Sum(r => r.EtpNecessaires);
+            var avgCouv = displayedHeatmap.Any() ? displayedHeatmap.Average(r => r.TauxCouverture) : 0;
+            var avgConc = displayedHeatmap.Any() ? displayedHeatmap.Average(r => r.Concordance) : 0;
+            var avgRot = displayedHeatmap.Any() ? displayedHeatmap.Average(r => r.TauxRotation) : 0;
+            var totalChargeBP = displayedHeatmap.Sum(r => r.ChargeTransfereeBP);
+            var totalChargeAgence = displayedHeatmap.Sum(r => r.ChargeTransfereeAgence);
+            var totalChargeMutualise = displayedHeatmap.Sum(r => r.ChargeTransfereeMutualise);
 
-                            <!-- Colonne Aide (vide dans la ligne 1) -->
-                            <th style="text-align:center;padding:4px 6px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);
-                                   border-left:2px solid rgba(255,255,255,0.15)">
-                            </th>
+            <div class="dash-hm-row dash-hm-total-row">
+                <div class="dash-hm-col-nom">
+                    <span class="dash-hm-total-label">TOTAL</span>
+                </div>
 
-                            <!-- Groupe "Charge ETP" + toggle +/− (aligné sur le pattern des métiers) -->
-                            <th colspan="@(vueEtp && _showChargesManuelles ? 4 : 1)"
-                                style="text-align:center;padding:5px 6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.90);
-                                       border-left:2px solid rgba(255,255,255,0.15);letter-spacing:.3px;text-transform:uppercase">
-                                <div style="display:flex;align-items:center;justify-content:center;gap:6px">
-                                    <span>Charge @(vueEtp ? "ETP" : "clients") par segment</span>
-                                    @if (vueEtp)
-                                    {
-                                        <button class="ca-profil-toggle"
-                                                title="@(_showChargesManuelles ? "Masquer les saisies manuelles" : "Afficher les saisies manuelles")"
-                                                @onclick="@(() => _showChargesManuelles = !_showChargesManuelles)">
-                                            <MudIcon Icon="@(_showChargesManuelles? Icons.Material.Filled.Remove : Icons.Material.Filled.Add)"
-                                                     Style="font-size:13px;color:white;display:block" />
-                                        </button>
-                                    }
-                                </div>
-                                @if (vueEtp && _showChargesManuelles)
-                                {
-                                    <div style="font-size:8px;font-weight:400;opacity:0.60;margin-top:2px">4 colonnes</div>
-                                }
-                            </th>
+                <div class="dash-hm-col-volume">
+                    <span class="dash-hm-barval dash-hm-total-val">@totalClientsAg.ToString("N0")</span>
+                </div>
 
-                            <!-- Colonnes Concordance + Rotation -->
-                            @if (vueEtp)
-                            {
-                                <th colspan="2"
-                                    style="text-align:center;padding:5px 6px;font-size:10px;font-weight:700;color:white;letter-spacing:.3px;text-transform:uppercase;
-                                                   border-left:2px solid rgba(255,255,255,0.15)">
-                                    KPI clé par segment
-                                </th>
-                            }
-                        </tr>
+                <div class="dash-hm-col-consei dash-hm-existant">@totalExistAg</div>
+                <div class="dash-hm-col-consei dash-hm-cible">@totalCibleAg</div>
 
-                        <!-- ── Ligne 2 : colonnes individuelles + colonnes KPI ── -->
-                        <tr class="ca-dim-superheader">
-                            <th class="ca-dim-sticky-col" style="z-index:200;min-width:160px;text-align:left;padding-left:12px;font-size:11px">
-                                <button type="button" class="ca-help-btn" @onclick="ShowAideRepartition" style="padding:4px 10px;font-size:10px">
-                                    <MudIcon Icon="@Icons.Material.Outlined.HelpOutline" Style="font-size:13px" />
-                                    Aide
-                                </button>
-                            </th>
-                            @foreach (var profil in profils)
-                            {
-                                if (_collapsedProfils.Contains(profil))
-                                {
-                                    <th class="ca-dim-th-profil" style="background:#1C3654;font-style:italic;opacity:0.85">
-                                        <div style="font-size:10px;font-weight:600">Σ @profil</div>
-                                        <div style="font-size:8px;font-weight:400;opacity:0.7">agrégé</div>
-                                    </th>
-                                }
-                                else
-                                {
-                                    foreach (var slot in SlotsForProfilDisplay(profil))
-                                    {
-                                        var isGrey = !slot.IsCible;
-                                        var isNew = !slot.IsActuel && slot.IsCible;
-                                        <th class="ca-dim-th-profil"
-                                            style="@(isGrey ? "background:#D8DEE8;color:#8A9BB0;text-decoration:line-through;opacity:0.65" :
-                                                                                         isNew ? "background:#2E8B57;color:white" : "")">
-                                            <div style="font-size:11px;font-weight:700">@slot.Profil</div>                                            <div style="font-size:9px;font-weight:400;opacity:0.75">
-                                                @slot.Label
-                                            </div>
-                                        </th>
-                                    }
-                                }
-                            }
-                            <th class="ca-dim-th-profil" style="background:#5C7184;color:white">Aide à la répartition des charges cibles par segment</th>
-                            <th class="ca-dim-th-profil" style="background:#2D6E86;color:white">
-                                @(vueEtp ? "Charge ETP par segment" : "Nombre de clients par segment")
-                            </th>
-                            @if (vueEtp && _showChargesManuelles)
-                            {
-                                <th class="ca-dim-th-profil" style="background:#2D6E86;color:white">
-                                    Charge à transférer de l'agence vers la Banque Privée
-                                </th>
-                                <th class="ca-dim-th-profil" style="background:#2D6E86;color:white">
-                                    Charge a transférer de la Banque Privée vers l'agence
-                                </th>
-                                <th class="ca-dim-th-profil" style="background:#2D6E86;color:white">
-                                    Charge à transférer vers le portefeuille mutualisé
-                                </th>
-                            }
-                            @if (vueEtp)
-                            {
-                                <th class="ca-dim-th-profil" style="background:#4A8FA6;color:white">Taux de concordance par segment ("pureté" des portefeuilles)</th>
-                                <th class="ca-dim-th-profil" style="background:#4A8FA6;color:white">Taux de rotation des clients par segment</th>
-                            }
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var row in filteredRows)
-                        {
-                            var coverageDiff = vueEtp ? GetCoverageDiff(row) : GetDisplayCoverageDiff(row);
-                            var concordance = GetConcordance(row);
-                            var concordanceExistant = GetConcordanceExistant(row);
-                            var rowCible = GetRowCibleTotal(row);
-                            var rowExist = GetRowExistantTotal(row);
+                <div class="dash-hm-col-etp">@totalEtpAg.ToString("F0")</div>
 
-                            <tr class="@(row.IsTotal ? "ca-dim-tr-total" : "ca-dim-tr-data")" style="@(_estPortefeuilleMutualise && !row.IsTotal && !IsGpStandard(row.Segment) ? "opacity:0.35;background:#F5F5F5" : "")">
+                <div class="dash-hm-col-couv">
+                    <span class="dash-hm-pill @GetPillClass(avgCouv, 100, 90)">
+                        @avgCouv.ToString("F0")%
+                    </span>
+                </div>
 
-                                <!-- Segment label -->
-                                <td class="ca-dim-td-segment ca-dim-sticky-col">
-                                    @(row.IsTotal
-                                                                ? (vueEtp ? "Charge totale ETP par portefeuille" : "Nombre de clients total par portefeuille")
-                                                                : row.Segment)
-                                </td>
+                <div class="dash-hm-col-conc">
+                    <span class="dash-hm-pill @GetPillClass(avgConc, 80, 60)">
+                        @avgConc.ToString("F0")%
+                    </span>
+                </div>
 
-                                <!-- Cellules par métier -->
-                                @foreach (var profil in profils)
-                                {
-                                    if (_collapsedProfils.Contains(profil))
-                                    {
-                                        var aggExist = GetAggregateExistantForProfil(row, profil);
-                                        var aggCib = GetAggregateCibleForProfil(row, profil);
-                                        var aggTotal = GetEtpCibleSaisieTotalForProfil(profil);
-                                        <td style="text-align:center;padding:6px 4px;background:#EDF4F6">
-                                            @if (row.IsTotal)
-                                            {
-                                                <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
-                                                    <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                        @FormatTotal(GetDisplayProfilTotal(profil, true))
-                                                    </span>
-                                                    <div style="border-top:1.5px solid #C5CAD0;width:55%;margin:1px 0"></div>
-                                                    <span style="font-size:10px;font-weight:600;font-style:italic;color:#E65100">
-                                                        @FormatTotal(GetDisplayProfilTotal(profil, false))
-                                                    </span>
-                                                </div>
-                                            }
-                                            else
-                                            {
-                                                <div class="ca-dim-cell-inner">
-                                                    <div class="ca-dim-cell-top">
-                                                        <span style="font-size:11px;font-weight:600;color:#1A4E6B">
-                                                            @FormatDisplay(aggCib, row.Segment)
-                                                        </span>
-                                                    </div>
-                                                    <div class="ca-dim-cell-bottom">
-                                                        <span style="color:#E65100;font-size:10px;font-weight:600;font-style:italic">
-                                                            @FormatDisplay(aggExist, row.Segment)
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            }
-                                        </td>
-                                    }
-                                    else
-                                    {
-                                        foreach (var slot in SlotsForProfilDisplay(profil))
-                                        {
-                                            var s = slot;
-                                            var lvl = GetAssignmentLevel(row.Segment, s.Profil);
-                                            var etp = row.EtpParProfil.GetValueOrDefault(s.Id);
-                                            var cib = row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id);
-                                            var cibNonPrio = !row.IsTotal && lvl == 0 && s.IsCible && cib.HasValue && cib.Value > 0;
+                <div class="dash-hm-col-rot">
+                    <span class="dash-hm-pill @GetPillClassRotation(avgRot)">
+                        @avgRot.ToString("F0")%
+                    </span>
+                </div>
 
-                                            <td class="ca-dim-td-merged" style="@GetMergedCellStyle(lvl, row.IsTotal, !s.IsCible);text-align:center;padding:2px">
-                                                @if (row.IsTotal)
-                                                {
-                                                    var totCib = GetDisplayTotalForSlot(s.Id, true);
-                                                    var totExist = GetDisplayTotalForSlot(s.Id, false);
-                                                    <div style="display:flex;flex-direction:column;align-items:center;padding:4px 2px">
-                                                        <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                            @FormatTotal(totCib)
-                                                        </span>
-                                                        <div style="border-top:1.5px solid #C5CAD0;width:60%;margin:2px 0"></div>
-                                                        <span style="font-size:10px;font-weight:600;font-style:italic;color:#E65100">
-                                                            @FormatTotal(totExist)
-                                                        </span>
-                                                    </div>
-                                                }
-                                                else if (vueEtp)
-                                                {
-                                                    <div class="ca-dim-cell-inner">
-                                                        <div class="ca-dim-cell-top">
-                                                            @if (s.IsCible)
-                                                            {
-                                                                <MudNumericField T="double?"
-                                                                                 Value="@cib"
-                                                                                 ValueChanged="@(v => SetEtpCible(row, s.Id, v))"
-                                                                                 Format="F2" Step="0.25" Min="0"
-                                                                                 HideSpinButtons="true"
-                                                                                 Variant="Variant.Text"
-                                                                                 Margin="Margin.Dense"
-                                                                                 Class="@($"ca-dim-etp-input{(cibNonPrio ? " ca-etp-nonprio" : "")}")"
-                                                                                 InputStyle="@($"text-align:center;font-size:11px;font-weight:700;padding:2px 4px;{(lvl > 0 ? "color:white" : "")}")" />
-                                                            }
-                                                            else
-                                                            {
-                                                                <span style="font-size:11px;color:#9AA5B1">—</span>
-                                                            }
-                                                        </div>
-                                                        <div class="ca-dim-cell-bottom">
-                                                            <span style="color:#E65100;font-size:10px;font-weight:600;font-style:italic">
-                                                                @FormatDisplay(etp, row.Segment)
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                }
-                                                else
-                                                {
-                                                    <div class="ca-dim-cell-inner">
-                                                        <div class="ca-dim-cell-top">
-                                                            <span style="font-size:11px;font-weight:600;@(lvl > 0 ? "color:white" : "color:#1A4E6B")">
-                                                                @(s.IsCible? FormatDisplay(cib, row.Segment) : "—")
-                                                            </span>
-                                                        </div>
-                                                        <div class="ca-dim-cell-bottom">
-                                                            <span style="color:#E65100;font-size:10px;font-weight:600;font-style:italic">
-                                                                @(GetRealClientCountForSlot(row.Segment, s) is { } realCount ? realCount.ToString("F0") : "—")
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                }
-                                            </td>
-                                        }
-                                    }
-                                }
-
-                                <!-- ── Colonne Aide à la répartition ── -->
-                                <td style="text-align:center;padding:4px 3px;background:#F4F5F6">
-                                    @if (!row.IsTotal)
-                                    {
-                                        @if (!coverageDiff.HasValue)
-                                        {
-                                            <span style="color:#BDBDBD;font-size:11px">—</span>
-                                        }
-                                        else
-                                        {
-                                            var diff = coverageDiff.Value;
-                                            var absDiff = Math.Abs(diff);
-                                            var unit = vueEtp ? "ETP" : "clients";
-                                            var (diffFg, diffBg, diffTooltip, diffIcon) = diff switch
-                                            {
-                                                _ when absDiff < 0.01 =>
-                                                ("#2E7D32", "#E8F5E9", "Couverture complète", Icons.Material.Filled.CheckCircle),
-                                                _ when diff < 0 =>
-                                                ("#C62828", "#FFEBEE", $"Sous-couverture : {Math.Abs(diff):F0} {unit} manquant", Icons.Material.Filled.ArrowDropDown),
-                                                _ =>
-                                                ("#E65100", "#FFF3E0", $"Sur-répartition : +{diff:F0} {unit} au-delà de la charge", Icons.Material.Filled.ArrowDropUp)
-                                            };
-                                            <MudTooltip Text="@diffTooltip">
-                                                <div style="display:flex;flex-direction:column;align-items:center;gap:0;
-                                                                background:@diffBg;border-radius:5px;padding:2px 4px;min-width:48px">
-                                                    <MudIcon Icon="@diffIcon" Style="@($"font-size:14px;color:{diffFg};line-height:1")" />
-                                                    <span style="font-size:10px;font-weight:700;color:@diffFg;line-height:1.2">
-                                                        @(absDiff < 0.01 ? "OK" : (diff > 0 ? "+" : "") + diff.ToString(vueEtp ? "F2" : "F0"))
-                                                    </span>
-                                                </div>
-                                            </MudTooltip>
-                                        }
-                                    }
-                                </td>
-
-                                <!-- ── Colonne 1 : Charge Totale ETP par segment (ajustée) ── -->
-                                <td style="text-align:center;padding:6px 4px;background:#EDF4F6">
-                                    @if (row.IsTotal)
-                                    {
-                                        <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
-                                            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                @FormatTotal(GetChargeAjusteeTotal())
-                                            </span>
-                                            <div style="border-top:1.5px solid #C5CAD0;width:55%;margin:1px 0"></div>
-                                            <span style="font-size:10px;font-weight:600;font-style:italic;color:#E65100">
-                                                @FormatTotal(GetDisplayRowTotal(row, false))
-                                            </span>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        @if (!vueEtp && !HasTransfertsForSegment(row.Segment))
-                                        {
-                                            // Sans transfert actif, on affiche la somme des comptages
-                                            // réels par conseiller (déjà arrondis individuellement),
-                                            // pour que ce total corresponde exactement à la somme
-                                            // visible dans les colonnes ci-dessus — plutôt qu'un
-                                            // arrondi indépendant de la charge agrégée, qui peut
-                                            // différer de ±1 client (arrondi de somme ≠ somme d'arrondis).
-                                            var sommeReelle = GetRealClientCountRowSum(row.Segment);
-                                            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                @(sommeReelle.HasValue ? sommeReelle.Value.ToString("F0") : "—")
-                                            </span>
-                                        }
-                                        else
-                                        {
-                                            var chargeAffichee = GetChargeTotaleAffichee(row);
-                                            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                @FormatDisplay(chargeAffichee, row.Segment)
-                                            </span>
-                                        }
-                                    }
-                                </td>
-
-                                <!-- ── Colonne 2 : Charge à transférer à la BP (HDG Premium uniquement) ── -->
-                                @if (vueEtp && _showChargesManuelles)
-                                {
-                                    var bgTransBp = row.IsTotal || IsHdgPremium(row.Segment) ? "#EDF4F6" : "#E4E9ED";
-                                    <td style="text-align:center;padding:4px 3px;background:@bgTransBp">
-                                        @if (!row.IsTotal)
-                                        {
-                                            if (_estPortefeuilleMutualise)
-                                            {
-                                                <span style="color:#BDBDBD;font-size:11px" title="Colonne verrouillée en vue Portefeuille Mutualisé">🔒</span>
-                                            }
-                                            else if (IsHdgPremium(row.Segment))
-                                            {
-                                                var segT = row.Segment;
-                                                var valTransBP = _chargeATransfererBP.GetValueOrDefault(segT);
-                                                var maxTransBP = _estSecteurBanquePrivee ? double.MaxValue : GetChargeExistanteMax(row);
-                                                <MudNumericField T="double?"
-                                                                 Value="@valTransBP"
-                                                                 ValueChanged="@(v => { _chargeATransfererBP[segT] = v.HasValue ? Math.Clamp(v.Value, 0, maxTransBP) : v; StateHasChanged(); })"
-                                                                 Format="F2" Step="0.25" Min="0" Max="@maxTransBP"
-                                                                 HideSpinButtons="true"
-                                                                 Variant="Variant.Text"
-                                                                 Margin="Margin.Dense"
-                                                                 Class="ca-dim-etp-input"
-                                                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#1A4E6B" />
-                                            }
-                                            else
-                                            {
-                                                <span style="color:#757575;font-size:11px">—</span>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            var totalTransBP = GetTotalATransfererBP();
-                                            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                @(totalTransBP > 0 ? totalTransBP.ToString("F2") : "—")
-                                            </span>
-                                        }
-                                    </td>
-                                }
-
-                                <!-- ── Colonne 3 : Charge reçue de la BP (tout sauf HDG Premium) ── -->
-                                @if (vueEtp && _showChargesManuelles)
-                                {
-                                    var bgRecueBp = row.IsTotal || (!IsHdgPremium(row.Segment) && IsSegmentActionnable(row.Segment)) ? "#EDF4F6" : "#E4E9ED";
-                                    <td style="text-align:center;padding:4px 3px;background:@bgRecueBp">
-                                        @if (!row.IsTotal)
-                                        {
-                                            if (_estPortefeuilleMutualise)
-                                            {
-                                                <span style="color:#BDBDBD;font-size:11px" title="Colonne verrouillée en vue Portefeuille Mutualisé">🔒</span>
-                                            }
-                                            else if (!IsHdgPremium(row.Segment) && IsSegmentActionnable(row.Segment))
-                                            {
-                                                var segR = row.Segment;
-                                                var valRecueBP = _chargeRecueBP.GetValueOrDefault(segR);
-                                                var maxRecueBP = _estSecteurBanquePrivee ? GetChargeExistanteMax(row) : double.MaxValue;
-                                                <MudNumericField T="double?"
-                                                                 Value="@valRecueBP"
-                                                                 ValueChanged="@(v => { _chargeRecueBP[segR] = v.HasValue ? Math.Clamp(v.Value, 0, maxRecueBP) : v; StateHasChanged(); })"
-                                                                 Format="F2" Step="0.25" Min="0" Max="@maxRecueBP"
-                                                                 HideSpinButtons="true"
-                                                                 Variant="Variant.Text"
-                                                                 Margin="Margin.Dense"
-                                                                 Class="ca-dim-etp-input"
-                                                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#1A4E6B" />
-                                            }
-                                            else
-                                            {
-                                                <span style="color:#757575;font-size:11px">—</span>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            var totalRecueBP = GetTotalRecueBP();
-                                            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                @(totalRecueBP > 0 ? totalRecueBP.ToString("F2") : "—")
-                                            </span>
-                                        }
-                                    </td>
-                                }
-
-                                <!-- ── Colonne 4 : Charge à transférer en pf mutualisé (GP Standard uniquement) ── -->
-                                @if (vueEtp && _showChargesManuelles)
-                                {
-                                    var bgTransMut = row.IsTotal || IsGpStandard(row.Segment) ? "#EDF4F6" : "#E4E9ED";
-                                    <td style="text-align:center;padding:4px 3px;background:@bgTransMut">
-                                        @if (!row.IsTotal)
-                                        {
-                                            if (IsGpStandard(row.Segment))
-                                            {
-                                                var segM = row.Segment;
-                                                var valTransMut = _chargeATransfererMutualise.GetValueOrDefault(segM);
-                                                // Cette colonne reste éditable même en vue Portefeuille Mutualisé
-                                                // (seules les 2 colonnes Agence↔BP sont verrouillées dans cette vue).
-                                                var maxTransMut = _estPortefeuilleMutualise ? double.MaxValue : GetChargeExistanteMax(row);
-                                                <MudNumericField T="double?"
-                                                                 Value="@valTransMut"
-                                                                 ValueChanged="@(v => { _chargeATransfererMutualise[segM] = v.HasValue ? Math.Clamp(v.Value, 0, maxTransMut) : v; StateHasChanged(); })"
-                                                                 Format="F2" Step="0.25" Min="0" Max="@maxTransMut"
-                                                                 HideSpinButtons="true"
-                                                                 Variant="Variant.Text"
-                                                                 Margin="Margin.Dense"
-                                                                 Class="ca-dim-etp-input"
-                                                                 InputStyle="text-align:center;font-size:12px;font-weight:700;padding:2px 4px;color:#1A4E6B" />
-                                            }
-                                            else
-                                            {
-                                                <span style="color:#757575;font-size:11px">—</span>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            var totalTransMut = GetTotalATransfererMutualise();
-                                            <span style="font-weight:700;font-size:12px;color:#1A4E6B">
-                                                @(totalTransMut > 0 ? totalTransMut.ToString("F2") : "—")
-                                            </span>
-                                        }
-                                    </td>
-                                }
-
-                                <!-- ── Colonne Concordance ── -->
-                                @if (vueEtp)
-                                {
-                                    <!-- ── Colonne Concordance ── -->
-                                    <td style="text-align:center;padding:4px 3px;background:#EDF4F6">
-                                        @if (row.IsTotal)
-                                        {
-                                            var totalConcCib = GetTotalConcordance();
-                                            var totalConcExi = GetTotalConcordanceExistant();
-                                            var (bgCib, fgCib) = GetConcordanceColors(totalConcCib);
-                                            var (bgExi, fgExi) = GetConcordanceColors(totalConcExi);
-                                            <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
-                                                <div style="background:@bgCib;border-radius:5px;padding:2px 6px;min-width:48px">
-                                                    <span style="font-size:12px;font-weight:700;color:@fgCib">
-                                                        @(totalConcCib.HasValue ? $"{totalConcCib.Value:F0}%" : "—")
-                                                    </span>
-                                                </div>
-                                                <div style="border-top:1.5px solid #C5CAD0;width:55%;margin:1px 0"></div>
-                                                <div style="background:@bgExi;border-radius:5px;padding:2px 6px;min-width:48px">
-                                                    <span style="font-size:9px;font-weight:700;color:@fgExi">
-                                                        @(totalConcExi.HasValue ? $"{totalConcExi.Value:F0}%" : "—")
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        }
-                                        else if (concordance.pct.HasValue || concordanceExistant.pct.HasValue)
-                                        {
-                                            var (bgCib, fgCib) = GetConcordanceColors(concordance.pct);
-                                            var (bgExi, fgExi) = GetConcordanceColors(concordanceExistant.pct);
-                                            <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
-                                                <div style="background:@bgCib;border-radius:5px;padding:2px 6px;min-width:48px">
-                                                    <span style="font-size:12px;font-weight:700;color:@fgCib">
-                                                        @(concordance.pct.HasValue ? $"{concordance.pct.Value:F0}%" : "—")
-                                                    </span>
-                                                </div>
-                                                <div style="border-top:1.5px solid #C5CAD0;width:55%;margin:1px 0"></div>
-                                                <div style="background:@bgExi;border-radius:5px;padding:2px 6px;min-width:48px">
-                                                    <span style="font-size:9px;font-weight:700;color:@fgExi">
-                                                        @(concordanceExistant.pct.HasValue ? $"{concordanceExistant.pct.Value:F0}%" : "—")
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        }
-                                    else
-                                    {
-                                        <span style="color:#BDBDBD;font-size:11px">—</span>
-                                    }
-                                </td>
-
-                                    <!-- ── Colonne Taux de rotation par segment ── -->
-                                    <td style="text-align:center;padding:4px 3px;background:#EDF4F6">
-                                        @{
-                                            var rotRow = GetTauxRotationForRow(row);
-                                        }
-                                        @if (row.IsTotal)
-                                        {
-                                            var rotTotalCib = GetTotalTauxRotation();
-                                            var rotColorTotalCib = RotationColor(rotTotalCib);
-                                            <span style="font-size:12px;font-weight:700;color:@rotColorTotalCib">
-                                                @(rotTotalCib.HasValue? rotTotalCib.Value.ToString("F0") + "%" : "—")
-                                            </span>
-                                        }
-                                        else if (rotRow.HasValue)
-                                        {
-                                            var rotColorCib = RotationColor(rotRow);
-                                            <span style="font-size:12px;font-weight:700;color:@rotColorCib">
-                                                @(rotRow.HasValue? rotRow.Value.ToString("F0") + "%" : "—")
-                                            </span>
-                                        }
-                                        else
-                                        {
-                                            <span style="color:#BDBDBD;font-size:11px">—</span>
-                                        }
-                                    </td>
-                                }
-                            </tr>
-                        }
-                    </tbody>
-
-                    @if (vueEtp)
-                    {
-                    <!-- ═══════════════════════════════════════════════════════
-                         TBODY KPI — colonnes conditionnelles selon _showChargesManuelles
-                    ═══════════════════════════════════════════════════════ -->
-                    <tbody>
-                        <!-- Séparateur -->
-                        @{
-                            var extraCols = (vueEtp && _showChargesManuelles) ? 7 : 4;
-                        }
-                        <tr style="background:#0A1F30">
-                            <td style="padding:3px 12px;font-size:9px;font-weight:700;color:rgba(255,255,255,0.75);letter-spacing:1px;text-transform:uppercase">
-                                Indicateurs KPI
-                            </td>
-                            @for (int _i = 0; _i < VisibleSlotColumnCount + extraCols; _i++)
-                            {
-                                <td style="background:#0A1F30"></td>
-                            }
-                        </tr>
-
-                        <!-- ── Evolution des effectifs ── -->
-                        @{
-                            var kpiEvoTotal = (double)_slots.Sum(s => GetEvolutionForSlot(s));
-                        }
-                        <tr style="background:#1C3D62">
-                            <td class="ca-dim-sticky-col" style="background:#1C3D62;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
-                                Evolution des effectifs (cible vs existant)
-                            </td>
-                            @foreach (var profil in profils)
-                            {
-                                if (_collapsedProfils.Contains(profil))
-                                {
-                                    var evo = GetEvolutionForProfil(profil);
-                                    <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;@DiffColor(evo, positifBon: true)">@FormatDiff(evo)</td>
-                                }
-                                else
-                                {
-                                    foreach (var slot in SlotsForProfilDisplay(profil))
-                                    {
-                                        var evo = GetEvolutionForSlot(slot);
-                                        <td style="text-align:center;padding:6px 3px;font-size:11px;@DiffColor(evo, positifBon: true);@(!slot.IsCible ? "opacity:0.35" : "")">@FormatDiff(evo)</td>
-                                    }
-                                }
-                            }
-                            <td style="background:#1C3D62"></td>
-                            <td style="text-align:center;padding:6px 4px;font-size:11px;font-weight:700;background:#182F4A;@DiffColor(kpiEvoTotal, positifBon: true)">@FormatDiff(kpiEvoTotal)</td>
-                            @if (vueEtp && _showChargesManuelles)
-                            {
-                                <td style="background:#1C3D62"></td>
-                                <td style="background:#1C3D62"></td>
-                                <td style="background:#1C3D62"></td>
-                            }
-                            <td style="background:#1C3D62"></td>
-                            <td style="background:#1C3D62"></td>
-                        </tr>
-
-                        <!-- ── Remplissage des portefeuilles ── -->
-                        @{
-                            var kpiRmpCibTotal = GetRemplissageTotal();
-                            var kpiRmpExiTotal = GetRemplissageExistantTotal();
-                        }
-                        <tr style="background:#1A3558">
-                            <td class="ca-dim-sticky-col" style="background:#1A3558;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
-                                Taux de remplissage des portefeuilles
-                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">▼ Cible &nbsp;/&nbsp; ▲ Existant</div>
-                            </td>
-                            @foreach (var profil in profils)
-                            {
-                                if (_collapsedProfils.Contains(profil))
-                                {
-                                    var rmpCib = GetRemplissageForProfil(profil);
-                                    var rmpExi = GetRemplissageExistantForProfil(profil);
-                                    <td style="text-align:center;padding:3px;font-style:italic">
-                                        <div style="font-size:11px;@RemplissageColor(rmpCib)">@(rmpCib.HasValue ? $"{rmpCib.Value:F0}%" : "—")</div>
-                                        <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                        <div style="font-size:9px;font-weight:700;color:#E65100">@(rmpExi.HasValue ? $"{rmpExi.Value:F0}%" : "—")</div>
-                                    </td>
-                                }
-                                else
-                                {
-                                    foreach (var slot in SlotsForProfilDisplay(profil))
-                                    {
-                                        var rmpCib = GetRemplissageForSlot(slot);
-                                        var rmpExi = GetRemplissageExistantForSlot(slot);
-                                        <td style="text-align:center;padding:3px;@(!slot.IsCible ? "opacity:0.35" : "")">
-                                            <div style="font-size:11px;@RemplissageColor(rmpCib)">@(rmpCib.HasValue ? $"{rmpCib.Value:F0}%" : "—")</div>
-                                            <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                            <div style="font-size:9px;font-weight:700;color:#E65100">@(rmpExi.HasValue ? $"{rmpExi.Value:F0}%" : "—")</div>
-                                        </td>
-                                    }
-                                }
-                            }
-                            <td style="background:#1A3558"></td>
-                            <td style="text-align:center;padding:3px;background:#162840">
-                                <div style="font-size:12px;@RemplissageColor(kpiRmpCibTotal)">@(kpiRmpCibTotal.HasValue ? $"{kpiRmpCibTotal.Value:F0}%" : "—")</div>
-                                <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                <div style="font-size:9px;font-weight:700;color:#E65100">@(kpiRmpExiTotal.HasValue ? $"{kpiRmpExiTotal.Value:F0}%" : "—")</div>
-                            </td>
-                            @if (vueEtp && _showChargesManuelles)
-                            {
-                                <td style="background:#1A3558"></td>
-                                <td style="background:#1A3558"></td>
-                                <td style="background:#1A3558"></td>
-                            }
-                            <td style="background:#1A3558"></td>
-                            <td style="background:#1A3558"></td>
-                        </tr>
-
-                        <!-- ── Concordance ── -->
-                        @{
-                            var allCibleConc = _slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
-                            var allDesigneConc = _slots.Where(s => s.IsCible)
-                            .Sum(s => rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, s.Profil) > 0)
-                            .Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0));
-                            double? kpiConcCibTotal = allCibleConc > 0 ? allDesigneConc / allCibleConc * 100.0 : null;
-
-                            var allExistConc = _slots.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
-                            var allDesigneExistConc = _slots
-                            .Sum(s => rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, s.Profil) > 0)
-                            .Sum(r => r.EtpParProfil.GetValueOrDefault(s.Id) ?? 0));
-                            double? kpiConcExiTotal = allExistConc > 0 ? allDesigneExistConc / allExistConc * 100.0 : null;
-                        }
-                        <tr style="background:#1F446A">
-                            <td class="ca-dim-sticky-col" style="background:#1F446A;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
-                                Taux de concordance par conseiller ("pureté" des portefeuilles)
-                                <div style="font-size:9px;font-weight:400;opacity:0.65;margin-top:1px">▼ Cible &nbsp;/&nbsp; ▲ Existant</div>
-                            </td>
-                            @foreach (var profil in profils)
-                            {
-                                if (_collapsedProfils.Contains(profil))
-                                {
-                                    var (concPctCib, concColorCib) = GetConcordanceForProfil(profil);
-                                    var (concPctExi, concColorExi) = GetConcordanceExistantForProfil(profil);
-                                    <td style="text-align:center;padding:3px;font-style:italic">
-                                        <div style="font-size:11px;@concColorCib">@(concPctCib.HasValue ? $"{concPctCib.Value:F0}%" : "—")</div>
-                                        <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                        <div style="font-size:9px;font-weight:700;color:#E65100">@(concPctExi.HasValue ? $"{concPctExi.Value:F0}%" : "—")</div>
-                                    </td>
-                                }
-                                else
-                                {
-                                    foreach (var slot in SlotsForProfilDisplay(profil))
-                                    {
-                                        var (concPctCib, concColorCib) = GetConcordanceForSlot(slot);
-                                        var (concPctExi, concColorExi) = GetConcordanceExistantForSlot(slot);
-                                        <td style="text-align:center;padding:3px;@(!slot.IsCible ? "opacity:0.35" : "")">
-                                            <div style="font-size:11px;@concColorCib">@(concPctCib.HasValue ? $"{concPctCib.Value:F0}%" : "—")</div>
-                                            <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                            <div style="font-size:9px;font-weight:700;color:#E65100">@(concPctExi.HasValue ? $"{concPctExi.Value:F0}%" : "—")</div>
-                                        </td>
-                                    }
-                                }
-                            }
-                            <td style="background:#1F446A"></td>
-                            <td style="text-align:center;padding:3px;background:#193252">
-                                <div style="font-size:12px;@ConcordanceColor(kpiConcCibTotal)">@(kpiConcCibTotal.HasValue ? $"{kpiConcCibTotal.Value:F0}%" : "—")</div>
-                                <div style="border-top:1px solid rgba(255,255,255,0.3);width:50%;margin:1px auto"></div>
-                                <div style="font-size:9px;@ConcordanceColor(kpiConcExiTotal)">@(kpiConcExiTotal.HasValue ? $"{kpiConcExiTotal.Value:F0}%" : "—")</div>
-                            </td>
-                            @if (vueEtp && _showChargesManuelles)
-                            {
-                                <td style="background:#1F446A"></td>
-                                <td style="background:#1F446A"></td>
-                                <td style="background:#1F446A"></td>
-                            }
-                            <td style="background:#1F446A"></td>
-                            <td style="background:#1F446A"></td>
-                        </tr>
-
-                        <!-- ── Taux de rotation ── -->
-                        @{
-                                var rotAllCible = Math.Round(_slots.Where(s => s.IsCible).Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2);
-                                var activeSlotsRot = _slots.Where(s => s.IsCible).ToList();
-                                var rotAllGains = rows.Where(r => !r.IsTotal).Sum(r => activeSlotsRot.Sum(s => GetEntreesCell(r, s.Id)));
-                                double? kpiRotTotal = rotAllCible > 0 ? Math.Round(rotAllGains, 2) / rotAllCible * 100.0 : null;
-                        }
-                        <tr style="background:#224A72">
-                            <td class="ca-dim-sticky-col" style="background:#224A72;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
-                                Taux de rotation des clients par portefeuille (entrée et sortie)
-                            </td>
-                            @foreach (var profil in profils)
-                            {
-                                if (_collapsedProfils.Contains(profil))
-                                {
-                                    var rot = GetTauxRotationForProfil(profil);
-                                    <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;@DiffColor(rot, positifBon: true)">
-                                        @(rot.HasValue ? $"{rot.Value:+0.0;-0.0;0.0}%" : "—")
-                                    </td>
-                                }
-                                else
-                                {
-                                    foreach (var slot in SlotsForProfilDisplay(profil))
-                                    {
-                                        var rot = GetTauxRotation(slot);
-                                        <td style="text-align:center;padding:6px 3px;font-size:11px;@DiffColor(rot, positifBon: true);@(!slot.IsCible ? "opacity:0.35" : "")">
-                                            @(rot.HasValue ? $"{rot.Value:+0.0;-0.0;0.0}%" : "—")
-                                        </td>
-                                    }
-                                }
-                            }
-                            <td style="background:#224A72"></td>
-                            <td style="text-align:center;padding:6px 4px;font-size:12px;font-weight:700;background:#1B3959;@DiffColor(kpiRotTotal, positifBon: true)">
-                                @(kpiRotTotal.HasValue ? $"{kpiRotTotal.Value:+0.0;-0.0;0.0}%" : "—")
-                            </td>
-                            @if (vueEtp && _showChargesManuelles)
-                            {
-                                <td style="background:#224A72"></td>
-                                <td style="background:#224A72"></td>
-                                <td style="background:#224A72"></td>
-                            }
-                            <td style="background:#224A72"></td>
-                            <td style="background:#224A72"></td>
-                        </tr>
-
-                        <!-- ── Taux d'entrée ── -->
-                        @{
-                            var entDiff = vueEtp ? GetTauxEntreeTotal() : GetDisplayTauxEntreeTotal();
-                            double? kpiEntTotal = entDiff > 0 ? entDiff : null;
-                        }
-                        <tr style="background:#24507A">
-                            <td class="ca-dim-sticky-col" style="background:#24507A;padding:6px 10px;font-size:10px;font-weight:600;color:white;white-space:normal;line-height:1.3">
-                                Part de nouveaux clients dans le portefeuille cible (vs existant)
-                            </td>
-                                @foreach (var profil in profils)
-                                {
-                                    if (_collapsedProfils.Contains(profil))
-                                    {
-                                        var ent = vueEtp ? GetTauxEntreeForProfil(profil) : GetDisplayTauxEntreeForProfil(profil);
-                                        <td style="text-align:center;padding:6px 3px;font-size:11px;font-style:italic;color:white">
-                                            @(ent.HasValue? ent.Value.ToString("F0") + "%" : "—")
-                                        </td>
-                                    }
-                                    else
-                                    {
-                                        foreach (var slot in SlotsForProfilDisplay(profil))
-                                        {
-                                            var ent = vueEtp ? GetTauxEntreeSlot(slot) : GetDisplayTauxEntreeSlot(slot);
-                                            <td style="text-align:center;padding:6px 3px;font-size:11px;color:white;@(!slot.IsCible ? "opacity:0.35" : "")">
-                                                @(ent.HasValue? ent.Value.ToString("F0") + "%" : "—")
-                                            </td>
-                                        }
-                                    }
-                                }
-                                <td style="background:#24507A"></td>
-                                <td style="text-align:center;padding:6px 4px;font-size:12px;font-weight:700;color:white;background:#1C3C5E">
-                                    @(kpiEntTotal.HasValue? kpiEntTotal.Value.ToString("F0") + "%" : "—")
-                                </td>
-                            @if (vueEtp && _showChargesManuelles)
-                            {
-                                <td style="background:#24507A"></td>
-                                <td style="background:#24507A"></td>
-                                <td style="background:#24507A"></td>
-                            }
-                            <td style="background:#24507A"></td>
-                            <td style="background:#24507A"></td>
-                        </tr>
-                    </tbody>
-                    }
-                </table>
+                <div class="dash-hm-col-transfert">@(totalChargeBP > 0 ? totalChargeBP.ToString("F2") : "—")</div>
+                <div class="dash-hm-col-transfert">@(totalChargeAgence > 0 ? totalChargeAgence.ToString("F2") : "—")</div>
+                <div class="dash-hm-col-transfert">@(totalChargeMutualise > 0 ? totalChargeMutualise.ToString("F2") : "—")</div>
             </div>
-        </MudPaper>
-    }
+        }
+    </div>
 
-    <div class="ca-footer">© 2026 Crédit Agricole Nord de France — Plateforme de simulation de dimensionnement des portefeuilles</div>
+    <div class="dash-footer">
+        © 2026 CA Nord de France — Pilotage réseau
+    </div>
 </div>
 
 @code {
-    private bool vueEtp = true;
+
+    // ── État ────────────────────────────────────────
     private bool _isLoading = false;
-    private bool _isSaving = false;
-    private bool _estSecteurBanquePrivee = false;
-    private bool _estPortefeuilleMutualise = false;
-    private double GetChargeExistanteMax(DimMatrixRow row) => GetRowExistantTotal(row) ?? 0;
-    private List<string> profils  = new();
-    private List<string> segments = new();
-    private List<DimMatrixRow> rows = new();
-    private List<ConseillerSlot> _slots = new();
-    private List<SegmentationDistributiveData> _segmentationDistributive = new();
-    private List<SegmentationDistributiveData> _segmentationDistributiveFiltree = new();
+    private DashboardKpis _kpis = new();
+    private List<TerritoireRow> _heatmap = new();
+    private List<SegmentationDistributiveData> _data = new();
+    private List<SegmentationDistributiveData> _dataFiltree = new();
+    private List<SegmentRepartition> _repartition = new();
+    private List<LigneMetierRepartition> _repartitionConseillers = new();
+    private List<DimensionnementPortefeuilleEtpAllCharge> _charges = new();
+    private List<DimensionnementPortefeuilleEtpAllLigne> _lignesEtp = new();
 
-    // ── Filtres appliqués (à jour dans _segmentationDistributiveFiltree) ──
-    private string? filtreRegionApplique = null;
-    private string? filtreSecteurApplique = null;
-    private string? filtreAgenceApplique = null;
+    // ── Distribution géographique ───────────────────
+    private Dictionary<string, Dictionary<string, int>> _distributionGeo = new();
+    private List<string> _regionsGeo = new();
 
-    // Détection de changement non appliqué
-    private bool HasPendingFilterChanges =>
-        filtreRegion != filtreRegionApplique ||
-        filtreSecteur != filtreSecteurApplique ||
-        filtreAgence != filtreAgenceApplique;
+    // ── Dimension d'affichage partagée par les 3 blocs du bas ──
+    private string _dimensionAffichage = "Region";
 
-    private string? AgenceEffective =>
-    !string.IsNullOrWhiteSpace(filtreAgence) ? filtreAgence : filtreSecteur;
+    // ── Heatmap : recherche + tri ────────────────────
+    private string _heatmapSearch = "";
+    private string _hmSortColumn = "ClientsGeres";
+    private bool _hmSortAsc = false;
 
-    // ═══════════════════════════════════════════════════════════════════
-    //   Charges manuelles par segment (avec règles métier)
-    // - "À transférer à la BP"           → HDG Premium uniquement
-    // - "Reçue de la BP"                 → Tout sauf HDG Premium
-    // - "À transférer en pf mutualisé"   → GP Standard uniquement
-    // ═══════════════════════════════════════════════════════════════════
-    
-    private Dictionary<string, double?> _chargeATransfererBP = new(StringComparer.OrdinalIgnoreCase);
-    private Dictionary<string, double?> _chargeRecueBP = new(StringComparer.OrdinalIgnoreCase);
-    private Dictionary<string, double?> _chargeATransfererMutualise = new(StringComparer.OrdinalIgnoreCase);
+    // ── Filtres ────────────────────────────────────
+    private string? filtreRegion, filtreSecteur, filtreAgence;
+    private string? filtreRegionApplique, filtreSecteurApplique, filtreAgenceApplique;
 
-    /// <summary>
-    /// Charge Totale ETP par segment ajustée : originale − (à transférer + à ajouter)
-    /// </summary>
-    /// <summary>
-    /// Charge Totale ETP par segment ajustée :
-    /// (originale − à transférer BP) + (reçue BP − à transférer mutualisé)
-    /// </summary>
-    private double? GetChargeTotaleAffichee(DimMatrixRow row)
-    {
-        if (row.IsTotal) return null;
-
-        var original = GetRowExistantTotal(row) ?? 0;
-        var transBP = _chargeATransfererBP.GetValueOrDefault(row.Segment) ?? 0;
-        var recueBP = _chargeRecueBP.GetValueOrDefault(row.Segment) ?? 0;
-        var transMut = _chargeATransfererMutualise.GetValueOrDefault(row.Segment) ?? 0;
-
-        // Le sens des 3 transferts change selon le point de vue :
-        // - Agence  : Agence→BP soustrait, BP→Agence ajouté, vers Mutualisé soustrait
-        // - Banque Privée : Agence→BP ajouté, BP→Agence soustrait, vers Mutualisé soustrait
-        // - Portefeuille Mutualisé : Agence→BP soustrait, BP→Agence soustrait, vers Mutualisé ajouté
-        if (_estPortefeuilleMutualise)
-            return (original - transBP - recueBP) + transMut;
-
-        if (_estSecteurBanquePrivee)
-            return (original + transBP - recueBP) - transMut;
-
-        return (original - transBP + recueBP) - transMut;
-    }
-
-    private double GetTotalATransfererBP() =>
-        _chargeATransfererBP.Values.Where(v => v.HasValue).Sum(v => v!.Value);
-
-    private double GetTotalRecueBP() =>
-        _chargeRecueBP.Values.Where(v => v.HasValue).Sum(v => v!.Value);
-
-    private double GetTotalATransfererMutualise() =>
-        _chargeATransfererMutualise.Values.Where(v => v.HasValue).Sum(v => v!.Value);
-
-    // ── Helpers de règles métier par segment ───────────────────────
-    private static bool IsHdgPremium(string? segment) =>
-        !string.IsNullOrWhiteSpace(segment) &&
-        segment.Contains("Premium", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsGpStandard(string? segment) =>
-        string.Equals(segment?.Trim(), "GP Standard", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsSegmentActionnable(string? segment) =>
-        !string.IsNullOrWhiteSpace(segment) &&
-        !string.Equals(segment.Trim(), "Non segmenté", StringComparison.OrdinalIgnoreCase) &&
-        !string.Equals(segment.Trim(), "Non classé", StringComparison.OrdinalIgnoreCase);
-
-    private static string RotationColor(double? pct) =>
-    !pct.HasValue ? "#6C7A89" :
-    pct.Value <= 20 ? "#2E7D32" :   // vert
-    pct.Value <= 50 ? "#E65100" :   // orange
-                       "#C62828";   // rouge
-
-
-    // ── Vue détail / consolidée par métier ────────────────────────────────
-    // Métiers présents dans ce set → colonne agrégée (repliée)
-    private HashSet<string> _collapsedProfils = new();
-
-    // ── Toggle affichage des colonnes de saisie manuelle ──────────────────
-    // false = les 2 colonnes "à transférer" et "à ajouter" sont masquées
-    // true  = elles sont affichées et éditables
-    private bool _showChargesManuelles = false;
-
-    private void ToggleProfil(string profil)
-    {
-        if (!_collapsedProfils.Remove(profil))
-            _collapsedProfils.Add(profil);
-    }
-
-    private async Task ShowAide()
-    {
-        await DialogService.ShowAsync<AidePortefeuilleDialog>(
-            "Aide",
-            new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true });
-    }
-
-    private async Task ShowAideRepartition()
-    {
-        await DialogService.ShowAsync<AideRepartitionDialog>(
-            "Aide — Répartition des charges",
-            new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true });
-    }
-
-    /// <summary>
-    /// Tous les profils possibles du référentiel R&H, indépendamment de
-    /// l'agence sélectionnée — utilisé pour le menu "Ajouter un conseiller",
-    /// contrairement à `profils` qui ne liste que les profils déjà staffés
-    /// dans l'agence (pour l'affichage des colonnes du tableau).
-    /// </summary>
-    private List<string> ProfilsDisponibles =>
-        StateService.Regles.ConseillersProfils
-            .Select(p => p.Profil)
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Where(p => !p.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(p => p)
-            .ToList();
-
-    // ── Handlers de changement des filtres ────────────────────────────────
-    private void OnRegionChanged(string? newRegion)
-    {
-        filtreRegion = newRegion;
-        filtreSecteur = null;
-        filtreAgence = null;
-        BuildFilterOptions();
-    }
-
-    private void OnSecteurChanged(string? newSecteur)
-    {
-        filtreSecteur = newSecteur;
-        filtreAgence = null;
-        BuildFilterOptions();
-    }
-
-    private void OnAgenceChanged(string? newAgence)
-    {
-        filtreAgence = newAgence;
-    }
-
-    private IEnumerable<ConseillerSlot> SlotsForProfil(string profil) =>
-        _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>
-    /// Slots à afficher pour un profil dans les colonnes du tableau.
-    /// Si aucun conseiller réel n'existe pour ce profil (agence sans
-    /// effectif sur ce type), renvoie un slot "placeholder" pour garder
-    /// exactement une colonne (au lieu de zéro), ce qui cassait
-    /// l'alignement du tableau (colspan="0" invalide en HTML).
-    /// Ce placeholder n'existe jamais dans row.EtpParProfil / _slots :
-    /// les GetValueOrDefault renvoient donc naturellement null → "—".
-    /// </summary>
-    private List<ConseillerSlot> SlotsForProfilDisplay(string profil)
-    {
-        var reels = SlotsForProfil(profil).ToList();
-
-        if (reels.Any())
-            return reels;
-
-        return new List<ConseillerSlot>
-    {
-        new ConseillerSlot
-        {
-            Profil = profil,
-            Label = "—",
-            IsActuel = false,
-            IsCible = false
-        }
-    };
-    }
-
-
-    private int VisibleSlotColumnCount =>
-        profils.Sum(p => _collapsedProfils.Contains(p)
-            ? 1
-            : _slots.Count(s => s.Profil.Equals(p, StringComparison.OrdinalIgnoreCase)));
-
-    private double? GetAggregateExistantForProfil(DimMatrixRow row, string profil)
-    {
-        var vals = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase))
-                         .Select(s => row.EtpParProfil.GetValueOrDefault(s.Id))
-                         .Where(v => v.HasValue).ToList();
-        return vals.Any() ? vals.Sum(v => v!.Value) : null;
-    }
-
-    private double? GetAggregateCibleForProfil(DimMatrixRow row, string profil)
-    {
-        var vals = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible)
-                         .Select(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id))
-                         .Where(v => v.HasValue).ToList();
-        return vals.Any() ? vals.Sum(v => v!.Value) : null;
-    }
-
-    private static string RemplissageColor(double? pct) =>
-        !pct.HasValue          ? "color:white" :
-        Math.Abs(pct.Value - 100) < 1 ? "color:#A5D6A7;font-weight:700" :
-        pct.Value < 100         ? "color:#EF9A9A;font-weight:700" :
-                                  "color:#FFD54F;font-weight:700";
-
-    private double? GetRemplissageForProfil(string profil)
-    {
-        var slotsOfProfil = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
-        var totalCap = slotsOfProfil.Sum(s => s.EtpCible);
-        if (totalCap <= 0) return null;
-        var totalCharge = slotsOfProfil.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
-        return totalCharge / totalCap * 100.0;
-    }
-
-    private double? GetRemplissageTotal()
-    {
-        var slotsCible = _slots.Where(s => s.IsCible).ToList();
-        var totalCap = slotsCible.Sum(s => s.EtpCible);
-        if (totalCap <= 0) return null;
-        var totalCharge = slotsCible.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
-        return totalCharge / totalCap * 100.0;
-    }
-
-    private double? GetRemplissageExistantForProfil(string profil)
-    {
-        var slotsOfProfil = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsActuel).ToList();
-        var totalCap = slotsOfProfil.Sum(s => s.EtpActuel);
-        if (totalCap <= 0) return null;
-        var totalCharge = slotsOfProfil.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
-        return totalCharge / totalCap * 100.0;
-    }
-
-    private double? GetRemplissageExistantTotal()
-    {
-        var slotsActuel = _slots.Where(s => s.IsActuel).ToList();
-        var totalCap = slotsActuel.Sum(s => s.EtpActuel);
-        if (totalCap <= 0) return null;
-        var totalCharge = slotsActuel.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
-        return totalCharge / totalCap * 100.0;
-    }
-
-    private double GetEvolutionForProfil(string profil) =>
-        _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase))
-              .Sum(s => GetEvolutionForSlot(s));
-
-    private double? GetEtpCibleSaisieTotalForProfil(string profil)
-    {
-        var vals = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase))
-                         .Select(s => GetEtpCibleSaisieTotal(s.Id))
-                         .Where(v => v.HasValue).ToList();
-        return vals.Any() ? vals.Sum(v => v!.Value) : null;
-    }
-
-    // ── KPI ───────────────────────────────────────────────────────────────
-    private Dictionary<string, double?> _tauxRotation = new();
-    private Dictionary<string, double?> _tauxEntree   = new();
-
-    // ── Filtres ───────────────────────────────────────────────────────────
-    private string? filtreRegion  = null;
-    private string? filtreSecteur = null;
-    private string? filtreAgence  = null;
-
-    private List<string> allRegions  = new();
+    private List<string> allRegions = new();
     private List<string> allSecteurs = new();
-    private List<string> allAgences  = new();
+    private List<string> allAgences = new();
 
-    private List<DimMatrixRow> filteredRows = new();
+    private bool HasPendingFilterChanges =>
+        filtreRegion  != filtreRegionApplique ||
+        filtreSecteur != filtreSecteurApplique ||
+        filtreAgence  != filtreAgenceApplique;
 
     /// <summary>
     /// S'assure que les Règles & Hypothèses sont chargées depuis la base
-    /// avant que la page Portefeuille les utilise. Nécessaire quand
-    /// l'utilisateur arrive directement sur /portefeuille sans être
-    /// passé par /regles-hypotheses au préalable.
+    /// avant que le Dashboard les utilise. Nécessaire quand l'utilisateur
+    /// arrive directement sur /dashboard sans être passé par
+    /// /regles-hypotheses ou /portefeuille au préalable.
     /// </summary>
     private async Task EnsureReglesLoadedAsync()
     {
@@ -1314,74 +463,40 @@
             StateService.UpdateRegles(reglesModel);
 
             Console.WriteLine(
-                $">>> Règles chargées depuis Portefeuille : " +
+                $">>> Règles chargées depuis Dashboard : " +
                 $"{reglesModel.SegmentsIntensite.Count} segments, " +
                 $"{reglesModel.ConseillersProfils.Count} profils, " +
                 $"{reglesModel.ReglesAffectationSegments.Count} règles");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($">>> Erreur chargement Règles depuis Portefeuille : {ex.Message}");
+            Console.WriteLine($">>> Erreur chargement Règles depuis Dashboard : {ex.Message}");
         }
     }
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────
+    // ── Lifecycle ──────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
         _isLoading = true;
-
         try
         {
-            StateService.OnChange += OnReglesChanged;
-
             await EnsureReglesLoadedAsync();
 
-            _segmentationDistributive = await Http.GetFromJsonAsync<List<SegmentationDistributiveData>>(
-                "api/SegmentationDistributive"
-            ) ?? new();
+            _data = await Http.GetFromJsonAsync<List<SegmentationDistributiveData>>(
+                "api/SegmentationDistributive") ?? new();
 
-            Console.WriteLine($">>> SegmentationDistributive chargée : {_segmentationDistributive.Count} lignes");
+            var allDim = await DimensionnementEtpService.GetAllAsync();
+            _charges = allDim?.Charges ?? new();
+            _lignesEtp = allDim?.Lignes ?? new();
 
-            filtreRegion = _segmentationDistributive
-                .Select(x => x.LibRegion)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .OrderBy(x => x)
-                .FirstOrDefault();
-
-            filtreSecteur = _segmentationDistributive
-                .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-                .Select(x => x.LibSecteur)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .OrderBy(x => x)
-                .FirstOrDefault();
-
-            filtreAgence = _segmentationDistributive
-                .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-                .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
-                .Select(x => x.LibAgence)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .OrderBy(x => x)
-                .FirstOrDefault();
-
-            _segmentationDistributiveFiltree = _segmentationDistributive
-                .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-                .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
-                .Where(x => string.IsNullOrEmpty(filtreAgence) || x.LibAgence == filtreAgence)
-                .ToList();
-
-            filtreRegionApplique = filtreRegion;
-            filtreSecteurApplique = filtreSecteur;
-            filtreAgenceApplique = filtreAgence;
+            _dataFiltree = _data.ToList();
 
             BuildFilterOptions();
-            await InitData();
-
-            Console.WriteLine($">>> Agence par défaut : {filtreAgence}");
-            Console.WriteLine($">>> Lignes filtrées : {_segmentationDistributiveFiltree.Count}");
+            RecomputeAll();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Erreur chargement Portefeuille : {ex.Message}");
+            Console.WriteLine($"Erreur Dashboard : {ex.Message}");
         }
         finally
         {
@@ -1389,264 +504,79 @@
         }
     }
 
-    public void Dispose() => StateService.OnChange -= OnReglesChanged;
-
-    private void OnReglesChanged()
+    // ── Recalcul global ────────────────────────────
+    private void RecomputeAll()
     {
-        profils  = GetProfils();
-        segments = GetSegments();
-        foreach (var p in profils.Where(p => !_slots.Any(s => s.Profil.Equals(p, StringComparison.OrdinalIgnoreCase))))
-        {
-            var prefix = p[..Math.Min(3, p.Length)].ToUpper();
-            var newSlot = new ConseillerSlot { Profil = p, Label = prefix + "-1", IsActuel = true, IsCible = true };
-            _slots.Add(newSlot);
-            foreach (var row in rows) { row.EtpParProfil[newSlot.Id] = null; row.EtpCibleSaisieParProfil[newSlot.Id] = null; }
-        }
+        _kpis = DashboardService.ComputeGlobalKpis(_dataFiltree, StateService.Regles, _lignesEtp);
+
+        _heatmap = DashboardService.ComputeHeatmapAgences(
+            _dataFiltree, StateService.Regles, _lignesEtp, _charges);
+
+        _repartition = DashboardService.ComputeRepartitionParSegment(_dataFiltree, StateService.Regles);
+
+        _repartitionConseillers = DashboardService.ComputeRepartitionConseillers(
+            _dataFiltree, StateService.Regles, _lignesEtp);
+
+        var geoResult = DashboardService.ComputeDistributionGeographique(
+            _dataFiltree, _dimensionAffichage);
+        _distributionGeo = geoResult.Distribution;
+        _regionsGeo = geoResult.Colonnes;
+    }
+
+    // ── Changement de dimension pour la distribution géo ──
+    private void OnDimensionChanged(string dim)
+    {
+        _dimensionAffichage = dim;
+
+        var geoResult = DashboardService.ComputeDistributionGeographique(
+            _dataFiltree, _dimensionAffichage);
+        _distributionGeo = geoResult.Distribution;
+        _regionsGeo = geoResult.Colonnes;
+
+        StateHasChanged();
+    }
+
+    // ── Handlers de filtres ────────────────────────
+    private void OnRegionChanged(string? r)
+    {
+        filtreRegion = r;
+        filtreSecteur = null;
+        filtreAgence = null;
         BuildFilterOptions();
-        RecalcTotal();
-        InvokeAsync(StateHasChanged);
     }
 
-    private async Task InitData()
+    private void OnSecteurChanged(string? s)
     {
-        profils = GetProfils();
-        segments = GetSegments();
-        _slots = BuildSlots();
-
-        Console.WriteLine($">>> Profils : {profils.Count}");
-        Console.WriteLine($">>> Segments : {segments.Count}");
-        Console.WriteLine($">>> Slots : {_slots.Count}");
-        Console.WriteLine($">>> SegmentationDistributiveFiltree : {_segmentationDistributiveFiltree.Count}");
-
-        rows = BuildRows();
-
-        RecalcTotal();
-        InitEffectifs();
-
+        filtreSecteur = s;
+        filtreAgence = null;
         BuildFilterOptions();
-        await ApplyFilters();
     }
 
-    // ── Construction des slots individuels ───────────────────────────────
-    private List<ConseillerSlot> BuildSlots()
+    private void OnAgenceChanged(string? a)
     {
-        if (_segmentationDistributiveFiltree == null || !_segmentationDistributiveFiltree.Any())
-            return new List<ConseillerSlot>();
-
-        return _segmentationDistributiveFiltree
-            .Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
-            .Where(x => !string.IsNullOrWhiteSpace(x.TypeConseiller))
-            .Where(x => !x.TypeConseiller.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
-            .GroupBy(x => new
-            {
-                x.MatriculeConseiller,
-                x.TypeConseiller
-            })
-            .Select(g =>
-            {
-                var profil = g.Key.TypeConseiller;
-                var prefix = profil[..Math.Min(3, profil.Length)].ToUpper();
-
-                return new ConseillerSlot
-                {
-                    Profil = profil,
-                    Label = $"{prefix}-{g.Key.MatriculeConseiller}",
-                    IsActuel = true,
-                    IsCible = true
-                };
-            })
-            .OrderBy(x => x.Profil)
-            .ThenBy(x => x.Label)
-            .ToList();
-    }
-
-    // ── Gestion des slots ─────────────────────────────────────────────────
-    private void AddSlot(string profilType)
-    {
-        var prefix = profilType[..Math.Min(3, profilType.Length)].ToUpper();
-        var num = _slots.Count(s => s.Profil.Equals(profilType, StringComparison.OrdinalIgnoreCase)) + 1;
-        var slot = new ConseillerSlot { Profil = profilType, Label = $"{prefix}-{num}", IsActuel = false, IsCible = true };
-        _slots.Add(slot);
-
-        // S'assure que la colonne du tableau principal apparaît immédiatement
-        // si ce profil n'était pas encore staffé dans l'agence.
-        if (!profils.Any(p => p.Equals(profilType, StringComparison.OrdinalIgnoreCase)))
-            profils.Add(profilType);
-
-        foreach (var row in rows)
-        {
-            row.EtpParProfil[slot.Id] = null;
-            row.EtpCibleSaisieParProfil[slot.Id] = null;
-        }
-        RecalcTotal();
-    }
-
-    private async Task<bool> ConfirmRemoveSlotWithChargeAsync(ConseillerSlot slot, List<DimMatrixRow> chargeRows)
-    {
-        var totalCharge = chargeRows.Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0);
-        var message =
-            $"{slot.Label} a encore {chargeRows.Count} segment(s) avec {totalCharge:F2} ETP réparti(s) en cible.\n" +
-            "La suppression de cet effectif supprimera également sa charge.";
-
-        var parameters = new DialogParameters<ConfirmDialog>
-        {
-            { x => x.Message, message },
-            { x => x.ConfirmText, "Supprimer" },
-        };
-        var dialogRef = await DialogService.ShowAsync<ConfirmDialog>(
-            "Supprimer l'effectif et sa charge",
-            parameters,
-            new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.ExtraSmall });
-        var result = await dialogRef.Result;
-        return result is { Canceled: false };
-    }
-
-    private async Task RemoveNewSlot(ConseillerSlot slot)
-    {
-        var chargeRows = rows.Where(r => !r.IsTotal && (r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0) > 0.001).ToList();
-
-        if (chargeRows.Any() && !await ConfirmRemoveSlotWithChargeAsync(slot, chargeRows))
-            return;
-
-        foreach (var row in chargeRows)
-        {
-            row.EtpCibleSaisieParProfil[slot.Id] = null;
-        }
-
-        _slots.Remove(slot);
-        foreach (var row in rows)
-        {
-            row.EtpParProfil.Remove(slot.Id);
-            row.EtpCibleSaisieParProfil.Remove(slot.Id);
-        }
-        RecalcTotal();
-    }
-
-    private async Task RemoveCibleForExistingSlot(ConseillerSlot slot)
-    {
-        var chargeRows = rows.Where(r => !r.IsTotal && (r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0) > 0.001).ToList();
-
-        if (chargeRows.Any() && !await ConfirmRemoveSlotWithChargeAsync(slot, chargeRows))
-            return;
-
-        foreach (var row in chargeRows)
-        {
-            row.EtpCibleSaisieParProfil[slot.Id] = null;
-        }
-
-        slot.IsCible = false;
-        RecalcTotal();
-    }
-
-    private void RestoreCible(ConseillerSlot slot)
-    {
-        slot.IsCible = true;
-        RecalcTotal();
-    }
-
-    // ── Filtres ───────────────────────────────────────────────────────────
-    private void BuildFilterOptions()
-    {
-        if (_segmentationDistributive == null || !_segmentationDistributive.Any())
-        {
-            allRegions = new List<string>();
-            allSecteurs = new List<string>();
-            allAgences = new List<string>();
-            return;
-        }
-
-        allRegions = _segmentationDistributive
-            .Select(x => x.LibRegion)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(x => x)
-            .ToList();
-
-        allSecteurs = _segmentationDistributive
-            .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-            .Select(x => x.LibSecteur)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(x => x)
-            .ToList();
-
-        allAgences = _segmentationDistributive
-            .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-            .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
-            .Select(x => x.LibAgence)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(x => x)
-            .ToList();
+        filtreAgence = a;
     }
 
     private async Task ApplyFilters()
     {
         _isLoading = true;
         StateHasChanged();
-
         await Task.Delay(1);
 
         try
         {
-            BuildFilterOptions();
-
-            // Les secteurs Banque Privée n'ont pas de véritable subdivision par
-            // agence : la seule "agence" présente en base est un portefeuille
-            // mutualisé de secteur, qu'il ne faut pas sélectionner par défaut.
-            // Dans ce cas, on laisse l'agence vide — AgenceEffective retombera
-            // sur le secteur comme clé de sauvegarde/restauration.
-            _estSecteurBanquePrivee = filtreSecteur?.Contains("Banque", StringComparison.OrdinalIgnoreCase) == true;
-
-            if (string.IsNullOrEmpty(filtreAgence) && allAgences.Any() && !_estSecteurBanquePrivee)
-            {
-                filtreAgence = allAgences.First();
-            }
-
-            _estPortefeuilleMutualise = filtreAgence?.Contains("Portefeuille mutualisé", StringComparison.OrdinalIgnoreCase) == true;
-
-            _segmentationDistributiveFiltree = _segmentationDistributive
-                .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
+            _dataFiltree = _data
+                .Where(x => string.IsNullOrEmpty(filtreRegion)  || x.LibRegion  == filtreRegion)
                 .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
-                .Where(x => string.IsNullOrEmpty(filtreAgence) || x.LibAgence == filtreAgence)
+                .Where(x => string.IsNullOrEmpty(filtreAgence)  || x.LibAgence  == filtreAgence)
                 .ToList();
 
-            filtreRegionApplique = filtreRegion;
+            filtreRegionApplique  = filtreRegion;
             filtreSecteurApplique = filtreSecteur;
-            filtreAgenceApplique = filtreAgence;
+            filtreAgenceApplique  = filtreAgence;
 
-            // Reset des charges manuelles quand on change d'agence
-            _chargeATransfererBP.Clear();
-            _chargeRecueBP.Clear();
-            _chargeATransfererMutualise.Clear();
-
-            _slots = BuildSlots();
-            rows = BuildRows();
-
-            RecalcTotal();
-
-            // Tente de restaurer une sauvegarde existante pour cette agence.
-            // Doit s'exécuter AVANT le calcul de `profils` ci-dessous : c'est
-            // elle qui peut ajouter à _slots des conseillers créés
-            // manuellement lors d'une sauvegarde précédente (sans matricule,
-            // donc absents de BuildSlots()).
-            await RestaurerSauvegardeEtp();
-
-            // Un profil obtient une colonne dans le tableau de charges dès
-            // qu'au moins un conseiller de ce type existe dans _slots — que
-            // ce soit un conseiller réel (matricule) ou restauré depuis une
-            // sauvegarde précédente (ajouté manuellement).
-            profils = _slots
-                .Select(s => s.Profil)
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(p => p)
-                .ToList();
-
-            filteredRows = rows.ToList();
+            BuildFilterOptions();
+            RecomputeAll();
         }
         finally
         {
@@ -1655,1007 +585,139 @@
         }
     }
 
-    /// <summary>
-    /// Recherche une sauvegarde ETP existante pour l'agence sélectionnée.
-    /// Si aucune sauvegarde n'existe, la proposition calculée automatiquement
-    /// (déjà construite par BuildSlots/BuildRows) est conservée telle quelle.
-    /// Si une sauvegarde existe, restaure les conseillers ajoutés/retirés,
-    /// les états IsActuel/IsCible, les capacités et les valeurs cibles saisies,
-    /// ainsi que les charges manuelles.
-    /// </summary>
-    private async Task RestaurerSauvegardeEtp()
-    {
-        if (string.IsNullOrWhiteSpace(AgenceEffective))
-            return;
-
-        var sauvegarde = await DimensionnementEtpService.GetAsync(AgenceEffective);
-
-        if (sauvegarde is null)
-        {
-            // Aucune sauvegarde : on garde la proposition calculée.
-            return;
-        }
-
-        // ── Restauration des conseillers (slots) ────────────────────────────
-        // Regroupe les lignes sauvegardées par conseiller (Matricule+Profil,
-        // ou SlotLabel en clé de secours pour les ajouts manuels sans matricule).
-        var lignesParConseiller = sauvegarde.Lignes
-            .GroupBy(l => GetCleConseiller(l.MatriculeConseiller, l.ProfilConseiller, l.SlotLabel))
-            .ToList();
-
-        foreach (var groupe in lignesParConseiller)
-        {
-            var premiereLigne = groupe.First();
-
-            var slotExistant = _slots.FirstOrDefault(s =>
-                GetCleConseiller(GetMatriculeForSlot(s), s.Profil, s.Label) == groupe.Key);
-
-            if (slotExistant != null)
-            {
-                // Conseiller déjà présent dans la proposition calculée :
-                // on restaure simplement ses états et capacités.
-                slotExistant.IsActuel = premiereLigne.IsActuel;
-                slotExistant.IsCible = premiereLigne.IsCible;
-                slotExistant.EtpActuel = premiereLigne.CapaciteEtpActuel;
-                slotExistant.EtpCible = premiereLigne.CapaciteEtpCible;
-            }
-            else
-            {
-                // Conseiller absent de la proposition calculée (ex. ajouté
-                // manuellement lors d'une sauvegarde précédente, ou retiré
-                // depuis de la source SegmentationDistributive) : on le recrée.
-                var nouveauSlot = new ConseillerSlot
-                {
-                    Profil = premiereLigne.ProfilConseiller,
-                    Label = premiereLigne.SlotLabel,
-                    IsActuel = premiereLigne.IsActuel,
-                    IsCible = premiereLigne.IsCible,
-                    EtpActuel = premiereLigne.CapaciteEtpActuel,
-                    EtpCible = premiereLigne.CapaciteEtpCible
-                };
-
-                _slots.Add(nouveauSlot);
-
-                foreach (var row in rows)
-                {
-                    row.EtpParProfil[nouveauSlot.Id] = null;
-                    row.EtpCibleSaisieParProfil[nouveauSlot.Id] = null;
-                }
-            }
-        }
-
-        // ── Restauration des valeurs par segment × conseiller ───────────────
-        foreach (var ligne in sauvegarde.Lignes)
-        {
-            var cle = GetCleConseiller(ligne.MatriculeConseiller, ligne.ProfilConseiller, ligne.SlotLabel);
-
-            var slot = _slots.FirstOrDefault(s =>
-                GetCleConseiller(GetMatriculeForSlot(s), s.Profil, s.Label) == cle);
-
-            if (slot is null)
-                continue;
-
-            var row = rows.FirstOrDefault(r => !r.IsTotal &&
-                r.Segment.Equals(ligne.Segment, StringComparison.OrdinalIgnoreCase));
-
-            if (row is null)
-                continue;
-
-            row.EtpCibleSaisieParProfil[slot.Id] = ligne.EtpCible;
-        }
-
-        // ── Restauration des charges manuelles ──────────────────────────────
-        foreach (var charge in sauvegarde.Charges)
-        {
-            if (charge.ChargeATransfererBP.HasValue)
-                _chargeATransfererBP[charge.Segment] = charge.ChargeATransfererBP;
-
-            if (charge.ChargeRecueBP.HasValue)
-                _chargeRecueBP[charge.Segment] = charge.ChargeRecueBP;
-
-            if (charge.ChargeATransfererMutualise.HasValue)
-                _chargeATransfererMutualise[charge.Segment] = charge.ChargeATransfererMutualise;
-        }
-
-        RecalcTotal();
-    }
-
-    /// <summary>
-    /// Clé d'identification d'un conseiller pour le rapprochement sauvegarde/proposition.
-    /// Priorité : Matricule + Profil. Clé de secours : SlotLabel (pour un conseiller
-    /// ajouté manuellement sans matricule, ex. un nouveau poste non pourvu).
-    /// </summary>
-    private static string GetCleConseiller(string? matricule, string profil, string slotLabel)
-    {
-        return !string.IsNullOrWhiteSpace(matricule)
-            ? $"M:{matricule}|{profil}".ToUpperInvariant()
-            : $"L:{slotLabel}".ToUpperInvariant();
-    }
-
-    /// <summary>
-    /// Segments dont la répartition cible a été commencée (au moins une valeur
-    /// saisie) mais n'est pas terminée (la somme des cibles ne couvre pas
-    /// exactement la charge à répartir — "Aide à la répartition" différente
-    /// de OK). Les segments jamais touchés (aucune saisie) ne sont pas
-    /// concernés par cette règle.
-    /// </summary>
-    private List<string> GetSegmentsRepartitionIncomplete()
-    {
-        return rows
-            .Where(r => !r.IsTotal)
-            .Where(r => (GetRowCibleTotal(r) ?? 0) > 0.001)
-            .Where(r =>
-            {
-                var diff = GetCoverageDiff(r);
-                return diff.HasValue && Math.Abs(diff.Value) > 0.01;
-            })
-            .Select(r => r.Segment)
-            .ToList();
-    }
-
-    private async Task EnregistrerDimensionnementEtp()
-    {
-        if (string.IsNullOrWhiteSpace(AgenceEffective))
-        {
-            Snackbar.Add("Sélectionnez une agence ou un secteur avant d'enregistrer.", Severity.Warning);
-            return;
-        }
-
-        var segmentsIncomplets = GetSegmentsRepartitionIncomplete();
-        if (segmentsIncomplets.Any())
-        {
-            Snackbar.Add(
-                $"Répartition incomplète sur : {string.Join(", ", segmentsIncomplets)}. " +
-                "Terminez la répartition de la charge cible sur ces segments avant d'enregistrer.",
-                Severity.Warning);
-            return;
-        }
-
-        _isSaving = true;
-        StateHasChanged();
-
-        try
-        {
-            var request = new SaveDimensionnementPortefeuilleEtpRequest
-            {
-                LibRegion = filtreRegion,
-                LibSecteur = filtreSecteur,
-                LibAgence = AgenceEffective,
-                Lignes = BuildLignesRequest(),
-                Charges = BuildChargesRequest()
-            };
-
-            var success = await DimensionnementEtpService.SaveAsync(request);
-
-            Snackbar.Add(
-                success
-                    ? "Dimensionnement ETP enregistré avec succès."
-                    : "Erreur lors de l'enregistrement du dimensionnement ETP.",
-                success ? Severity.Success : Severity.Error);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($">>> Erreur EnregistrerDimensionnementEtp : {ex.Message}");
-            Snackbar.Add("Une erreur inattendue est survenue lors de l'enregistrement.", Severity.Error);
-        }
-        finally
-        {
-            _isSaving = false;
-            StateHasChanged();
-        }
-    }
-
-    private List<SaveDimensionnementPortefeuilleEtpLigneRequest> BuildLignesRequest()
-    {
-        var lignes = new List<SaveDimensionnementPortefeuilleEtpLigneRequest>();
-
-        foreach (var row in rows.Where(r => !r.IsTotal))
-        {
-            foreach (var slot in _slots)
-            {
-                lignes.Add(new SaveDimensionnementPortefeuilleEtpLigneRequest
-                {
-                    Segment = row.Segment,
-                    ProfilConseiller = slot.Profil,
-                    MatriculeConseiller = GetMatriculeForSlot(slot),
-                    SlotLabel = slot.Label,
-                    IsActuel = slot.IsActuel,
-                    IsCible = slot.IsCible,
-                    EtpExistant = row.EtpParProfil.GetValueOrDefault(slot.Id),
-                    EtpCible = row.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id),
-                    CapaciteEtpActuel = slot.EtpActuel,
-                    CapaciteEtpCible = slot.EtpCible
-                });
-            }
-        }
-
-        return lignes;
-    }
-
-    private List<SaveDimensionnementPortefeuilleEtpChargeRequest> BuildChargesRequest()
-    {
-        return segments
-            .Select(s => new SaveDimensionnementPortefeuilleEtpChargeRequest
-            {
-                Segment = s,
-                ChargeATransfererBP = _chargeATransfererBP.GetValueOrDefault(s),
-                ChargeRecueBP = _chargeRecueBP.GetValueOrDefault(s),
-                ChargeATransfererMutualise = _chargeATransfererMutualise.GetValueOrDefault(s)
-            })
-            .ToList();
-    }
-
-    /// <summary>
-    /// Récupère le matricule d'un conseiller pour la clé de persistance,
-    /// uniquement s'il correspond à un vrai matricule présent dans la source
-    /// (et non un numéro de slot ajouté manuellement, ex. "COM-3").
-    /// </summary>
-    private string? GetMatriculeForSlot(ConseillerSlot slot)
-    {
-        var candidate = ExtractMatriculeFromSlotLabel(slot.Label);
-
-        var existeDansSource = _segmentationDistributiveFiltree.Any(x =>
-            x.TypeConseiller.Equals(slot.Profil, StringComparison.OrdinalIgnoreCase) &&
-            x.MatriculeConseiller == candidate);
-
-        return existeDansSource ? candidate : null;
-    }
-
     private async Task ClearFilters()
     {
-        filtreRegion = null;
-        filtreSecteur = null;
-        filtreAgence = null;
-
+        filtreRegion = filtreSecteur = filtreAgence = null;
         await ApplyFilters();
     }
 
-    // ── Sources de données ────────────────────────────────────────────────
-    private List<string> GetProfils()
+    private void BuildFilterOptions()
     {
-        if (_segmentationDistributiveFiltree != null && _segmentationDistributiveFiltree.Any())
-        {
-            return _segmentationDistributiveFiltree
-                .Select(x => x.TypeConseiller)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
-                .Distinct()
-                .OrderBy(x => x)
-                .ToList();
-        }
+        allRegions = _data.Select(x => x.LibRegion)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
 
-        return StateService.Regles.ConseillersProfils
-            .Select(p => p.Profil)
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Distinct().Reverse().ToList();
+        allSecteurs = _data
+            .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
+            .Select(x => x.LibSecteur)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
+
+        allAgences = _data
+            .Where(x => string.IsNullOrEmpty(filtreRegion)  || x.LibRegion  == filtreRegion)
+            .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
+            .Select(x => x.LibAgence)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
     }
 
-    private List<string> GetSegments() => new()
+    // ── Helpers UI KPIs ────────────────────────────
+    private string GetKpiClass(double value, double greenThreshold, double orangeThreshold)
     {
-        "HDG Premium Potentiel",
-        "HDG Premium Standard",
-        "HDG Potentiel",
-        "HDG Senior Epargnant",
-        "HDG Standard",
-        "CI Potentiel",
-        "CI Standard",
-        "GP Potentiel",
-        "GP Standard"
-    };
-
-    // ── Construction des rows ─────────────────────────────────────────────
-    private List<DimMatrixRow> BuildRows()
-    {
-        var dataRows = segments.Select(s => new DimMatrixRow
-        {
-            Segment = s,
-            EtpParProfil = _slots.ToDictionary(
-                sl => sl.Id,
-                sl => GetRealEtpForSlot(s, sl)
-            ),
-            EtpCibleSaisieParProfil = _slots.ToDictionary(
-                sl => sl.Id,
-                _ => (double?)null
-            )
-        }).ToList();
-
-        dataRows.Add(new DimMatrixRow
-        {
-            Segment = vueEtp ? "Charge totale ETP par portefeuille" : "Nombre de clients total par portefeuille",
-            IsTotal = true,
-            EtpParProfil = _slots.ToDictionary(
-                sl => sl.Id,
-                _ => (double?)null
-            ),
-            EtpCibleSaisieParProfil = _slots.ToDictionary(
-                sl => sl.Id,
-                _ => (double?)null
-            )
-        });
-
-        return dataRows;
+        if (value >= greenThreshold)  return "dash-kpi-good";
+        if (value >= orangeThreshold) return "dash-kpi-warn";
+        return "dash-kpi-critical";
     }
 
-    private double? GetRealEtpForSlot(string segment, ConseillerSlot slot)
+    private string GetKpiIconClass(double value, double greenThreshold, double orangeThreshold)
     {
-        var matricule = ExtractMatriculeFromSlotLabel(slot.Label);
-
-        return EtpService.GetEtpForConseiller(
-            _segmentationDistributiveFiltree,
-            segment,
-            matricule,
-            StateService.Regles
-        );
+        if (value >= greenThreshold)  return "dash-kpi-icon-good";
+        if (value >= orangeThreshold) return "dash-kpi-icon-warn";
+        return "dash-kpi-icon-critical";
     }
 
     /// <summary>
-    /// Nombre de clients RÉEL d'un conseiller sur un segment, compté
-    /// directement depuis SegmentationDistributive — sans jamais passer
-    /// par l'ETP. Utilisé pour l'affichage "Existant" en vue "Nombre de
-    /// clients", pour garantir que le total ne varie jamais avec la
-    /// précision de la conversion clients ↔ ETP.
+    /// Code couleur du taux de rotation (KPI Dashboard) : logique inversée
+    /// (bas = bon), mêmes seuils que sur la page Portefeuille.
+    /// 0-20% vert · 20-50% orange · &gt;50% rouge
     /// </summary>
-    private double? GetRealClientCountForSlot(string segment, ConseillerSlot slot)
+    private string GetKpiClassRotation(double value)
     {
-        var matricule = ExtractMatriculeFromSlotLabel(slot.Label);
-        if (string.IsNullOrWhiteSpace(matricule))
-            return null;
-
-        var lignes = _segmentationDistributiveFiltree
-            .Where(x => string.Equals(x.MatriculeConseiller, matricule, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        if (!lignes.Any())
-            return null;
-
-        var total = lignes.Sum(x => EtpService.GetClientCountForSegment(x, segment));
-        return total > 0 ? (double)total : (double?)null;
+        if (value <= 20) return "dash-kpi-good";
+        if (value <= 50) return "dash-kpi-warn";
+        return "dash-kpi-critical";
     }
 
-    /// <summary>
-    /// Total réel de clients d'un conseiller, tous segments confondus —
-    /// somme des comptages réels par segment, garantissant que ce total
-    /// correspond exactement à la somme des cellules affichées (pas de
-    /// dérive d'arrondi comme avec une conversion ETP → clients).
-    /// </summary>
-    private double? GetRealClientCountTotalForSlot(ConseillerSlot slot)
+    private string GetKpiIconClassRotation(double value)
     {
-        var vals = segments
-            .Select(seg => GetRealClientCountForSlot(seg, slot))
-            .Where(v => v.HasValue)
-            .ToList();
-
-        return vals.Any() ? vals.Sum(v => v!.Value) : null;
+        if (value <= 20) return "dash-kpi-icon-good";
+        if (value <= 50) return "dash-kpi-icon-warn";
+        return "dash-kpi-icon-critical";
     }
 
-    /// <summary>
-    /// Total réel de clients pour TOUTE l'agence filtrée, tous conseillers
-    /// confondus (y compris ceux exclus des colonnes du tableau, comme
-    /// "NON REPARTI") — comptage brut direct depuis SegmentationDistributive,
-    /// sur les 9 segments nommés. C'est la référence absolue du nombre de
-    /// clients de l'agence, indépendante des slots affichés.
-    /// </summary>
-    private double? GetRealClientCountAgenceTotal()
+    private string FormatCompact(int value)
     {
-        if (_segmentationDistributiveFiltree == null || !_segmentationDistributiveFiltree.Any())
-            return null;
-
-        var total = segments.Sum(seg =>
-            _segmentationDistributiveFiltree.Sum(x => EtpService.GetClientCountForSegment(x, seg)));
-
-        return total > 0 ? (double)total : (double?)null;
+        if (value >= 1_000_000) return $"{value / 1_000_000.0:F1}M";
+        if (value >= 1_000)     return $"{value / 1_000.0:F0}K";
+        return value.ToString("N0");
     }
 
-    /// <summary>
-    /// Somme, pour un segment donné, des comptages réels de clients par
-    /// conseiller (chacun déjà arrondi individuellement) — garantit que ce
-    /// total correspond exactement à ce qui est visible dans les colonnes
-    /// du tableau, sans arrondi indépendant sur la charge agrégée.
-    /// </summary>
-    private double? GetRealClientCountRowSum(string segment)
-    {
-        var vals = _slots
-            .Select(s => GetRealClientCountForSlot(segment, s))
-            .Where(v => v.HasValue)
-            .ToList();
+    // ── Helpers heatmap agences ────────────────────
+    private string GetHeatmapUnit() =>
+        _heatmap.Count > 1 ? "agences" : "agence";
 
-        return vals.Any() ? vals.Sum(v => v!.Value) : null;
-    }
+    private IEnumerable<TerritoireRow> FilteredHeatmap =>
+        string.IsNullOrWhiteSpace(_heatmapSearch)
+            ? _heatmap
+            : _heatmap.Where(r => r.Nom.Contains(_heatmapSearch, StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>
-    /// Vrai si au moins un transfert manuel (BP/Agence/Mutualisé) est
-    /// saisi sur ce segment. Les transferts sont exprimés uniquement en
-    /// ETP et ne peuvent pas être répartis par conseiller — dans ce cas,
-    /// la Colonne 1 doit rester basée sur la charge ajustée convertie,
-    /// pas sur la somme des comptages réels par conseiller.
-    /// </summary>
-    private bool HasTransfertsForSegment(string segment)
+    private IEnumerable<TerritoireRow> SortedHeatmap
     {
-        return (_chargeATransfererBP.GetValueOrDefault(segment) ?? 0) != 0
-            || (_chargeRecueBP.GetValueOrDefault(segment) ?? 0) != 0
-            || (_chargeATransfererMutualise.GetValueOrDefault(segment) ?? 0) != 0;
-    }
-
-    private static string ExtractMatriculeFromSlotLabel(string label)
-    {
-        var idx = label.LastIndexOf('-');
-        return idx >= 0 && idx < label.Length - 1
-            ? label[(idx + 1)..]
-            : label;
-    }
-
-    // ── Affectation depuis ReglesHypotheses ───────────────────────────────
-    private int GetAssignmentLevel(string segment, string profil)
-    {
-        if (string.IsNullOrWhiteSpace(segment) || string.IsNullOrWhiteSpace(profil)) return 0;
-        var r = StateService.Regles.ReglesAffectationSegments
-            .FirstOrDefault(x => x.Segment?.Trim().Equals(segment.Trim(), StringComparison.OrdinalIgnoreCase) == true);
-        if (r == null) return 0;
-        if (r.ConseillerPrioritaire?.Trim().Equals(profil.Trim(), StringComparison.OrdinalIgnoreCase) == true) return 1;
-        if (r.ConseillerSecondaire?.Trim().Equals(profil.Trim(),  StringComparison.OrdinalIgnoreCase) == true) return 2;
-        if (r.ConseillerTertiaire?.Trim().Equals(profil.Trim(),   StringComparison.OrdinalIgnoreCase) == true) return 3;
-        return 0;
-    }
-
-    private static string GetMergedCellStyle(int level, bool isTotal, bool isGreyed = false)
-    {
-        if (isGreyed) return "background:#ECECEC;opacity:0.5";
-        if (isTotal) return "";
-        return level switch
+        get
         {
-            1 => "background:#1A6B3C;color:white",
-            2 => "background:#52A86B;color:white",
-            3 => "background:#C3E6CB;color:#1A4E6B",
-            _ => ""
-        };
-    }
-
-    // ── Distribution automatique ─────────────────────────────────────
-    private void AutoDistribuerCible()
-    {
-        var segmentsIncomplets = RepartitionService.DistribuerAutomatiquement(
-            rows, _slots, StateService.Regles.ReglesAffectationSegments,
-            r => GetChargeTotaleAffichee(r) ?? 0);
-
-        RecalcTotal();
-
-        if (segmentsIncomplets == 0)
-            Snackbar.Add("Distribution appliquée — toute la charge a été placée sur les conseillers prioritaires.", Severity.Success);
-        else
-            Snackbar.Add($"Distribution appliquée — {segmentsIncomplets} segment(s) n'ont pas pu être entièrement couverts (capacité insuffisante).", Severity.Warning);
-    }
-
-    // ── Mutations ─────────────────────────────────────────────────────────
-    private void SetEtpCible(DimMatrixRow row, string slotId, double? value)
-    {
-        row.EtpCibleSaisieParProfil[slotId] = value;
-        RecalcTotal();
-    }
-
-    private void RecalcTotal()
-    {
-        var totalRow = rows.LastOrDefault(r => r.IsTotal);
-        if (totalRow == null) return;
-
-        foreach (var slot in _slots)
-        {
-            var valsExist = rows
-                .Where(r => !r.IsTotal)
-                .Select(r => r.EtpParProfil.GetValueOrDefault(slot.Id))
-                .ToList();
-
-            var valsCible = rows
-                .Where(r => !r.IsTotal)
-                .Select(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id))
-                .ToList();
-
-            totalRow.EtpParProfil[slot.Id] =
-                valsExist.Any(v => v.HasValue)
-                    ? valsExist.Sum(v => v ?? 0)
-                    : null;
-
-            totalRow.EtpCibleSaisieParProfil[slot.Id] =
-                valsCible.Any(v => v.HasValue)
-                    ? valsCible.Sum(v => v ?? 0)
-                    : null;
-        }
-
-        filteredRows = rows.ToList();
-    }
-
-    // ── Affichage ETP / Nombre de clients ─────────────────────────────────
-    private double? ToDisplayValue(double? etpValue, string segment) =>
-        vueEtp ? etpValue : EtpService.GetClientCountFromEtp(etpValue, segment, StateService.Regles);
-
-    private string FormatDisplay(double? etpValue, string segment, string etpFormat = "F2")
-    {
-        var v = ToDisplayValue(etpValue, segment);
-        if (v is null) return "—";
-        var format = !vueEtp || (v.Value % 1) == 0 ? "F0" : etpFormat;
-        return v.Value.ToString(format);
-    }
-
-    private string FormatTotal(double? value)
-    {
-        if (value is null) return "—";
-
-        // En vue "Nombre de clients", toujours un entier arrondi — jamais de décimales.
-        if (!vueEtp)
-            return Math.Round(value.Value).ToString("F0");
-
-        var format = Math.Abs(value.Value % 1) < 0.001 ? "F0" : "F2";
-        return value.Value.ToString(format);
-    }
-
-    private double? GetDisplayTotalForSlot(string slotId, bool cible)
-    {
-        // Existant en vue "Nombre de clients" : comptage réel direct
-        // (jamais reconverti depuis l'ETP), pour que ce total corresponde
-        // toujours exactement à la somme des cellules affichées.
-        if (!cible && !vueEtp)
-        {
-            var slot = _slots.FirstOrDefault(s => s.Id == slotId);
-            return slot != null ? GetRealClientCountTotalForSlot(slot) : null;
-        }
-
-        return rows.Where(r => !r.IsTotal)
-                 .Sum(r => ToDisplayValue(
-                     cible ? r.EtpCibleSaisieParProfil.GetValueOrDefault(slotId)
-                           : r.EtpParProfil.GetValueOrDefault(slotId),
-                     r.Segment));
-    }
-
-    private double? GetDisplayProfilTotal(string profil, bool cible)
-    {
-        return _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase))
-                     .Sum(s => GetDisplayTotalForSlot(s.Id, cible) ?? 0);
-    }
-
-    private double? GetDisplayRowTotal(DimMatrixRow row, bool cible)
-    {
-        // Existant en vue "Nombre de clients" : comptage réel direct sur
-        // TOUTE l'agence (pas seulement les conseillers affichés dans
-        // _slots) — inclut donc les clients rattachés à des conseillers
-        // exclus des colonnes (ex. "NON REPARTI"), pour que ce total
-        // corresponde exactement au comptage brut en base.
-        if (!cible && !vueEtp)
-        {
-            return GetRealClientCountAgenceTotal();
-        }
-
-        // Appelée uniquement pour la ligne Total : on ne peut pas convertir une
-        // valeur déjà sommée cross-segments avec row.Segment (qui n'est pas un
-        // vrai segment ici). On reconstruit donc le total en sommant, pour
-        // chaque VRAI segment, sa valeur convertie individuellement — cohérent
-        // avec GetDisplayTotalForSlot.
-        var keys = (cible ? _slots.Where(s => s.IsCible) : _slots)
-            .Select(s => s.Id)
-            .ToHashSet();
-
-        return rows.Where(r => !r.IsTotal)
-            .Sum(r =>
+            var src = FilteredHeatmap;
+            Func<TerritoireRow, object> keySelector = _hmSortColumn switch
             {
-                var dict = cible ? r.EtpCibleSaisieParProfil : r.EtpParProfil;
-                return dict.Where(kv => keys.Contains(kv.Key))
-                           .Sum(kv => ToDisplayValue(kv.Value, r.Segment));
-            });
-    }
-
-    /// <summary>
-    /// Total de la charge ETP/clients "ajustée" (existant ± transferts BP/Agence/
-    /// Mutualisé), sommée sur tous les segments — utilisé comme référence cible
-    /// dans la ligne Total : avant toute redistribution manuelle entre
-    /// conseillers, la cible logique à couvrir est cette charge ajustée, pas la
-    /// somme des saisies individuelles déjà réparties dans le tableau.
-    /// </summary>
-    private double? GetChargeAjusteeTotal()
-    {
-        return rows.Where(r => !r.IsTotal)
-            .Sum(r => ToDisplayValue(GetChargeTotaleAffichee(r), r.Segment));
-    }
-
-
-    private static string GetExistantColor(double? existant, double? _ = null) =>
-        (!existant.HasValue || existant.Value <= 0) ? "color:#9AA5B1" : "color:#E65100;font-weight:600";
-
-    private double? GetCoverageDiff(DimMatrixRow row)
-    {
-        if (row.IsTotal) return null;
-        var activeSlots = _slots.Where(s => s.IsCible).ToList();
-        var totalCible = activeSlots.Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-        // On compare à la charge ajustée (après transferts), pas à la charge
-        // brute existante — cohérent avec la colonne "Charge Totale ETP par
-        // segment" affichée juste à côté.
-        var totalExist = GetChargeTotaleAffichee(row) ?? 0;
-        if (totalCible <= 0 && totalExist <= 0) return null;
-        return totalCible - totalExist;
-    }
-
-    private double? GetDisplayCoverageDiff(DimMatrixRow row)
-    {
-        if (row.IsTotal) return null;
-        var activeSlots = _slots.Where(s => s.IsCible).ToList();
-        var totalCib = activeSlots.Sum(s => EtpService.GetClientCountFromEtp(row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id), row.Segment, StateService.Regles) ?? 0);
-        var totalExist = EtpService.GetClientCountFromEtp(GetChargeTotaleAffichee(row), row.Segment, StateService.Regles) ?? 0;
-        if (totalCib <= 0 && totalExist <= 0) return null;
-        return totalCib - totalExist;
-    }
-
-
-    private (double? pct, string color, string tooltip) GetConcordance(DimMatrixRow row)
-    {
-        if (row.IsTotal) return (null, "", "");
-        var activeSlots = _slots.Where(s => s.IsCible).ToList();
-        var totalCible  = activeSlots.Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-        if (totalCible <= 0) return (null, "", "Aucune saisie");
-
-        var etpDesigne    = activeSlots
-            .Where(s => GetAssignmentLevel(row.Segment, s.Profil) > 0)
-            .Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-        var etpHorsRH     = totalCible - etpDesigne;
-
-        var etpPrio  = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 1).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-        var etpSec   = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 2).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-        var etpTert  = activeSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 3).Sum(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0);
-
-        var pct   = etpDesigne / totalCible * 100.0;
-        var color = pct >= 99.9 ? "color:#2E7D32;font-weight:700" :
-                    pct >= 80   ? "color:#E65100;font-weight:700" :
-                                  "color:#C62828;font-weight:700";
-
-        var tooltip = $"Concordance : {pct:F0}% dans les types de segments\n" +
-                      $"  ▸ Prioritaire  : {etpPrio:F2} ETP\n" +
-                      $"  ▸ Secondaire   : {etpSec:F2} ETP\n" +
-                      $"  ▸ Tertiaire    : {etpTert:F2} ETP\n" +
-                      $"  ✗ Hors priorité     : {etpHorsRH:F2} ETP";
-
-        return (pct, color, tooltip);
-    }
-
-    private (double? pct, string color, string tooltip) GetConcordanceExistant(DimMatrixRow row)
-    {
-        if (row.IsTotal) return (null, "", "");
-        var allSlots = _slots.ToList();
-        var totalExist = allSlots.Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
-        if (totalExist <= 0) return (null, "", "Aucune donnée existante");
-
-        var etpDesigne = allSlots
-            .Where(s => GetAssignmentLevel(row.Segment, s.Profil) > 0)
-            .Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
-        var etpHorsRH = totalExist - etpDesigne;
-
-        var etpPrio = allSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 1).Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
-        var etpSec = allSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 2).Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
-        var etpTert = allSlots.Where(s => GetAssignmentLevel(row.Segment, s.Profil) == 3).Sum(s => row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0);
-
-        var pct = etpDesigne / totalExist * 100.0;
-        var color = pct >= 99.9 ? "color:#2E7D32;font-weight:700" :
-                    pct >= 80   ? "color:#E65100;font-weight:700" :
-                                  "color:#C62828;font-weight:700";
-
-        var tooltip = $"Concordance existant : {pct:F0}% dans les types de segments\n" +
-                      $"  ▸ Prioritaire  : {etpPrio:F2} ETP\n" +
-                      $"  ▸ Secondaire   : {etpSec:F2} ETP\n" +
-                      $"  ▸ Tertiaire    : {etpTert:F2} ETP\n" +
-                      $"  ✗ Hors priorité     : {etpHorsRH:F2} ETP";
-
-        return (pct, color, tooltip);
-    }
-
-    private static (string bg, string fg) GetConcordanceColors(double? pct) =>
-        !pct.HasValue    ? ("#F5F5F5", "#757575") :
-        pct.Value >= 80 ? ("#E8F5E9", "#2E7D32") :
-        pct.Value >= 50   ? ("#FFF3E0", "#E65100") :
-                            ("#FFEBEE", "#C62828");
-
-    private double? GetEtpCible(string segment, string profil)
-    {
-        var si = StateService.Regles.SegmentsIntensite
-            .FirstOrDefault(s => s.Segment?.Trim().Equals(segment.Trim(), StringComparison.OrdinalIgnoreCase) == true);
-        if (si == null || si.NombreClients <= 0) return null;
-        var intensite = si.IntensiteRelationnelle;
-        if (intensite <= 0) return null;
-        var cp = StateService.Regles.ConseillersProfils
-            .FirstOrDefault(p => p.Profil?.Trim().Equals(profil.Trim(), StringComparison.OrdinalIgnoreCase) == true);
-        if (cp == null) return null;
-        var heuresAn = StateService.Regles.HeuresTravailParAn;
-        var volumeHoraire = heuresAn * cp.PartTempsCommercialPct / 100.0;
-        if (volumeHoraire <= 0) return null;
-        var tailleTheorique = volumeHoraire / intensite;
-        return tailleTheorique > 0 ? Math.Round(si.NombreClients / tailleTheorique, 2) : null;
-    }
-
-    // ── Totaux ────────────────────────────────────────────────────────────
-    private double? GetEtpCibleSaisieTotal(string slotId)
-    {
-        var vals = rows.Where(r => !r.IsTotal)
-                       .Select(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slotId))
-                       .Where(v => v.HasValue).ToList();
-        return vals.Any() ? vals.Sum(v => v!.Value) : null;
-    }
-
-    private double? GetRowCibleTotal(DimMatrixRow row)
-    {
-        var vals = _slots.Select(s => row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id))
-                         .Where(v => v.HasValue).ToList();
-        return vals.Any() ? vals.Sum(v => v!.Value) : null;
-    }
-
-    private double? GetRowExistantTotal(DimMatrixRow row)
-    {
-        var vals = _slots.Select(s => row.EtpParProfil.GetValueOrDefault(s.Id))
-                         .Where(v => v.HasValue).ToList();
-        return vals.Any() ? vals.Sum(v => v!.Value) : null;
-    }
-
-    private double? GetTauxRotationForRow(DimMatrixRow row)
-    {
-        if (row.IsTotal) return null;
-
-        // Charge ETP ajustée du segment (existant ± transferts BP/Agence/Mutualisé).
-        var chargeAjustee = Math.Round(GetChargeTotaleAffichee(row) ?? 0, 2);
-        if (chargeAjustee <= 0) return null;
-
-        // Rotation = somme des gains uniquement (cible > existant) par
-        // conseiller — les pertes ne sont pas comptées, pour éviter de compter
-        // le même mouvement en double (un gain d'un côté = une perte de l'autre).
-        var gains = _slots.Sum(s =>
-            Math.Max(0,
-                Math.Round(row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0, 2)
-                - Math.Round(row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0, 2)
-            ));
-
-        return Math.Round(gains, 2) / chargeAjustee * 100.0;
-    }
-
-    private double? GetTauxRotationExistant(DimMatrixRow row)
-    {
-        if (row.IsTotal) return null;
-        var cible = Math.Round(GetRowCibleTotal(row) ?? 0, 2);
-        var exist = Math.Round(GetRowExistantTotal(row) ?? 0, 2);
-        if (exist <= 0) return null;
-        return Math.Round(cible - exist, 2) / exist * 100.0;
-    }
-
-    // ── Totaux des KPI ─────────────────────────────────────────────────────
-    private double? GetTotalConcordance()
-    {
-        var activeSlots = _slots.Where(s => s.IsCible).ToList();
-        var totalCible = rows.Where(r => !r.IsTotal)
-            .Sum(r => activeSlots.Sum(s => r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0));
-        if (totalCible <= 0) return null;
-
-        var etpDesigne = rows.Where(r => !r.IsTotal)
-            .Sum(r => activeSlots
-                .Where(s => GetAssignmentLevel(r.Segment, s.Profil) > 0)
-                .Sum(s => r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0));
-
-        return etpDesigne / totalCible * 100.0;
-    }
-
-    private double? GetTotalConcordanceExistant()
-    {
-        var allSlots = _slots.ToList();
-        var totalExist = rows.Where(r => !r.IsTotal)
-            .Sum(r => allSlots.Sum(s => r.EtpParProfil.GetValueOrDefault(s.Id) ?? 0));
-        if (totalExist <= 0) return null;
-
-        var etpDesigne = rows.Where(r => !r.IsTotal)
-            .Sum(r => allSlots
-                .Where(s => GetAssignmentLevel(r.Segment, s.Profil) > 0)
-                .Sum(s => r.EtpParProfil.GetValueOrDefault(s.Id) ?? 0));
-
-        return etpDesigne / totalExist * 100.0;
-    }
-
-    private double? GetTotalTauxRotation()
-    {
-        var chargeAjusteeTotal = rows.Where(r => !r.IsTotal).Sum(r => GetChargeTotaleAffichee(r) ?? 0);
-        if (chargeAjusteeTotal <= 0) return null;
-
-        var gains = rows.Where(r => !r.IsTotal)
-            .Sum(r => _slots.Sum(s =>
-                Math.Max(0,
-                    Math.Round(r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0, 2)
-                    - Math.Round(r.EtpParProfil.GetValueOrDefault(s.Id) ?? 0, 2)
-                )));
-
-        return Math.Round(gains, 2) / chargeAjusteeTotal * 100.0;
-    }
-
-    private double? GetTotalTauxRotationExistant()
-    {
-        var cible = rows.Where(r => !r.IsTotal).Sum(r => GetRowCibleTotal(r) ?? 0);
-        var exist = rows.Where(r => !r.IsTotal).Sum(r => GetRowExistantTotal(r) ?? 0);
-        if (exist <= 0) return null;
-        return Math.Round(cible - exist, 2) / exist * 100.0;
-    }
-
-    private void InitEffectifs()
-    {
-        foreach (var slot in _slots)
-        {
-            _tauxRotation.TryAdd(slot.Id, null);
-            _tauxEntree  .TryAdd(slot.Id, null);
+                "Nom"               => r => r.Nom,
+                "ConseillersActifs" => r => r.ConseillersActifs,
+                "ConseillersCibles" => r => r.ConseillersCibles,
+                "EtpNecessaires"    => r => r.EtpNecessaires,
+                "TauxCouverture"    => r => r.TauxCouverture,
+                "Concordance"       => r => r.Concordance,
+                "TauxRotation"      => r => r.TauxRotation,
+                "ChargeTransfereeBP"        => r => r.ChargeTransfereeBP,
+                "ChargeTransfereeAgence"    => r => r.ChargeTransfereeAgence,
+                "ChargeTransfereeMutualise" => r => r.ChargeTransfereeMutualise,
+                _                   => r => r.ClientsGeres
+            };
+            return _hmSortAsc ? src.OrderBy(keySelector) : src.OrderByDescending(keySelector);
         }
     }
 
-    private static string ConcordanceColor(double? pct) =>
-        !pct.HasValue    ? "color:white" :
-        pct.Value >= 99.9 ? "color:#A5D6A7;font-weight:700" :
-        pct.Value >= 80   ? "color:#FFD54F;font-weight:700" :
-                            "color:#EF9A9A;font-weight:700";
-
-    private (double? pct, string color) GetConcordanceForSlot(ConseillerSlot slot)
+    private void SetSort(string column)
     {
-        var totalCible = GetEtpCibleSaisieTotal(slot.Id);
-        if (!totalCible.HasValue || totalCible.Value <= 0) return (null, "color:white");
-
-        var etpDesigne = rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, slot.Profil) > 0)
-                             .Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0);
-        var pct = etpDesigne / totalCible.Value * 100.0;
-        return (pct, ConcordanceColor(pct));
+        if (_hmSortColumn == column) _hmSortAsc = !_hmSortAsc;
+        else { _hmSortColumn = column; _hmSortAsc = false; }
     }
 
-    private (double? pct, string color) GetConcordanceForProfil(string profil)
-    {
-        var slots      = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
-        var totalCible = slots.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0);
-        if (totalCible <= 0) return (null, "color:white");
+    private string SortIcon(string column) =>
+        _hmSortColumn != column ? "" : (_hmSortAsc ? "▲" : "▼");
 
-        var etpDesigne = slots.Sum(s =>
-            rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, s.Profil) > 0)
-                .Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0));
-        var pct = etpDesigne / totalCible * 100.0;
-        return (pct, ConcordanceColor(pct));
+    private string GetPillClass(double value, double greenThreshold, double orangeThreshold)
+    {
+        if (value >= greenThreshold)  return "dash-hm-pill-good";
+        if (value >= orangeThreshold) return "dash-hm-pill-warn";
+        return "dash-hm-pill-critical";
     }
 
-    private (double? pct, string color) GetConcordanceExistantForSlot(ConseillerSlot slot)
+    /// <summary>
+    /// Code couleur du taux de rotation : logique inversée (bas = bon).
+    /// ≤10% vert · ≤20% orange · >20% rouge
+    /// </summary>
+    private string GetPillClassRotation(double value)
     {
-        var totalExist = GetTotalEtpExistantForSlot(slot.Id);
-        if (!totalExist.HasValue || totalExist.Value <= 0) return (null, "color:white");
-
-        var etpDesigne = rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, slot.Profil) > 0)
-                             .Sum(r => r.EtpParProfil.GetValueOrDefault(slot.Id) ?? 0);
-        var pct = etpDesigne / totalExist.Value * 100.0;
-        return (pct, ConcordanceColor(pct));
+        if (value <= 10) return "dash-hm-pill-good";
+        if (value <= 20) return "dash-hm-pill-warn";
+        return "dash-hm-pill-critical";
     }
 
-    private (double? pct, string color) GetConcordanceExistantForProfil(string profil)
+    private string GetStatusColor(TerritoireRow row)
     {
-        var slots      = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase)).ToList();
-        var totalExist = slots.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0);
-        if (totalExist <= 0) return (null, "color:white");
-
-        var etpDesigne = slots.Sum(s =>
-            rows.Where(r => !r.IsTotal && GetAssignmentLevel(r.Segment, s.Profil) > 0)
-                .Sum(r => r.EtpParProfil.GetValueOrDefault(s.Id) ?? 0));
-        var pct = etpDesigne / totalExist * 100.0;
-        return (pct, ConcordanceColor(pct));
+        if (row.Concordance >= 80 && row.TauxCouverture >= 100) return "#1B5E20";
+        if (row.Concordance >= 60 && row.TauxCouverture >= 90)  return "#E65100";
+        return "#C62828";
     }
-
-    private double? GetTauxRotation(ConseillerSlot slot)
-    {
-        var cible = Math.Round(GetEtpCibleSaisieTotal(slot.Id) ?? 0, 2);
-        if (cible <= 0) return null;
-
-        var gains = rows.Where(r => !r.IsTotal).Sum(r => GetEntreesCell(r, slot.Id));
-
-        return Math.Round(gains, 2) / cible * 100.0;
-    }
-
-    private double? GetTauxRotationForProfil(string profil)
-    {
-        var slots      = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
-        var totalCible = Math.Round(slots.Sum(s => GetEtpCibleSaisieTotal(s.Id) ?? 0), 2);
-        if (totalCible <= 0) return null;
-        var totalExist = Math.Round(slots.Sum(s => GetTotalEtpExistantForSlot(s.Id) ?? 0), 2);
-        var diff       = Math.Round(totalCible - totalExist, 2);
-        return diff / totalCible * 100.0;
-    }
-
-    private double GetEntreesCell(DimMatrixRow row, string slotId)
-    {
-        var c = Math.Round(row.EtpCibleSaisieParProfil.GetValueOrDefault(slotId) ?? 0, 2);
-        var e = Math.Round(row.EtpParProfil.GetValueOrDefault(slotId) ?? 0, 2);
-        return Math.Max(0, c - e);
-    }
-
-    private double GetDisplayEntreesCell(DimMatrixRow row, string slotId)
-    {
-        var cibClients = EtpService.GetClientCountFromEtp(row.EtpCibleSaisieParProfil.GetValueOrDefault(slotId), row.Segment, StateService.Regles) ?? 0;
-        var existClients = EtpService.GetClientCountFromEtp(row.EtpParProfil.GetValueOrDefault(slotId), row.Segment, StateService.Regles) ?? 0;
-        return Math.Max(0, cibClients - existClients);
-    }
-
-    
-
-    private double? GetDisplayTauxEntreeSlot(ConseillerSlot slot)
-    {
-        var entrees = rows.Where(r => !r.IsTotal).Sum(r => GetDisplayEntreesCell(r, slot.Id));
-        return entrees > 0 ? Math.Round(entrees, 2) : null;
-    }
-
-    private double? GetTauxEntreeSlot(ConseillerSlot slot)
-    {
-        var chargeAjusteeTotal = rows.Where(r => !r.IsTotal).Sum(r => GetChargeTotaleAffichee(r) ?? 0);
-        if (chargeAjusteeTotal <= 0) return null;
-        var entrees = rows.Where(r => !r.IsTotal).Sum(r => GetEntreesCell(r, slot.Id));
-        return Math.Round(entrees, 2) / chargeAjusteeTotal * 100.0;
-    }
-
-    private double? GetTauxEntreeForProfil(string profil)
-    {
-        var chargeAjusteeTotal = rows.Where(r => !r.IsTotal).Sum(r => GetChargeTotaleAffichee(r) ?? 0);
-        if (chargeAjusteeTotal <= 0) return null;
-        var slots = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
-        var entrees = rows.Where(r => !r.IsTotal).Sum(r => slots.Sum(s => GetEntreesCell(r, s.Id)));
-        return Math.Round(entrees, 2) / chargeAjusteeTotal * 100.0;
-    }
-
-    private double? GetTauxEntreeTotal()
-    {
-        var chargeAjusteeTotal = rows.Where(r => !r.IsTotal).Sum(r => GetChargeTotaleAffichee(r) ?? 0);
-        if (chargeAjusteeTotal <= 0) return null;
-        var activeSlots = _slots.Where(s => s.IsCible).ToList();
-        var entrees = rows.Where(r => !r.IsTotal).Sum(r => activeSlots.Sum(s => GetEntreesCell(r, s.Id)));
-        return Math.Round(entrees, 2) / chargeAjusteeTotal * 100.0;
-    }
-
-    private double? GetDisplayTauxEntreeForProfil(string profil)
-    {
-        var slots = _slots.Where(s => s.Profil.Equals(profil, StringComparison.OrdinalIgnoreCase) && s.IsCible).ToList();
-        var entrees = rows.Where(r => !r.IsTotal).Sum(r => slots.Sum(s => GetDisplayEntreesCell(r, s.Id)));
-        return entrees > 0 ? Math.Round(entrees, 2) : null;
-    }
-
-    private double GetDisplayTauxEntreeTotal()
-    {
-        var activeSlots = _slots.Where(s => s.IsCible).ToList();
-        var entrees = rows.Where(r => !r.IsTotal).Sum(r => activeSlots.Sum(s => GetDisplayEntreesCell(r, s.Id)));
-        return Math.Round(entrees, 2);
-    }
-
-    private double? GetTotalEtpExistantForSlot(string slotId)
-    {
-        var vals = rows.Where(r => !r.IsTotal)
-                       .Select(r => r.EtpParProfil.GetValueOrDefault(slotId))
-                       .Where(v => v.HasValue).ToList();
-        return vals.Any() ? vals.Sum(v => v!.Value) : null;
-    }
-
-    private double? GetRemplissageForSlot(ConseillerSlot slot)
-    {
-        if (!slot.IsCible || slot.EtpCible <= 0) return null;
-        var etp = GetEtpCibleSaisieTotal(slot.Id);
-        return etp.HasValue ? etp.Value / slot.EtpCible * 100.0 : null;
-    }
-
-    private double? GetRemplissageExistantForSlot(ConseillerSlot slot)
-    {
-        if (!slot.IsActuel || slot.EtpActuel <= 0) return null;
-        var etp = GetTotalEtpExistantForSlot(slot.Id);
-        return etp.HasValue ? etp.Value / slot.EtpActuel * 100.0 : null;
-    }
-
-    private static double GetEvolutionForSlot(ConseillerSlot slot) =>
-        slot.IsCible ? (slot.IsActuel ? 0.0 : 1.0) : (slot.IsActuel ? -1.0 : 0.0);
-
-    // ── Formatage ─────────────────────────────────────────────────────────
-    private static string FormatDiff(double? v, string suffix = "") =>
-        v.HasValue ? (v.Value >= 0 ? $"+{v.Value:F2}{suffix}" : $"{v.Value:F2}{suffix}") : "—";
-
-    private static string FormatDiff(double v, string suffix = "") =>
-        v >= 0 ? $"+{v:F0}{suffix}" : $"{v:F0}{suffix}";
-
-    private static string DiffColor(double? v, bool positifBon = true) =>
-        !v.HasValue ? "color:white" :
-        v.Value > 0 ? (positifBon ? "color:#A5D6A7;font-weight:700" : "color:#EF9A9A;font-weight:700") :
-        v.Value < 0 ? (positifBon ? "color:#EF9A9A;font-weight:700" : "color:#A5D6A7;font-weight:700") :
-        "color:rgba(255,255,255,0.6);font-weight:600";
-
-    private static string DiffColor(double v, bool positifBon = true) =>
-        v > 0 ? (positifBon ? "color:#A5D6A7;font-weight:700" : "color:#EF9A9A;font-weight:700") :
-        v < 0 ? (positifBon ? "color:#EF9A9A;font-weight:700" : "color:#A5D6A7;font-weight:700") :
-        "color:rgba(255,255,255,0.6);font-weight:600";
 }
