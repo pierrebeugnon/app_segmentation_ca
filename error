@@ -1,34 +1,38 @@
-/// <summary>
-/// Réponse de l'export global — toutes agences confondues.
-/// </summary>
-public class DimensionnementPortefeuilleEtpAllResponse
+private double? GetTauxRotationForRow(DimMatrixRow row)
 {
-    public List<DimensionnementPortefeuilleEtpAllLigne> Lignes { get; set; } = new();
-    public List<DimensionnementPortefeuilleEtpAllCharge> Charges { get; set; } = new();
+    if (row.IsTotal) return null;
+
+    // Charge ETP ajustée du segment (existant ± transferts BP/Agence/Mutualisé).
+    var chargeAjustee = Math.Round(GetChargeTotaleAffichee(row) ?? 0, 2);
+    if (chargeAjustee <= 0) return null;
+
+    // Rotation = somme des gains uniquement (cible > existant) par
+    // conseiller — les pertes ne sont pas comptées, pour éviter de compter
+    // le même mouvement en double (un gain d'un côté = une perte de l'autre).
+    var gains = _slots.Sum(s =>
+        Math.Max(0,
+            Math.Round(row.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0, 2)
+            - Math.Round(row.EtpParProfil.GetValueOrDefault(s.Id) ?? 0, 2)
+        ));
+
+    return Math.Round(gains, 2) / chargeAjustee * 100.0;
 }
 
-public class DimensionnementPortefeuilleEtpAllLigne
-{
-    public string LibRegion { get; set; } = "";
-    public string LibSecteur { get; set; } = "";
-    public string LibAgence { get; set; } = "";
-    public string Segment { get; set; } = "";
-    public string ProfilConseiller { get; set; } = "";
-    public string? MatriculeConseiller { get; set; }
-    public string SlotLabel { get; set; } = "";
-    public bool IsActuel { get; set; }
-    public bool IsCible { get; set; }
-    public double? EtpExistant { get; set; }
-    public double? EtpCible { get; set; }
-    public double CapaciteEtpActuel { get; set; }
-    public double CapaciteEtpCible { get; set; }
-}
 
-public class DimensionnementPortefeuilleEtpAllCharge
+
+
+
+private double? GetTotalTauxRotation()
 {
-    public string LibAgence { get; set; } = "";
-    public string Segment { get; set; } = "";
-    public double? ChargeATransfererBP { get; set; }
-    public double? ChargeRecueBP { get; set; }
-    public double? ChargeATransfererMutualise { get; set; }
+    var chargeAjusteeTotal = rows.Where(r => !r.IsTotal).Sum(r => GetChargeTotaleAffichee(r) ?? 0);
+    if (chargeAjusteeTotal <= 0) return null;
+
+    var gains = rows.Where(r => !r.IsTotal)
+        .Sum(r => _slots.Sum(s =>
+            Math.Max(0,
+                Math.Round(r.EtpCibleSaisieParProfil.GetValueOrDefault(s.Id) ?? 0, 2)
+                - Math.Round(r.EtpParProfil.GetValueOrDefault(s.Id) ?? 0, 2)
+            )));
+
+    return Math.Round(gains, 2) / chargeAjusteeTotal * 100.0;
 }
