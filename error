@@ -1,173 +1,738 @@
-@namespace Segmentation.Client.Components.Dashboard
+@page "/dashboard"
+@inject SegmentationStateService StateService
+@inject DashboardService DashboardService
+@inject HttpClient Http
+@inject ReglesHypothesesService ReglesService
+@inject DimensionnementPortefeuilleEtpService DimensionnementEtpService
+@using Segmentation.Client.Services
+@using Segmentation.Client.Models
+@using Segmentation.Shared.Models
+@using Segmentation.Shared.Referentiels
+@using System.Net.Http.Json
+@using Segmentation.Client.Components.Dashboard
 
-<MudPaper Elevation="1" Style="border-radius:12px;overflow:hidden;margin-top:20px;border:1px solid #E8ECF1">
-    <div style="padding:16px 20px 4px 20px;display:flex;align-items:center;gap:8px">
-        <MudIcon Icon="@Icons.Material.Filled.SyncAlt" Style="font-size:19px;color:#1A4E6B" />
-        <span style="font-size:15px;font-weight:700;color:#1A4E6B">Suivi des transferts entre Agences, Banque Privée et Portefeuilles Mutualisés</span>
-        <MudTooltip Text="Un badge rouge signale un écart entre ce qui est déclaré d'un côté et confirmé de l'autre — transfert potentiellement en attente.">
-            <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" Style="color:#9AA5B1" />
-        </MudTooltip>
-    </div>
+<PageTitle>Pilotage — CA Segmentation</PageTitle>
 
-    <div style="padding:4px 20px 16px 20px;font-size:12px;color:#6C7A89">
-        Comparaison des montants déclarés d'un côté et réceptionnés de l'autre, par segment
-    </div>
+<div class="dash-page">
 
-    <div style="overflow-x:auto;padding:0 12px 16px 12px">
-        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
-            <thead>
-                <tr>
-                    <th rowspan="2" style="text-align:left;padding:8px 12px;min-width:160px;background:#F5F7FA;color:#5C6B7A;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;border-bottom:2px solid #E1E6EC">
-                        Segments distributifs
-                    </th>
-                    <th colspan="2" style="text-align:center;padding:6px;background:#F5F7FA;color:#1A6B3C;font-size:10.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;border-bottom:2px solid #E1E6EC;border-left:1px solid #E1E6EC">
-                        Vers la Banque Privée
-                    </th>
-                    <th colspan="2" style="text-align:center;padding:6px;background:#F5F7FA;color:#1A4E6B;font-size:10.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;border-bottom:2px solid #E1E6EC;border-left:1px solid #E1E6EC">
-                        Vers les Agences
-                    </th>
-                    <th colspan="2" style="text-align:center;padding:6px;background:#F5F7FA;color:#6A4C93;font-size:10.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;border-bottom:2px solid #E1E6EC;border-left:1px solid #E1E6EC">
-                        Vers le Portefeuille Mutualisé
-                    </th>
-                </tr>
-                <tr>
-                    <th style="text-align:center;padding:6px;background:#FAFBFC;color:#8A96A3;font-size:9.5px;font-weight:600;border-bottom:1px solid #E1E6EC;border-left:1px solid #E1E6EC">Charge sortie de l'agence</th>
-                    <th style="text-align:center;padding:6px;background:#FAFBFC;color:#8A96A3;font-size:9.5px;font-weight:600;border-bottom:1px solid #E1E6EC">Charge reçue en BP</th>
-                    <th style="text-align:center;padding:6px;background:#FAFBFC;color:#8A96A3;font-size:9.5px;font-weight:600;border-bottom:1px solid #E1E6EC;border-left:1px solid #E1E6EC">Charge reçue en Agence</th>
-                    <th style="text-align:center;padding:6px;background:#FAFBFC;color:#8A96A3;font-size:9.5px;font-weight:600;border-bottom:1px solid #E1E6EC">Charge sortie de la BP</th>
-                    <th style="text-align:center;padding:6px;background:#FAFBFC;color:#8A96A3;font-size:9.5px;font-weight:600;border-bottom:1px solid #E1E6EC;border-left:1px solid #E1E6EC">Charge sortie de l'agence ou la BP</th>
-                    <th style="text-align:center;padding:6px;background:#FAFBFC;color:#8A96A3;font-size:9.5px;font-weight:600;border-bottom:1px solid #E1E6EC">Charge reçue Portefeuille Mutualisé</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var seg in Segments)
-                {
-                    var ligne = GetLigne(seg);
-                    <tr style="border-bottom:1px solid #F0F2F5">
-                        <td style="padding:7px 12px;font-style:italic;color:#4A5A6E;font-size:12px">@seg</td>
-                        @RenderCell(ligne.DeclareBP, ligne.ReceptionneBP, IsHdgPremium(seg), true)
-                        @RenderCell(ligne.DeclareAgence, ligne.ReceptionneAgence, IsSegmentActionnable(seg) && !IsHdgPremium(seg), false)
-                        @RenderCell(ligne.DeclareMutualise, ligne.PlaceMutualise, IsGpStandard(seg), false)
-                    </tr>
-                }
-                <tr style="background:#F5F7FA;font-weight:700">
-                    <td style="padding:8px 12px;color:#1A4E6B;font-size:12px">TOTAL</td>
-                    @{
-                        var totalLigne = GetTotal();
-                    }
-                    @RenderCell(totalLigne.DeclareBP, totalLigne.ReceptionneBP, true, true)
-                    @RenderCell(totalLigne.DeclareAgence, totalLigne.ReceptionneAgence, true, false)
-                    @RenderCell(totalLigne.DeclareMutualise, totalLigne.PlaceMutualise, true, false)
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</MudPaper>
-
-@code {
-    [Parameter] public List<DimensionnementPortefeuilleEtpAllCharge> Charges { get; set; } = new();
-    [Parameter] public string? FiltreRegion { get; set; }
-    [Parameter] public string? FiltreSecteur { get; set; }
-    [Parameter] public string? FiltreAgence { get; set; }
-
-    private static readonly List<string> Segments = new()
+    @if (_isLoading)
     {
-        "HDG Premium Potentiel", "HDG Premium Standard", "HDG Potentiel",
-        "HDG Senior Epargnant", "HDG Standard", "CI Potentiel",
-        "CI Standard", "GP Potentiel", "GP Standard"
-    };
-
-    private static bool IsHdgPremium(string segment) => segment.Contains("Premium", StringComparison.OrdinalIgnoreCase);
-    private static bool IsGpStandard(string segment) => segment.Equals("GP Standard", StringComparison.OrdinalIgnoreCase);
-    private static bool IsSegmentActionnable(string segment) =>
-        !segment.Equals("Non segmenté", StringComparison.OrdinalIgnoreCase) &&
-        !segment.Equals("Non classé", StringComparison.OrdinalIgnoreCase);
-
-    private List<DimensionnementPortefeuilleEtpAllCharge> FiltreesParPerimetre() =>
-        Charges
-            .Where(c => string.IsNullOrEmpty(FiltreRegion) || c.LibRegion == FiltreRegion)
-            .Where(c => string.IsNullOrEmpty(FiltreSecteur) || c.LibSecteur == FiltreSecteur)
-            .Where(c => string.IsNullOrEmpty(FiltreAgence) || c.LibAgence == FiltreAgence)
-            .ToList();
-
-    private static bool EstBanquePrivee(DimensionnementPortefeuilleEtpAllCharge c) =>
-        c.LibSecteur?.Contains("Banque", StringComparison.OrdinalIgnoreCase) == true;
-
-    private static bool EstMutualise(DimensionnementPortefeuilleEtpAllCharge c) =>
-        c.LibAgence?.Contains("Portefeuille mutualisé", StringComparison.OrdinalIgnoreCase) == true;
-
-    private (double DeclareBP, double ReceptionneBP, double DeclareAgence, double ReceptionneAgence, double DeclareMutualise, double PlaceMutualise) GetLigne(string segment)
-    {
-        var data = FiltreesParPerimetre().Where(c => c.Segment.Equals(segment, StringComparison.OrdinalIgnoreCase)).ToList();
-
-        var declareBP = data.Where(c => !EstBanquePrivee(c) && !EstMutualise(c)).Sum(c => c.ChargeATransfererBP ?? 0);
-        var receptionneBP = data.Where(c => EstBanquePrivee(c)).Sum(c => c.ChargeATransfererBP ?? 0);
-
-        var declareAgence = data.Where(c => !EstBanquePrivee(c) && !EstMutualise(c)).Sum(c => c.ChargeRecueBP ?? 0);
-        var receptionneAgence = data.Where(c => EstBanquePrivee(c)).Sum(c => c.ChargeRecueBP ?? 0);
-
-        var declareMutualise = data.Where(c => !EstMutualise(c)).Sum(c => c.ChargeATransfererMutualise ?? 0);
-        var placeMutualise = data.Where(c => EstMutualise(c)).Sum(c => c.ChargeATransfererMutualise ?? 0);
-
-        return (declareBP, receptionneBP, declareAgence, receptionneAgence, declareMutualise, placeMutualise);
+        <div class="dash-loader">
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+        </div>
     }
 
-    private (double DeclareBP, double ReceptionneBP, double DeclareAgence, double ReceptionneAgence, double DeclareMutualise, double PlaceMutualise) GetTotal()
-    {
-        double dBP = 0, rBP = 0, dAg = 0, rAg = 0, dMut = 0, pMut = 0;
-        foreach (var seg in Segments)
-        {
-            var l = GetLigne(seg);
-            dBP += l.DeclareBP; rBP += l.ReceptionneBP;
-            dAg += l.DeclareAgence; rAg += l.ReceptionneAgence;
-            dMut += l.DeclareMutualise; pMut += l.PlaceMutualise;
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 1 — En-tête
+    ═══════════════════════════════════════════════════════ -->
+    <div class="dash-header">
+        <div>
+            <div class="dash-title">Tableau de bord - dimensionnement des portefeuilles</div>
+            <div class="dash-subtitle">Vue d'ensemble du réseau CA Nord de France</div>
+        </div>
+        <div class="dash-header-meta">
+            <MudIcon Icon="@Icons.Material.Outlined.Schedule" Style="font-size:15px" />
+            Actualisé à l'instant
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 1B — Filtres cascadés
+    ═══════════════════════════════════════════════════════ -->
+    <div class="dash-filters">
+        <div class="dash-filters-inner">
+            <span class="dash-filter-label">FILTRER PAR</span>
+
+            <MudSelect T="string" Label="Région" Dense="true" Margin="Margin.Dense"
+                       Variant="Variant.Outlined" Style="min-width:180px"
+                       Value="@filtreRegion" ValueChanged="OnRegionChanged"
+                       Clearable="true">
+                @foreach (var r in allRegions)
+                {
+                    <MudSelectItem Value="@r">@r</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSelect T="string" Label="Secteur" Dense="true" Margin="Margin.Dense"
+                       Variant="Variant.Outlined" Style="min-width:200px"
+                       Value="@filtreSecteur" ValueChanged="OnSecteurChanged"
+                       Clearable="true">
+                @foreach (var s in allSecteurs)
+                {
+                    <MudSelectItem Value="@s">@s</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSelect T="string" Label="Agence" Dense="true" Margin="Margin.Dense"
+                       Variant="Variant.Outlined" Style="min-width:220px"
+                       Value="@filtreAgence" ValueChanged="OnAgenceChanged"
+                       Clearable="true">
+                @foreach (var a in allAgences)
+                {
+                    <MudSelectItem Value="@a">@a</MudSelectItem>
+                }
+            </MudSelect>
+
+            <button type="button" class="ca-btn-primary"
+                    disabled="@(!HasPendingFilterChanges || _isLoading)"
+                    @onclick="ApplyFilters">
+                <MudIcon Icon="@Icons.Material.Filled.Check" Style="font-size:14px" />
+                Valider
+            </button>
+
+            @if (!string.IsNullOrEmpty(filtreRegion) || !string.IsNullOrEmpty(filtreSecteur) || !string.IsNullOrEmpty(filtreAgence))
+            {
+                <button type="button" class="ca-btn-ghost" @onclick="ClearFilters">
+                    Effacer
+                </button>
+            }
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 2 — 6 KPI HÉROS
+    ═══════════════════════════════════════════════════════ -->
+    <div class="dash-kpi-grid">
+
+        <!-- KPI 1 — Nombre de Clients Commerciaux -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-icon dash-kpi-icon-neutral">
+                <MudIcon Icon="@Icons.Material.Filled.Groups" Style="font-size:17px" />
+            </div>
+            <div class="dash-kpi-label">Nombre de total de clients</div>
+            <div class="dash-kpi-value dash-kpi-neutral">
+                @_kpis.ClientsCommerciaux.ToString("N0")
+            </div>
+        </div>
+
+        <!-- KPI 2 — Nombre de conseillers (2 colonnes verticales) -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-icon dash-kpi-icon-neutral">
+                <MudIcon Icon="@Icons.Material.Filled.Badge" Style="font-size:17px" />
+            </div>
+            <div class="dash-kpi-label">Nombre de conseillers</div>
+
+            @{
+                var deltaConseillers = _kpis.ConseillersExistants - _kpis.ConseillersCibles;
+                var ratioConseillers = _kpis.ConseillersCibles > 0
+                    ? (double)_kpis.ConseillersExistants / _kpis.ConseillersCibles * 100
+                    : 0;
+            }
+
+            <div class="dash-kpi-cols">
+                <div class="dash-kpi-col dash-kpi-line-existant">
+                    <div class="dash-kpi-col-value">@_kpis.ConseillersExistants</div>
+                    <div class="dash-kpi-col-label">Existant</div>
+                </div>
+                <div class="dash-kpi-col dash-kpi-line-cible">
+                    <div class="dash-kpi-col-value">@_kpis.ConseillersCibles</div>
+                    <div class="dash-kpi-col-label">Cible</div>
+                </div>
+            </div>
+
+            <div class="dash-kpi-delta @(deltaConseillers >= 0 ? "dash-delta-good" : "dash-delta-critical")">
+                @(deltaConseillers >= 0 ? "+" : "")@deltaConseillers vs cible (@ratioConseillers.ToString("F0")%)
+            </div>
+        </div>
+
+        <!-- KPI 3 — Taux de couverture -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-icon @GetKpiIconClass(_kpis.TauxCouverture, 100, 90)">
+                <MudIcon Icon="@Icons.Material.Filled.DonutLarge" Style="font-size:17px" />
+            </div>
+            <div class="dash-kpi-label">Taux de remplissage des portefeuilles</div>
+            <div class="dash-kpi-cols">
+                <div class="dash-kpi-col dash-kpi-line-existant">
+                    <div class="dash-kpi-col-value">@_kpis.TauxCouvertureExistant.ToString("F0")%</div>
+                    <div class="dash-kpi-col-label">Existant</div>
+                </div>
+                <div class="dash-kpi-col dash-kpi-line-cible">
+                    <div class="dash-kpi-col-value">@_kpis.TauxCouverture.ToString("F0")%</div>
+                    <div class="dash-kpi-col-label">Cible</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI 4 — Ecart effectif cible vs charge ETP -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-icon @(_kpis.EcartEffectifChargeEtp >= 0 ? "dash-kpi-icon-good" : "dash-kpi-icon-critical")">
+                <MudIcon Icon="@Icons.Material.Filled.Balance" Style="font-size:17px" />
+            </div>
+            <div class="dash-kpi-label">Ecart effectif cible vs charge totale (ETP)</div>
+            <div class="dash-kpi-value @(_kpis.EcartEffectifChargeEtp >= 0 ? "dash-kpi-good" : "dash-kpi-critical")">
+                @(_kpis.EcartEffectifChargeEtp >= 0 ? "+" : "")@_kpis.EcartEffectifChargeEtp.ToString("F1")
+            </div>
+        </div>
+
+        <!-- KPI 5 — Concordance moyenne -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-icon @GetKpiIconClass(_kpis.Concordance, 80, 60)">
+                <MudIcon Icon="@Icons.Material.Filled.Verified" Style="font-size:17px" />
+            </div>
+            <div class="dash-kpi-label">Taux de concordance</div>
+            <div class="dash-kpi-cols">
+                <div class="dash-kpi-col dash-kpi-line-existant">
+                    <div class="dash-kpi-col-value">@_kpis.ConcordanceExistant.ToString("F0")%</div>
+                    <div class="dash-kpi-col-label">Existant</div>
+                </div>
+                <div class="dash-kpi-col dash-kpi-line-cible">
+                    <div class="dash-kpi-col-value">@_kpis.Concordance.ToString("F0")%</div>
+                    <div class="dash-kpi-col-label">Cible</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI 6 — Taux de rotation des clients (entrées uniquement) -->
+        <div class="dash-kpi-card">
+            <div class="dash-kpi-icon @GetKpiIconClassRotation(_kpis.TauxRotationEntrees)">
+                <MudIcon Icon="@Icons.Material.Filled.Autorenew" Style="font-size:17px" />
+            </div>
+            <div class="dash-kpi-label">Taux de rotation des clients</div>
+            <div class="dash-kpi-value @GetKpiClassRotation(_kpis.TauxRotationEntrees)">
+                @_kpis.TauxRotationEntrees.ToString("F0")<span class="dash-kpi-unit">%</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 3 — Grille 2 colonnes
+    ═══════════════════════════════════════════════════════ -->
+    <div class="dash-bottom-grid">
+
+        <div class="dash-bottom-left">
+            <DashboardRepartitionSegment
+                Repartition="@_repartition" />
+
+            <DashboardDistributionGeographique
+                Distribution="@_distributionGeo"
+                Colonnes="@_regionsGeo"
+                Dimension="@_dimensionAffichage"
+                DimensionChanged="OnDimensionChanged" />
+        </div>
+
+        <DashboardRepartitionConseillers
+            Repartition="@_repartitionConseillers" />
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 3B — SUIVI DES TRANSFERTS EN ATTENTE
+    ═══════════════════════════════════════════════════════ -->
+    <DashboardTableauTransferts Charges="@_charges"
+                                FiltreRegion="@filtreRegionApplique"
+                                FiltreSecteur="@filtreSecteurApplique"
+                                FiltreAgence="@filtreAgenceApplique" />
+
+    <!-- ═══════════════════════════════════════════════════════
+         ZONE 4 — VUE DÉTAILLÉE PAR AGENCE
+    ═══════════════════════════════════════════════════════ -->
+    <div class="dash-heatmap">
+
+        <div class="dash-section-title dash-heatmap-title">
+            <span>Vue détaillée par agence</span>
+            <div class="dash-hm-toolbar">
+                <span class="dash-section-hint">@_heatmap.Count @GetHeatmapUnit()</span>
+                <div class="dash-hm-search-wrap">
+                    <MudIcon Icon="@Icons.Material.Outlined.Search" Style="font-size:15px;color:#B0BAC5" />
+                    <input class="dash-hm-search" type="text" placeholder="Rechercher une agence…"
+                           @bind="_heatmapSearch" @bind:event="oninput" />
+                </div>
+            </div>
+        </div>
+
+        @{
+            var displayedHeatmap = SortedHeatmap.ToList();
         }
-        return (dBP, rBP, dAg, rAg, dMut, pMut);
+
+        @if (!_heatmap.Any())
+        {
+            <div class="dash-placeholder">Aucune donnée à afficher</div>
+        }
+        else if (!displayedHeatmap.Any())
+        {
+            <div class="dash-placeholder">Aucune agence ne correspond à "@_heatmapSearch"</div>
+        }
+        else
+        {
+            var maxClients = displayedHeatmap.Max(x => x.ClientsGeres);
+
+            <div class="dash-hm-scroll">
+                <!-- En-tête de colonnes (triable) -->
+                <div class="dash-hm-header">
+                    <div class="dash-hm-sortable" @onclick='() => SetSort("Nom")'>Agence @SortIcon("Nom")</div>
+                    <div class="dash-hm-sortable" @onclick='() => SetSort("ClientsGeres")'>Nombre de clients @SortIcon("ClientsGeres")</div>
+                    <div class="dash-hm-col-consei dash-hm-sortable" @onclick='() => SetSort("ConseillersActifs")'>Cons. existants @SortIcon("ConseillersActifs")</div>
+                    <div class="dash-hm-col-consei dash-hm-sortable" @onclick='() => SetSort("ConseillersCibles")'>Cons. cibles @SortIcon("ConseillersCibles")</div>
+                    <div class="dash-hm-col-etp dash-hm-sortable" @onclick='() => SetSort("EtpNecessaires")'>Charge ETP totale cible @SortIcon("EtpNecessaires")</div>
+                    <div class="dash-hm-col-couv dash-hm-sortable" @onclick='() => SetSort("TauxCouverture")'>Taux de remplissage @SortIcon("TauxCouverture")</div>
+                    <div class="dash-hm-col-conc dash-hm-sortable" @onclick='() => SetSort("Concordance")'>Taux de concordance @SortIcon("Concordance")</div>
+                    <div class="dash-hm-col-rot dash-hm-sortable" @onclick='() => SetSort("TauxRotation")'>Taux de rotation @SortIcon("TauxRotation")</div>
+                    <div class="dash-hm-col-transfert dash-hm-sortable" @onclick='() => SetSort("ChargeTransfereeBP")'>Charge transférée à la BP @SortIcon("ChargeTransfereeBP")</div>
+                    <div class="dash-hm-col-transfert dash-hm-sortable" @onclick='() => SetSort("ChargeTransfereeAgence")'>Charge transférée en agence @SortIcon("ChargeTransfereeAgence")</div>
+                    <div class="dash-hm-col-transfert dash-hm-sortable" @onclick='() => SetSort("ChargeTransfereeMutualise")'>Charge transférée en portefeuille mutualisé @SortIcon("ChargeTransfereeMutualise")</div>
+                </div>
+
+                <!-- Lignes agences -->
+                @foreach (var row in displayedHeatmap)
+                {
+                    var barWidth = maxClients > 0 ? row.ClientsGeres * 100.0 / maxClients : 0;
+                    var statusColor = GetStatusColor(row);
+
+                    <div class="dash-hm-row">
+                        <div class="dash-hm-col-nom">
+                            <span class="dash-hm-status-dot" style="background:@statusColor"></span>
+                            <span class="dash-hm-nom">@row.Nom</span>
+                        </div>
+
+                        <div class="dash-hm-col-volume">
+                            <div class="dash-hm-barwrap">
+                                <div class="dash-hm-bar" style="width:@(barWidth.ToString("F0"))%"></div>
+                            </div>
+                            <span class="dash-hm-barval">@row.ClientsGeres.ToString("N0")</span>
+                        </div>
+
+                        <div class="dash-hm-col-consei dash-hm-existant">@row.ConseillersActifs</div>
+                        <div class="dash-hm-col-consei dash-hm-cible">@row.ConseillersCibles</div>
+
+                        <div class="dash-hm-col-etp">@row.EtpNecessaires.ToString("F0")</div>
+
+                        <div class="dash-hm-col-couv">
+                            <span class="dash-hm-pill @GetPillClassRemplissage(row.TauxCouverture)">
+                                @row.TauxCouverture.ToString("F0")%
+                            </span>
+                        </div>
+
+                        <div class="dash-hm-col-conc">
+                            <span class="dash-hm-pill @GetPillClassConcordance(row.Concordance)">
+                                @row.Concordance.ToString("F0")%
+                            </span>
+                        </div>
+
+                        <div class="dash-hm-col-rot">
+                            <span class="dash-hm-pill @GetPillClassRotation(row.TauxRotation)">
+                                @row.TauxRotation.ToString("F0")%
+                            </span>
+                        </div>
+
+                        <div class="dash-hm-col-transfert">@(row.ChargeTransfereeBP > 0 ? row.ChargeTransfereeBP.ToString("F2") : "—")</div>
+                        <div class="dash-hm-col-transfert">@(row.ChargeTransfereeAgence > 0 ? row.ChargeTransfereeAgence.ToString("F2") : "—")</div>
+                        <div class="dash-hm-col-transfert">@(row.ChargeTransfereeMutualise > 0 ? row.ChargeTransfereeMutualise.ToString("F2") : "—")</div>
+                    </div>
+                }
+            </div>
+
+            <!-- Ligne TOTAL (toujours visible, hors zone de scroll) -->
+            var totalClientsAg = displayedHeatmap.Sum(r => r.ClientsGeres);
+            var totalExistAg = displayedHeatmap.Sum(r => r.ConseillersActifs);
+            var totalCibleAg = displayedHeatmap.Sum(r => r.ConseillersCibles);
+            var totalEtpAg = displayedHeatmap.Sum(r => r.EtpNecessaires);
+            var avgCouv = displayedHeatmap.Any() ? displayedHeatmap.Average(r => r.TauxCouverture) : 0;
+            var avgConc = displayedHeatmap.Any() ? displayedHeatmap.Average(r => r.Concordance) : 0;
+            var avgRot = displayedHeatmap.Any() ? displayedHeatmap.Average(r => r.TauxRotation) : 0;
+            var totalChargeBP = displayedHeatmap.Sum(r => r.ChargeTransfereeBP);
+            var totalChargeAgence = displayedHeatmap.Sum(r => r.ChargeTransfereeAgence);
+            var totalChargeMutualise = displayedHeatmap.Sum(r => r.ChargeTransfereeMutualise);
+
+            <div class="dash-hm-row dash-hm-total-row">
+                <div class="dash-hm-col-nom">
+                    <span class="dash-hm-total-label">TOTAL</span>
+                </div>
+
+                <div class="dash-hm-col-volume">
+                    <span class="dash-hm-barval dash-hm-total-val">@totalClientsAg.ToString("N0")</span>
+                </div>
+
+                <div class="dash-hm-col-consei dash-hm-existant">@totalExistAg</div>
+                <div class="dash-hm-col-consei dash-hm-cible">@totalCibleAg</div>
+
+                <div class="dash-hm-col-etp">@totalEtpAg.ToString("F0")</div>
+
+                <div class="dash-hm-col-couv">
+                    <span class="dash-hm-pill @GetPillClassRemplissage(avgCouv)">
+                        @avgCouv.ToString("F0")%
+                    </span>
+                </div>
+
+                <div class="dash-hm-col-conc">
+                    <span class="dash-hm-pill @GetPillClassConcordance(avgConc)">
+                        @avgConc.ToString("F0")%
+                    </span>
+                </div>
+
+                <div class="dash-hm-col-rot">
+                    <span class="dash-hm-pill @GetPillClassRotation(avgRot)">
+                        @avgRot.ToString("F0")%
+                    </span>
+                </div>
+
+                <div class="dash-hm-col-transfert">@(totalChargeBP > 0 ? totalChargeBP.ToString("F2") : "—")</div>
+                <div class="dash-hm-col-transfert">@(totalChargeAgence > 0 ? totalChargeAgence.ToString("F2") : "—")</div>
+                <div class="dash-hm-col-transfert">@(totalChargeMutualise > 0 ? totalChargeMutualise.ToString("F2") : "—")</div>
+            </div>
+        }
+    </div>
+
+    <div class="dash-footer">
+        © 2026 CA Nord de France — Pilotage réseau
+    </div>
+</div>
+
+@code {
+
+    // ── État ────────────────────────────────────────
+    private bool _isLoading = false;
+    private DashboardKpis _kpis = new();
+    private List<TerritoireRow> _heatmap = new();
+    private List<SegmentationDistributiveData> _data = new();
+    private List<SegmentationDistributiveData> _dataFiltree = new();
+    private List<SegmentRepartition> _repartition = new();
+    private List<LigneMetierRepartition> _repartitionConseillers = new();
+    private List<DimensionnementPortefeuilleEtpAllCharge> _charges = new();
+    private List<DimensionnementPortefeuilleEtpAllLigne> _lignesEtp = new();
+
+    // ── Distribution géographique ───────────────────
+    private Dictionary<string, Dictionary<string, int>> _distributionGeo = new();
+    private List<string> _regionsGeo = new();
+
+    // ── Dimension d'affichage partagée par les 3 blocs du bas ──
+    private string _dimensionAffichage = "Region";
+
+    // ── Heatmap : recherche + tri ────────────────────
+    private string _heatmapSearch = "";
+    private string _hmSortColumn = "ClientsGeres";
+    private bool _hmSortAsc = false;
+
+    // ── Filtres ────────────────────────────────────
+    private string? filtreRegion, filtreSecteur, filtreAgence;
+    private string? filtreRegionApplique, filtreSecteurApplique, filtreAgenceApplique;
+
+    private List<string> allRegions = new();
+    private List<string> allSecteurs = new();
+    private List<string> allAgences = new();
+
+    private bool HasPendingFilterChanges =>
+        filtreRegion  != filtreRegionApplique ||
+        filtreSecteur != filtreSecteurApplique ||
+        filtreAgence  != filtreAgenceApplique;
+
+    /// <summary>
+    /// S'assure que les Règles & Hypothèses sont chargées depuis la base
+    /// avant que le Dashboard les utilise. Nécessaire quand l'utilisateur
+    /// arrive directement sur /dashboard sans être passé par
+    /// /regles-hypotheses ou /portefeuille au préalable.
+    /// </summary>
+    private async Task EnsureReglesLoadedAsync()
+    {
+        if (StateService.IsLoaded)
+            return;
+
+        try
+        {
+            var bundle = await ReglesService.LoadAllAsync();
+
+            var reglesModel = new ReglesHypothesesModel
+            {
+                HeuresParSemaine = bundle.Parametres?.HeuresParSemaine ?? 0,
+                NbSemainesParAn = bundle.Parametres?.NbSemainesParAn ?? 0,
+
+                SegmentsIntensite = bundle.Segments.Select(x => new SegmentIntensite
+                {
+                    LigneMetier = x.LigneMetier,
+                    Segment = x.Segment,
+                    NombreRdvParAn = x.NombreRdvParAn,
+                    DureeRdvHeures = x.DureeRdvHeures
+                }).ToList(),
+
+                ConseillersProfils = bundle.Profils.Select(x => new ConseillerTempsProfil
+                {
+                    LigneMetier = x.LigneMetier,
+                    Profil = x.Profil,
+                    PartTempsCommercialPct = x.PartTempsCommercialPct
+                }).ToList(),
+
+                ReglesAffectationSegments = bundle.Regles.Select(x => new RegleAffectationSegment
+                {
+                    Segment = x.Segment,
+                    ConseillerPrioritaire = x.ConseillerPrioritaire,
+                    ConseillerSecondaire = x.ConseillerSecondaire,
+                    ConseillerTertiaire = x.ConseillerTertiaire
+                }).ToList()
+            };
+
+            StateService.UpdateRegles(reglesModel);
+
+            Console.WriteLine(
+                $">>> Règles chargées depuis Dashboard : " +
+                $"{reglesModel.SegmentsIntensite.Count} segments, " +
+                $"{reglesModel.ConseillersProfils.Count} profils, " +
+                $"{reglesModel.ReglesAffectationSegments.Count} règles");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($">>> Erreur chargement Règles depuis Dashboard : {ex.Message}");
+        }
+    }
+
+    // ── Lifecycle ──────────────────────────────────
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            await EnsureReglesLoadedAsync();
+
+            _data = await Http.GetFromJsonAsync<List<SegmentationDistributiveData>>(
+                "api/SegmentationDistributive") ?? new();
+
+            var allDim = await DimensionnementEtpService.GetAllAsync();
+            _charges = allDim?.Charges ?? new();
+            _lignesEtp = allDim?.Lignes ?? new();
+
+            _dataFiltree = _data.ToList();
+
+            BuildFilterOptions();
+            RecomputeAll();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur Dashboard : {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    // ── Recalcul global ────────────────────────────
+    private void RecomputeAll()
+    {
+        _kpis = DashboardService.ComputeGlobalKpis(_dataFiltree, StateService.Regles, _lignesEtp);
+
+        _heatmap = DashboardService.ComputeHeatmapAgences(
+            _dataFiltree, StateService.Regles, _lignesEtp, _charges);
+
+        _repartition = DashboardService.ComputeRepartitionParSegment(_dataFiltree, StateService.Regles);
+
+        _repartitionConseillers = DashboardService.ComputeRepartitionConseillers(
+            _dataFiltree, StateService.Regles, _lignesEtp);
+
+        var geoResult = DashboardService.ComputeDistributionGeographique(
+            _dataFiltree, _dimensionAffichage);
+        _distributionGeo = geoResult.Distribution;
+        _regionsGeo = geoResult.Colonnes;
+    }
+
+    // ── Changement de dimension pour la distribution géo ──
+    private void OnDimensionChanged(string dim)
+    {
+        _dimensionAffichage = dim;
+
+        var geoResult = DashboardService.ComputeDistributionGeographique(
+            _dataFiltree, _dimensionAffichage);
+        _distributionGeo = geoResult.Distribution;
+        _regionsGeo = geoResult.Colonnes;
+
+        StateHasChanged();
+    }
+
+    // ── Handlers de filtres ────────────────────────
+    private void OnRegionChanged(string? r)
+    {
+        filtreRegion = r;
+        filtreSecteur = null;
+        filtreAgence = null;
+        BuildFilterOptions();
+    }
+
+    private void OnSecteurChanged(string? s)
+    {
+        filtreSecteur = s;
+        filtreAgence = null;
+        BuildFilterOptions();
+    }
+
+    private void OnAgenceChanged(string? a)
+    {
+        filtreAgence = a;
+    }
+
+    private async Task ApplyFilters()
+    {
+        _isLoading = true;
+        StateHasChanged();
+        await Task.Delay(1);
+
+        try
+        {
+            _dataFiltree = _data
+                .Where(x => string.IsNullOrEmpty(filtreRegion)  || x.LibRegion  == filtreRegion)
+                .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
+                .Where(x => string.IsNullOrEmpty(filtreAgence)  || x.LibAgence  == filtreAgence)
+                .ToList();
+
+            filtreRegionApplique  = filtreRegion;
+            filtreSecteurApplique = filtreSecteur;
+            filtreAgenceApplique  = filtreAgence;
+
+            BuildFilterOptions();
+            RecomputeAll();
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ClearFilters()
+    {
+        filtreRegion = filtreSecteur = filtreAgence = null;
+        await ApplyFilters();
+    }
+
+    private void BuildFilterOptions()
+    {
+        allRegions = _data.Select(x => x.LibRegion)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
+
+        allSecteurs = _data
+            .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
+            .Select(x => x.LibSecteur)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
+
+        allAgences = _data
+            .Where(x => string.IsNullOrEmpty(filtreRegion)  || x.LibRegion  == filtreRegion)
+            .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
+            .Select(x => x.LibAgence)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
+    }
+
+    // ── Helpers UI KPIs ────────────────────────────
+    private string GetKpiClass(double value, double greenThreshold, double orangeThreshold)
+    {
+        if (value >= greenThreshold)  return "dash-kpi-good";
+        if (value >= orangeThreshold) return "dash-kpi-warn";
+        return "dash-kpi-critical";
+    }
+
+    private string GetKpiIconClass(double value, double greenThreshold, double orangeThreshold)
+    {
+        if (value >= greenThreshold)  return "dash-kpi-icon-good";
+        if (value >= orangeThreshold) return "dash-kpi-icon-warn";
+        return "dash-kpi-icon-critical";
     }
 
     /// <summary>
-    /// Rend une paire de cellules sous forme de badges arrondis ("pill"),
-    /// cohérents avec le style des badges de pourcentage utilisés ailleurs
-    /// sur le Dashboard (vert = réconcilié, rouge = écart / transfert en
-    /// attente). borderGauche ajoute une séparation visuelle entre groupes.
+    /// Code couleur du taux de rotation (KPI Dashboard) : logique inversée
+    /// (bas = bon), mêmes seuils que sur la page Portefeuille.
+    /// 0-20% vert · 20-50% orange · &gt;50% rouge
     /// </summary>
-    private RenderFragment RenderCell(double a, double b, bool applicable, bool borderGauche) => builder =>
+    private string GetKpiClassRotation(double value)
     {
-        var styleBordure = borderGauche ? "border-left:1px solid #F0F2F5;" : "";
+        if (value <= 20) return "dash-kpi-good";
+        if (value <= 50) return "dash-kpi-warn";
+        return "dash-kpi-critical";
+    }
 
-        if (!applicable)
+    private string GetKpiIconClassRotation(double value)
+    {
+        if (value <= 20) return "dash-kpi-icon-good";
+        if (value <= 50) return "dash-kpi-icon-warn";
+        return "dash-kpi-icon-critical";
+    }
+
+    private string FormatCompact(int value)
+    {
+        if (value >= 1_000_000) return $"{value / 1_000_000.0:F1}M";
+        if (value >= 1_000)     return $"{value / 1_000.0:F0}K";
+        return value.ToString("N0");
+    }
+
+    // ── Helpers heatmap agences ────────────────────
+    private string GetHeatmapUnit() =>
+        _heatmap.Count > 1 ? "agences" : "agence";
+
+    private IEnumerable<TerritoireRow> FilteredHeatmap =>
+        string.IsNullOrWhiteSpace(_heatmapSearch)
+            ? _heatmap
+            : _heatmap.Where(r => r.Nom.Contains(_heatmapSearch, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<TerritoireRow> SortedHeatmap
+    {
+        get
         {
-            builder.OpenElement(0, "td");
-            builder.AddAttribute(1, "style", $"text-align:center;padding:7px;color:#C7CDD4;{styleBordure}");
-            builder.AddContent(2, "—");
-            builder.CloseElement();
-            builder.OpenElement(3, "td");
-            builder.AddAttribute(4, "style", "text-align:center;padding:7px;color:#C7CDD4");
-            builder.AddContent(5, "—");
-            builder.CloseElement();
-            return;
+            var src = FilteredHeatmap;
+            Func<TerritoireRow, object> keySelector = _hmSortColumn switch
+            {
+                "Nom"               => r => r.Nom,
+                "ConseillersActifs" => r => r.ConseillersActifs,
+                "ConseillersCibles" => r => r.ConseillersCibles,
+                "EtpNecessaires"    => r => r.EtpNecessaires,
+                "TauxCouverture"    => r => r.TauxCouverture,
+                "Concordance"       => r => r.Concordance,
+                "TauxRotation"      => r => r.TauxRotation,
+                "ChargeTransfereeBP"        => r => r.ChargeTransfereeBP,
+                "ChargeTransfereeAgence"    => r => r.ChargeTransfereeAgence,
+                "ChargeTransfereeMutualise" => r => r.ChargeTransfereeMutualise,
+                _                   => r => r.ClientsGeres
+            };
+            return _hmSortAsc ? src.OrderBy(keySelector) : src.OrderByDescending(keySelector);
         }
+    }
 
-        var ecart = Math.Abs(a - b) > 0.01;
-        var couleurTexte = ecart ? "#C62828" : "#1B5E20";
-        var couleurFond = ecart ? "#FDEDED" : "#EAF6EC";
-        var icone = ecart ? "⚠" : "✓";
+    private void SetSort(string column)
+    {
+        if (_hmSortColumn == column) _hmSortAsc = !_hmSortAsc;
+        else { _hmSortColumn = column; _hmSortAsc = false; }
+    }
 
-        builder.OpenElement(0, "td");
-        builder.AddAttribute(1, "style", $"text-align:center;padding:6px 4px;{styleBordure}");
-        builder.OpenElement(2, "span");
-        builder.AddAttribute(3, "style", $"display:inline-block;min-width:44px;padding:3px 10px;border-radius:12px;background:{couleurFond};color:{couleurTexte};font-weight:700;font-size:11.5px");
-        builder.AddContent(4, a.ToString("F2"));
-        builder.CloseElement();
-        builder.CloseElement();
+    private string SortIcon(string column) =>
+        _hmSortColumn != column ? "" : (_hmSortAsc ? "▲" : "▼");
 
-        builder.OpenElement(5, "td");
-        builder.AddAttribute(6, "style", "text-align:center;padding:6px 4px");
-        builder.OpenElement(7, "span");
-        builder.AddAttribute(8, "style", $"display:inline-block;min-width:44px;padding:3px 10px;border-radius:12px;background:{couleurFond};color:{couleurTexte};font-weight:700;font-size:11.5px");
-        builder.AddContent(9, b.ToString("F2"));
-        builder.AddContent(10, ecart ? " ⚠" : " ✓");
-        builder.CloseElement();
-        builder.CloseElement();
-    };
+    /// <summary>
+    /// Code couleur du taux de remplissage des portefeuilles.
+    /// Vert : 90-110% · Jaune : 70-90% ou 110-130% · Rouge : le reste
+    /// </summary>
+    private string GetPillClassRemplissage(double value)
+    {
+        if (value >= 90 && value <= 110) return "dash-hm-pill-good";
+        if ((value >= 70 && value < 90) || (value > 110 && value <= 130)) return "dash-hm-pill-warn";
+        return "dash-hm-pill-critical";
+    }
+
+    /// <summary>
+    /// Code couleur du taux de concordance des portefeuilles.
+    /// Vert : 80-100% · Jaune : 50-80% · Rouge : &lt;50%
+    /// </summary>
+    private string GetPillClassConcordance(double value)
+    {
+        if (value >= 80) return "dash-hm-pill-good";
+        if (value >= 50) return "dash-hm-pill-warn";
+        return "dash-hm-pill-critical";
+    }
+
+    /// <summary>
+    /// Code couleur du taux de rotation des clients : logique inversée
+    /// (bas = bon). Vert : 0-20% · Jaune : 20-50% · Rouge : &gt;50%
+    /// </summary>
+    private string GetPillClassRotation(double value)
+    {
+        if (value <= 20) return "dash-hm-pill-good";
+        if (value <= 50) return "dash-hm-pill-warn";
+        return "dash-hm-pill-critical";
+    }
+
+    private string GetStatusColor(TerritoireRow row)
+    {
+        if (row.Concordance >= 80 && row.TauxCouverture >= 100) return "#1B5E20";
+        if (row.Concordance >= 60 && row.TauxCouverture >= 90)  return "#E65100";
+        return "#C62828";
+    }
 }
