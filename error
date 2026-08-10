@@ -18,6 +18,32 @@ namespace Segmentation.Client.Services
 		}
 
 		// ═══════════════════════════════════════════════════════════
+		//   RÈGLE D'AGENCE EFFECTIVE (BP = agence, LibAgence vide)
+		// ═══════════════════════════════════════════════════════════
+
+		/// <summary>
+		/// Vrai si ce secteur correspond à un portefeuille Banque Privée.
+		/// La BP n'a pas de LibAgence : elle est identifiée par son secteur
+		/// (ex. « Secteur - Banque privé »). Mot-clé ajustable ici.
+		/// </summary>
+		public static bool EstSecteurBP(string? libSecteur) =>
+			!string.IsNullOrWhiteSpace(libSecteur)
+			&& libSecteur.Contains("Banque Priv", StringComparison.OrdinalIgnoreCase);
+
+		/// <summary>
+		/// Agence effective à la maille agence : LibAgence si renseigné,
+		/// sinon le secteur lorsqu'il s'agit d'une Banque Privée (LibAgence
+		/// vide par construction). Toute autre ligne sans agence est
+		/// considérée non rattachable (chaîne vide → exclue des agrégats).
+		/// </summary>
+		public static string AgenceEffective(string? libAgence, string? libSecteur)
+		{
+			if (!string.IsNullOrWhiteSpace(libAgence)) return libAgence.Trim();
+			if (EstSecteurBP(libSecteur)) return libSecteur!.Trim();
+			return "";
+		}
+
+		// ═══════════════════════════════════════════════════════════
 		//   KPIs GLOBAUX
 		// ═══════════════════════════════════════════════════════════
 		public DashboardKpis ComputeGlobalKpis(
@@ -45,22 +71,23 @@ namespace Segmentation.Client.Services
 							+ x.GPPotentiel + x.GPStandard
 							+ x.NonSegmente + x.NonClasse);
 
-			// 3. ETP nécessaires (charge théorique par segment) — sert de
-			//    référence pour la cible théorique et l'écart effectif/charge.
+			// 3. ETP nécessaires (charge théorique par segment) sur tout le
+			//    périmètre — sert au remplissage EXISTANT et à l'affichage de
+			//    la charge totale cible.
 			var etpNecessaires = ComputeTotalEtpBesoin(data, regles);
 			var conseillersCiblesTheorique = (int)Math.Round(etpNecessaires);
 
 			// 4. Lignes ETP réellement sauvegardées pour le périmètre
-			//    (DimensionnementPortefeuilleEtp), utilisées par tous les
-			//    KPIs "cible" ci-dessous.
+			//    (DimensionnementPortefeuilleEtp). Rattachement via
+			//    AgenceEffective pour inclure la Banque Privée (LibAgence vide).
 			var agencesDuPerimetre = data
-				.Select(x => x.LibAgence)
+				.Select(x => AgenceEffective(x.LibAgence, x.LibSecteur))
 				.Where(a => !string.IsNullOrWhiteSpace(a))
 				.Distinct(StringComparer.OrdinalIgnoreCase)
 				.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
 			var lignesPerimetre = (lignesEtp ?? new())
-				.Where(l => agencesDuPerimetre.Contains(l.LibAgence))
+				.Where(l => agencesDuPerimetre.Contains(AgenceEffective(l.LibAgence, l.LibSecteur)))
 				.ToList();
 
 			var lignesCible = lignesPerimetre.Where(l => l.IsCible).ToList();
@@ -73,20 +100,37 @@ namespace Segmentation.Client.Services
 				.Distinct(StringComparer.OrdinalIgnoreCase)
 				.Count();
 
-			// 5. Taux de remplissage = cible réelle sauvegardée ÷ cible
-			//    théorique — ne se base plus sur l'existant.
-			var tauxCouverture = conseillersCiblesTheorique > 0
-				? (double)effectifCibleReel / conseillersCiblesTheorique * 100.0
+			// 5. Agences DÉJÀ SIMULÉES = celles ayant au moins une cible en
+			//    base. Une agence non simulée est neutre : elle ne doit peser
+			//    sur aucun taux CIBLE (remplissage, concordance, rotation).
+			var agencesSimulees = lignesCible
+				.Select(l => AgenceEffective(l.LibAgence, l.LibSecteur))
+				.Where(a => !string.IsNullOrWhiteSpace(a))
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+			var etpBesoinCibleSimule = ComputeTotalEtpBesoin(
+				data.Where(x => agencesSimulees.Contains(
+					AgenceEffective(x.LibAgence, x.LibSecteur))).ToList(),
+				regles);
+			var theoriqueCibleSimule = (int)Math.Round(etpBesoinCibleSimule);
+
+			// 6. Remplissage CIBLE = cible réelle sauvegardée ÷ cible théorique
+			//    des seules agences simulées.
+			var tauxCouverture = theoriqueCibleSimule > 0
+				? (double)effectifCibleReel / theoriqueCibleSimule * 100.0
 				: 0;
 
-			// Version "existant" du taux de remplissage, pour comparaison
-			// (affichée à gauche sur la carte, la cible réelle à droite).
+			// Remplissage EXISTANT = effectif en poste ÷ cible théorique de
+			// TOUT le périmètre (les effectifs existent indépendamment des
+			// simulations). Affiché à gauche sur la carte, cible à droite.
 			var tauxCouvertureExistant = conseillersCiblesTheorique > 0
 				? (double)conseillersExistants / conseillersCiblesTheorique * 100.0
 				: 0;
 
-			// 6. Concordance = part de l'ETP CIBLE (pas existant) attribuée
+			// 7. Concordance = part de l'ETP CIBLE (pas existant) attribuée
 			//    au conseiller prioritaire désigné en R&H pour le segment.
+			//    Naturellement neutre pour une agence sans cible (0/0).
 			var etpCibleTotal = lignesCible.Sum(l => l.EtpCible ?? 0);
 			var etpCibleConcordant = lignesCible
 				.Where(l => EstProfilPrioritaire(l.Segment, l.ProfilConseiller, regles))
@@ -98,20 +142,18 @@ namespace Segmentation.Client.Services
 			// Version "existant" de la concordance, pour comparaison.
 			var concordanceExistant = ComputeConcordanceMoyenne(data, regles);
 
-			// 7. Taux de pureté des portefeuilles (reste basé sur la
-			//    segmentation réelle du réseau — inchangé)
+			// 7bis. Taux de pureté des portefeuilles (segmentation réelle).
 			var tauxPurete = ComputeTauxPurete(data, regles);
 
-			// 8. Écart Effectif cible réel − Charge ETP théorique.
-			var ecartEffectifChargeEtp = effectifCibleReel - etpNecessaires;
+			// 8. Écart Effectif cible réel − Charge ETP théorique des agences
+			//    simulées (cohérent avec la règle « base = simulé »).
+			var ecartEffectifChargeEtp = effectifCibleReel - etpBesoinCibleSimule;
 
 			// 9. Taux de rotation (Option A) = somme des gains uniquement
 			//    (cible > existant, mouvement individuel par conseiller),
-			//    rapportée à la charge CIBLE réellement sauvegardée — pas à
-			//    la charge théorique — pour rester basé sur la cible.
+			//    rapportée à la charge CIBLE réellement sauvegardée.
 			var gainsRotation = lignesPerimetre.Sum(l =>
 				Math.Max(0, (l.EtpCible ?? 0) - (l.EtpExistant ?? 0)));
-
 			var tauxRotationEntrees = etpCibleTotal > 0
 				? gainsRotation / etpCibleTotal * 100.0
 				: 0;
@@ -128,7 +170,11 @@ namespace Segmentation.Client.Services
 				ConcordanceExistant = Math.Round(concordanceExistant, 0),
 				EcartEffectifChargeEtp = Math.Round(ecartEffectifChargeEtp, 1),
 				TauxRotationEntrees = Math.Round(tauxRotationEntrees, 0),
-				TauxPurete = Math.Round(tauxPurete, 0)
+				TauxPurete = Math.Round(tauxPurete, 0),
+				// ── Composants bruts pour l'agrégation poolée (ligne TOTAL) ──
+				EtpCibleTotal = Math.Round(etpCibleTotal, 2),
+				EtpCibleConcordant = Math.Round(etpCibleConcordant, 2),
+				GainsRotation = Math.Round(gainsRotation, 2)
 			};
 		}
 
@@ -154,8 +200,8 @@ namespace Segmentation.Client.Services
 
 		private static string CleConseillerEtp(DimensionnementPortefeuilleEtpAllLigne l) =>
 			!string.IsNullOrWhiteSpace(l.MatriculeConseiller)
-				? $"{l.LibAgence}|M:{l.MatriculeConseiller}"
-				: $"{l.LibAgence}|L:{l.SlotLabel}";
+				? $"{AgenceEffective(l.LibAgence, l.LibSecteur)}|M:{l.MatriculeConseiller}"
+				: $"{AgenceEffective(l.LibAgence, l.LibSecteur)}|L:{l.SlotLabel}";
 
 		// ═══════════════════════════════════════════════════════════
 		//   HEATMAP TERRITORIALE (adaptative — legacy)
@@ -191,7 +237,6 @@ namespace Segmentation.Client.Services
 				{
 					var gData = g.ToList();
 					var kpis = ComputeGlobalKpis(gData, regles, lignesEtp);
-
 					return new TerritoireRow
 					{
 						Nom = g.Key,
@@ -202,7 +247,10 @@ namespace Segmentation.Client.Services
 						TauxCouverture = kpis.TauxCouverture,
 						Concordance = kpis.Concordance,
 						TauxRotation = kpis.TauxRotationEntrees,
-						TauxPurete = kpis.TauxPurete
+						TauxPurete = kpis.TauxPurete,
+						EtpCibleTotal = kpis.EtpCibleTotal,
+						EtpCibleConcordant = kpis.EtpCibleConcordant,
+						GainsRotation = kpis.GainsRotation
 					};
 				})
 				.OrderByDescending(x => x.ClientsGeres)
@@ -222,18 +270,15 @@ namespace Segmentation.Client.Services
 				return new List<TerritoireRow>();
 
 			return data
-				.Where(x => !string.IsNullOrWhiteSpace(x.LibAgence) || !string.IsNullOrWhiteSpace(x.LibSecteur))
+				// La Banque Privée n'a pas de subdivision par agence :
+				// LibAgence y est vide et c'est le secteur (mot-clé « Banque
+				// Priv ») qui sert d'identifiant — cf. AgenceEffective. Sans
+				// ce repli, ces lignes seraient silencieusement exclues du
+				// tableau et du total réseau.
+				.Where(x => !string.IsNullOrWhiteSpace(AgenceEffective(x.LibAgence, x.LibSecteur)))
 				.GroupBy(x => new
 				{
-					// La Banque Privée n'a pas de subdivision par agence :
-					// LibAgence y est vide par construction, et c'est le
-					// secteur qui sert d'identifiant — même règle que
-					// AgenceEffective sur la page Portefeuille. Sans ce
-					// repli, ces lignes étaient silencieusement exclues du
-					// tableau et du total réseau.
-					LibAgence = !string.IsNullOrWhiteSpace(x.LibAgence)
-						? x.LibAgence
-						: x.LibSecteur,
+					Agence = AgenceEffective(x.LibAgence, x.LibSecteur),
 					x.LibSecteur,
 					x.LibRegion
 				})
@@ -243,12 +288,12 @@ namespace Segmentation.Client.Services
 					var kpis = ComputeGlobalKpis(gData, regles, lignesEtp);
 
 					var chargesAgence = (charges ?? new())
-						.Where(c => string.Equals(c.LibAgence, g.Key.LibAgence, StringComparison.OrdinalIgnoreCase))
+						.Where(c => string.Equals(c.LibAgence, g.Key.Agence, StringComparison.OrdinalIgnoreCase))
 						.ToList();
 
 					return new TerritoireRow
 					{
-						Nom = g.Key.LibAgence,
+						Nom = g.Key.Agence,
 						Secteur = g.Key.LibSecteur,
 						Region = g.Key.LibRegion,
 						ClientsGeres = kpis.ClientsCommerciaux,
@@ -259,6 +304,9 @@ namespace Segmentation.Client.Services
 						Concordance = kpis.Concordance,
 						TauxRotation = kpis.TauxRotationEntrees,
 						TauxPurete = kpis.TauxPurete,
+						EtpCibleTotal = kpis.EtpCibleTotal,
+						EtpCibleConcordant = kpis.EtpCibleConcordant,
+						GainsRotation = kpis.GainsRotation,
 						ChargeTransfereeBP = chargesAgence.Sum(c => c.ChargeATransfererBP ?? 0),
 						ChargeTransfereeAgence = chargesAgence.Sum(c => c.ChargeRecueBP ?? 0),
 						ChargeTransfereeMutualise = chargesAgence.Sum(c => c.ChargeATransfererMutualise ?? 0)
@@ -302,9 +350,7 @@ namespace Segmentation.Client.Services
 				.Select(s =>
 				{
 					var nbClients = data.Sum(x => s.Get(x));
-
 					var chargeEtp = _etpService.GetChargeTotaleEtpForSegment(data, s.Nom, regles) ?? 0;
-
 					var conseillersConcernes = data
 						.Where(x => s.Get(x) > 0)
 						.Where(x => !string.IsNullOrWhiteSpace(x.MatriculeConseiller))
@@ -365,20 +411,16 @@ namespace Segmentation.Client.Services
 			};
 
 			var distribution = new Dictionary<string, Dictionary<string, int>>();
-
 			foreach (var seg in segmentsDef)
 			{
 				var byCol = new Dictionary<string, int>();
-
 				foreach (var col in colonnes!)
 				{
 					var nb = data
 						.Where(x => string.Equals(selector(x), col, StringComparison.OrdinalIgnoreCase))
 						.Sum(x => seg.Get(x));
-
 					byCol[col] = nb;
 				}
-
 				distribution[seg.Nom] = byCol;
 			}
 
@@ -404,7 +446,6 @@ namespace Segmentation.Client.Services
 				{
 					var gData = g.ToList();
 					var kpis = ComputeGlobalKpis(gData, regles, lignesEtp);
-
 					return new TerritoireRow
 					{
 						Nom = g.Key.LibAgence,
@@ -417,7 +458,10 @@ namespace Segmentation.Client.Services
 						TauxCouverture = kpis.TauxCouverture,
 						Concordance = kpis.Concordance,
 						TauxRotation = kpis.TauxRotationEntrees,
-						TauxPurete = kpis.TauxPurete
+						TauxPurete = kpis.TauxPurete,
+						EtpCibleTotal = kpis.EtpCibleTotal,
+						EtpCibleConcordant = kpis.EtpCibleConcordant,
+						GainsRotation = kpis.GainsRotation
 					};
 				})
 				.OrderBy(x => x.Concordance)
@@ -474,7 +518,6 @@ namespace Segmentation.Client.Services
 
 			var existantsBPByProfil = profilsBP
 				.ToDictionary(p => p, p => CountExistantByProfil(dataNonMutualise, p), StringComparer.OrdinalIgnoreCase);
-
 			var existantsAgenceByProfil = profilsRetail
 				.ToDictionary(p => p, p => CountExistantByProfil(dataNonMutualise, p), StringComparer.OrdinalIgnoreCase);
 
@@ -484,7 +527,6 @@ namespace Segmentation.Client.Services
 			var profilsMutualise = profilsRetail
 				.Where(p => string.Equals(p, "CONSEILLER COMMERCIAL", StringComparison.OrdinalIgnoreCase))
 				.ToList();
-
 			var existantsMutualiseByProfil = profilsMutualise
 				.ToDictionary(p => p, p => CountExistantByProfil(dataMutualise, p), StringComparer.OrdinalIgnoreCase);
 
@@ -521,6 +563,7 @@ namespace Segmentation.Client.Services
 				.Where(l => EstMutualise(l.LibAgence))
 				.Where(l => hsProfilsMutualise.Contains(l.ProfilConseiller?.Trim() ?? ""))
 				.ToList();
+
 			var lignesCibleNonMutualise = lignesCibleTout.Where(l => !EstMutualise(l.LibAgence)).ToList();
 			var lignesCibleBP = lignesCibleNonMutualise.Where(l => hsProfilsBP.Contains(l.ProfilConseiller?.Trim() ?? "")).ToList();
 			var lignesCibleAgence = lignesCibleNonMutualise.Where(l => hsProfilsRetail.Contains(l.ProfilConseiller?.Trim() ?? "")).ToList();
@@ -534,10 +577,8 @@ namespace Segmentation.Client.Services
 
 			var ciblesBPByProfil = profilsBP
 				.ToDictionary(p => p, p => CountCibleByProfil(lignesCibleBP, p), StringComparer.OrdinalIgnoreCase);
-
 			var ciblesAgenceByProfil = profilsRetail
 				.ToDictionary(p => p, p => CountCibleByProfil(lignesCibleAgence, p), StringComparer.OrdinalIgnoreCase);
-
 			var ciblesMutualiseByProfil = profilsMutualise
 				.ToDictionary(p => p, p => CountCibleByProfil(lignesCibleMutualise, p), StringComparer.OrdinalIgnoreCase);
 
@@ -547,10 +588,8 @@ namespace Segmentation.Client.Services
 
 			var taillePfExistBP = conseillersExistantsBP > 0 ? (double)clientsBP / conseillersExistantsBP : 0;
 			var taillePfCibleBP = conseillersCiblesBP > 0 ? (double)clientsBP / conseillersCiblesBP : 0;
-
 			var taillePfExistAgence = conseillersExistantsAgence > 0 ? (double)clientsAgence / conseillersExistantsAgence : 0;
 			var taillePfCibleAgence = conseillersCiblesAgence > 0 ? (double)clientsAgence / conseillersCiblesAgence : 0;
-
 			var taillePfExistMutualise = conseillersExistantsMutualise > 0 ? (double)clientsMutualise / conseillersExistantsMutualise : 0;
 			var taillePfCibleMutualise = conseillersCiblesMutualise > 0 ? (double)clientsMutualise / conseillersCiblesMutualise : 0;
 
@@ -576,10 +615,8 @@ namespace Segmentation.Client.Services
 					{
 						var existant = existantsByProfil.GetValueOrDefault(p);
 						var cible = ciblesByProfil.GetValueOrDefault(p);
-
 						var clientsExistant = SommeClientsExistantParProfil(sourceExistant, p);
 						var clientsCible = SommeClientsCibleParProfil(sourceCible, p);
-
 						return new ProfilConseillerRepartition
 						{
 							Profil = p,
@@ -633,7 +670,6 @@ namespace Segmentation.Client.Services
 		// ═══════════════════════════════════════════════════════════
 		//   HELPERS PRIVÉS
 		// ═══════════════════════════════════════════════════════════
-
 		private double ComputeTotalEtpBesoin(
 			List<SegmentationDistributiveData> data,
 			ReglesHypothesesModel? regles)
@@ -652,7 +688,6 @@ namespace Segmentation.Client.Services
 				var charge = _etpService.GetChargeTotaleEtpForSegment(data, seg, regles);
 				if (charge.HasValue) totalEtp += charge.Value;
 			}
-
 			return totalEtp;
 		}
 
@@ -721,7 +756,6 @@ namespace Segmentation.Client.Services
 				var regle = regles.ReglesAffectationSegments
 					.FirstOrDefault(r => string.Equals(
 						r.Segment?.Trim(), seg.Nom, StringComparison.OrdinalIgnoreCase));
-
 				var profilPrio = regle?.ConseillerPrioritaire?.Trim();
 				if (string.IsNullOrWhiteSpace(profilPrio)) continue;
 
@@ -760,6 +794,11 @@ namespace Segmentation.Client.Services
 		public double EcartEffectifChargeEtp { get; set; }
 		public double TauxRotationEntrees { get; set; }
 		public double TauxPurete { get; set; }
+
+		// ── Composants bruts pour l'agrégation poolée (ligne TOTAL) ──
+		public double EtpCibleTotal { get; set; }
+		public double EtpCibleConcordant { get; set; }
+		public double GainsRotation { get; set; }
 	}
 
 	public class TerritoireRow
@@ -767,13 +806,11 @@ namespace Segmentation.Client.Services
 		public string Nom { get; set; } = "";
 		public string? Secteur { get; set; }
 		public string? Region { get; set; }
-
 		public int ClientsGeres { get; set; }
 
 		// Conseillers
 		public int ConseillersActifs { get; set; }        // = existants
 		public int ConseillersCibles { get; set; }
-
 		public double EtpNecessaires { get; set; }
 
 		// Indicateurs de performance
@@ -781,6 +818,16 @@ namespace Segmentation.Client.Services
 		public double Concordance { get; set; }
 		public double TauxRotation { get; set; }
 		public double TauxPurete { get; set; }
+
+		// Composants bruts pour l'agrégation poolée de la ligne TOTAL
+		public double EtpCibleTotal { get; set; }
+		public double EtpCibleConcordant { get; set; }
+		public double GainsRotation { get; set; }
+
+		// Agence "simulée" = au moins une cible sauvegardée en base.
+		// Sert à afficher "—" (plutôt qu'un 0 % trompeur) et à exclure
+		// l'agence des taux agrégés.
+		public bool ACibleSaisie => EtpCibleTotal > 0;
 
 		// Charges transférées (déclarées par cette agence)
 		public double ChargeTransfereeBP { get; set; }
@@ -795,7 +842,6 @@ namespace Segmentation.Client.Services
 		public string Segment { get; set; } = "";
 		public int NbClients { get; set; }
 		public double Pourcentage { get; set; }
-
 		public double ChargeEtp { get; set; }
 		public int ConseillersConcernes { get; set; }
 	}
@@ -804,13 +850,10 @@ namespace Segmentation.Client.Services
 	{
 		public string LigneMetier { get; set; } = "";
 		public int NbClients { get; set; }
-
 		public int ConseillersExistants { get; set; }
 		public int ConseillersCibles { get; set; }
-
 		public double TaillePortefeuilleExistant { get; set; }
 		public double TaillePortefeuilleCible { get; set; }
-
 		public List<ProfilConseillerRepartition> Profils { get; set; } = new();
 
 		public int DeltaConseillers => ConseillersCibles - ConseillersExistants;
@@ -824,6 +867,7 @@ namespace Segmentation.Client.Services
 		public int ConseillersCibles { get; set; }
 		public double TaillePortefeuilleExistant { get; set; }
 		public double TaillePortefeuilleCible { get; set; }
+
 		public int DeltaConseillers => ConseillersCibles - ConseillersExistants;
 	}
 }
