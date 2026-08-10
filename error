@@ -101,7 +101,6 @@ public class RepartitionAutomatiqueService
 			foreach (var candidat in ordre)
 			{
 				if (restant <= 0) break;
-
 				var capaciteDisponible = GetCapaciteDisponible(candidat, toutesLesLignes);
 				if (capaciteDisponible <= 0) continue;
 
@@ -126,6 +125,11 @@ public class RepartitionAutomatiqueService
 	/// transferts BP/Agence/Mutualisé) sur les conseillers cibles, dans l'ordre
 	/// de priorité R&amp;H. Réinitialise toutes les valeurs cible existantes avant de
 	/// calculer. Chaque conseiller est capé à son EtpCible (fallback = MaxEtpParConseiller).
+	///
+	/// NB : la répartition se fait à 2 décimales — EXACTEMENT la précision d'affichage
+	/// et de saisie des cases (champ Format="F2"). Le reliquat étant suivi à 2 décimales
+	/// et le dernier conseiller servi recevant ce qui reste, la somme des cases affichées
+	/// retombe pile sur la charge du segment (plus de « 0,68 + 0,20 = 0,88 » pour 0,87).
 	/// </summary>
 	/// <param name="getChargeAjustee">
 	/// Fournit, pour une ligne/segment donné, la charge ETP à distribuer — la
@@ -146,6 +150,7 @@ public class RepartitionAutomatiqueService
 		// Capacité max par conseiller : EtpCible s'il est > 0, sinon 1 ETP
 		var capacites = candidats.ToDictionary(s => s.Id,
 			s => s.EtpCible > 0 ? s.EtpCible : MaxEtpParConseiller);
+
 		// Suivi cumulatif de l'allocation au fil des segments
 		var alloues = candidats.ToDictionary(s => s.Id, _ => 0.0);
 
@@ -161,7 +166,8 @@ public class RepartitionAutomatiqueService
 			// Demande = charge ETP ajustée (existant ± transferts BP/Agence/Mutualisé)
 			// pour ce segment, et non plus l'existant brut — cohérent avec les
 			// colonnes "Charge Totale ETP par segment" et "Aide à la répartition".
-			var demande = Math.Round(getChargeAjustee(row), 4);
+			// Arrondie à 2 décimales = précision d'affichage des cases.
+			var demande = Math.Round(getChargeAjustee(row), 2);
 			if (demande <= 0.001) continue;
 
 			var ordre = GetOrdrePrioritePourSegment(row.Segment, candidats, regles);
@@ -170,13 +176,14 @@ public class RepartitionAutomatiqueService
 			foreach (var candidat in ordre)
 			{
 				if (restant <= 0.001) break;
-				var capa = Math.Round(capacites[candidat.Id] - alloues[candidat.Id], 4);
+				var capa = Math.Round(capacites[candidat.Id] - alloues[candidat.Id], 2);
 				if (capa <= 0.001) continue;
-				var aPrendre = Math.Round(Math.Min(restant, capa), 4);
+
+				var aPrendre = Math.Round(Math.Min(restant, capa), 2);
 				row.EtpCibleSaisieParProfil[candidat.Id] =
-					Math.Round((row.EtpCibleSaisieParProfil.GetValueOrDefault(candidat.Id) ?? 0) + aPrendre, 4);
-				alloues[candidat.Id] = Math.Round(alloues[candidat.Id] + aPrendre, 4);
-				restant = Math.Round(restant - aPrendre, 4);
+					Math.Round((row.EtpCibleSaisieParProfil.GetValueOrDefault(candidat.Id) ?? 0) + aPrendre, 2);
+				alloues[candidat.Id] = Math.Round(alloues[candidat.Id] + aPrendre, 2);
+				restant = Math.Round(restant - aPrendre, 2);
 			}
 
 			if (restant > 0.001) segmentsIncomplets++;
