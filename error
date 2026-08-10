@@ -1,789 +1,208 @@
-@page "/dashboard"
-@inject SegmentationStateService StateService
-@inject DashboardService DashboardService
-@inject HttpClient Http
-@inject ReglesHypothesesService ReglesService
-@inject DimensionnementPortefeuilleEtpService DimensionnementEtpService
-@using Segmentation.Client.Services
-@using Segmentation.Client.Models
-@using Segmentation.Shared.Models
-@using Segmentation.Shared.Referentiels
-@using System.Net.Http.Json
-@using Segmentation.Client.Components.Dashboard
-
-<PageTitle>Pilotage — CA Segmentation</PageTitle>
-
-<div class="dash-page">
-
-    @if (_isLoading)
-    {
-        <div class="dash-loader">
-            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-        </div>
-    }
-
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 1 — En-tête
-    ═══════════════════════════════════════════════════════ -->
-    <div class="dash-header">
-        <div>
-            <div class="dash-title">Tableau de bord - dimensionnement des portefeuilles</div>
-            <div class="dash-subtitle">Vue d'ensemble du réseau CA Nord de France</div>
-        </div>
-        <div class="dash-header-meta">
-            <MudIcon Icon="@Icons.Material.Outlined.Schedule" Style="font-size:15px" />
-            Actualisé à l'instant
-        </div>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 1B — Filtres cascadés
-    ═══════════════════════════════════════════════════════ -->
-    <div class="dash-filters">
-        <div class="dash-filters-inner">
-            <span class="dash-filter-label">FILTRER PAR</span>
-
-            <MudSelect T="string" Label="Région" Dense="true" Margin="Margin.Dense"
-                       Variant="Variant.Outlined" Style="min-width:180px"
-                       Value="@filtreRegion" ValueChanged="OnRegionChanged"
-                       Clearable="true">
-                @foreach (var r in allRegions)
-                {
-                    <MudSelectItem Value="@r">@r</MudSelectItem>
-                }
-            </MudSelect>
-
-            <MudSelect T="string" Label="Secteur" Dense="true" Margin="Margin.Dense"
-                       Variant="Variant.Outlined" Style="min-width:200px"
-                       Value="@filtreSecteur" ValueChanged="OnSecteurChanged"
-                       Clearable="true">
-                @foreach (var s in allSecteurs)
-                {
-                    <MudSelectItem Value="@s">@s</MudSelectItem>
-                }
-            </MudSelect>
-
-            <MudSelect T="string" Label="Agence" Dense="true" Margin="Margin.Dense"
-                       Variant="Variant.Outlined" Style="min-width:220px"
-                       Value="@filtreAgence" ValueChanged="OnAgenceChanged"
-                       Clearable="true">
-                @foreach (var a in allAgences)
-                {
-                    <MudSelectItem Value="@a">@a</MudSelectItem>
-                }
-            </MudSelect>
-
-            <button type="button" class="ca-btn-primary"
-                    disabled="@(!HasPendingFilterChanges || _isLoading)"
-                    @onclick="ApplyFilters">
-                <MudIcon Icon="@Icons.Material.Filled.Check" Style="font-size:14px" />
-                Valider
-            </button>
-
-            @if (!string.IsNullOrEmpty(filtreRegion) || !string.IsNullOrEmpty(filtreSecteur) || !string.IsNullOrEmpty(filtreAgence))
-            {
-                <button type="button" class="ca-btn-ghost" @onclick="ClearFilters">
-                    Effacer
-                </button>
-            }
-        </div>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 2 — 6 KPI HÉROS
-    ═══════════════════════════════════════════════════════ -->
-    <div class="dash-kpi-grid">
-
-        <!-- KPI 1 — Nombre de Clients Commerciaux -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-icon dash-kpi-icon-neutral">
-                <MudIcon Icon="@Icons.Material.Filled.Groups" Style="font-size:17px" />
-            </div>
-            <div class="dash-kpi-label">Nombre de total de clients</div>
-            <div class="dash-kpi-value dash-kpi-neutral">
-                @_kpis.ClientsCommerciaux.ToString("N0")
-            </div>
-        </div>
-
-        <!-- KPI 2 — Nombre de conseillers (2 colonnes verticales) -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-icon dash-kpi-icon-neutral">
-                <MudIcon Icon="@Icons.Material.Filled.Badge" Style="font-size:17px" />
-            </div>
-            <div class="dash-kpi-label">Nombre de conseillers</div>
-
-            @{
-                var deltaConseillers = _kpis.ConseillersExistants - _kpis.ConseillersCibles;
-                var ratioConseillers = _kpis.ConseillersCibles > 0
-                    ? (double)_kpis.ConseillersExistants / _kpis.ConseillersCibles * 100
-                    : 0;
-            }
-
-            <div class="dash-kpi-cols">
-                <div class="dash-kpi-col dash-kpi-line-existant">
-                    <div class="dash-kpi-col-value">@_kpis.ConseillersExistants</div>
-                    <div class="dash-kpi-col-label">Existant</div>
-                </div>
-                <div class="dash-kpi-col dash-kpi-line-cible">
-                    <div class="dash-kpi-col-value">@_kpis.ConseillersCibles</div>
-                    <div class="dash-kpi-col-label">Cible</div>
-                </div>
-            </div>
-
-            <div class="dash-kpi-delta @(deltaConseillers >= 0 ? "dash-delta-good" : "dash-delta-critical")">
-                @(deltaConseillers >= 0 ? "+" : "")@deltaConseillers vs cible (@ratioConseillers.ToString("F0")%)
-            </div>
-        </div>
-
-        <!-- KPI 3 — Taux de couverture -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-icon @GetKpiIconClass(_kpis.TauxCouverture, 100, 90)">
-                <MudIcon Icon="@Icons.Material.Filled.DonutLarge" Style="font-size:17px" />
-            </div>
-            <div class="dash-kpi-label">Taux de remplissage des portefeuilles</div>
-            <div class="dash-kpi-cols">
-                <div class="dash-kpi-col dash-kpi-line-existant">
-                    <div class="dash-kpi-col-value">@_kpis.TauxCouvertureExistant.ToString("F0")%</div>
-                    <div class="dash-kpi-col-label">Existant</div>
-                </div>
-                <div class="dash-kpi-col dash-kpi-line-cible">
-                    <div class="dash-kpi-col-value">@_kpis.TauxCouverture.ToString("F0")%</div>
-                    <div class="dash-kpi-col-label">Cible</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- KPI 4 — Ecart effectif cible vs charge ETP -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-icon @(_kpis.EcartEffectifChargeEtp >= 0 ? "dash-kpi-icon-good" : "dash-kpi-icon-critical")">
-                <MudIcon Icon="@Icons.Material.Filled.Balance" Style="font-size:17px" />
-            </div>
-            <div class="dash-kpi-label">Ecart effectif cible vs charge totale (ETP)</div>
-            <div class="dash-kpi-value @(_kpis.EcartEffectifChargeEtp >= 0 ? "dash-kpi-good" : "dash-kpi-critical")">
-                @(_kpis.EcartEffectifChargeEtp >= 0 ? "+" : "")@_kpis.EcartEffectifChargeEtp.ToString("F1")
-            </div>
-        </div>
-
-        <!-- KPI 5 — Concordance moyenne -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-icon @GetKpiIconClass(_kpis.Concordance, 80, 60)">
-                <MudIcon Icon="@Icons.Material.Filled.Verified" Style="font-size:17px" />
-            </div>
-            <div class="dash-kpi-label">Taux de concordance</div>
-            <div class="dash-kpi-cols">
-                <div class="dash-kpi-col dash-kpi-line-existant">
-                    <div class="dash-kpi-col-value">@_kpis.ConcordanceExistant.ToString("F0")%</div>
-                    <div class="dash-kpi-col-label">Existant</div>
-                </div>
-                <div class="dash-kpi-col dash-kpi-line-cible">
-                    <div class="dash-kpi-col-value">@_kpis.Concordance.ToString("F0")%</div>
-                    <div class="dash-kpi-col-label">Cible</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- KPI 6 — Taux de rotation des clients (entrées uniquement) -->
-        <div class="dash-kpi-card">
-            <div class="dash-kpi-icon @GetKpiIconClassRotation(_kpis.TauxRotationEntrees)">
-                <MudIcon Icon="@Icons.Material.Filled.Autorenew" Style="font-size:17px" />
-            </div>
-            <div class="dash-kpi-label">Taux de rotation des clients</div>
-            <div class="dash-kpi-value @GetKpiClassRotation(_kpis.TauxRotationEntrees)">
-                @_kpis.TauxRotationEntrees.ToString("F0")<span class="dash-kpi-unit">%</span>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 3 — Grille 2 colonnes
-    ═══════════════════════════════════════════════════════ -->
-    <div class="dash-bottom-grid">
-
-        <div class="dash-bottom-left">
-            <DashboardRepartitionSegment
-                Repartition="@_repartition" />
-
-            <DashboardDistributionGeographique
-                Distribution="@_distributionGeo"
-                Colonnes="@_regionsGeo"
-                Dimension="@_dimensionAffichage"
-                DimensionChanged="OnDimensionChanged" />
-        </div>
-
-        <DashboardRepartitionConseillers
-            Repartition="@_repartitionConseillers" />
-
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 3B — SUIVI DES TRANSFERTS EN ATTENTE
-    ═══════════════════════════════════════════════════════ -->
-    <DashboardTableauTransferts Charges="@_charges"
-                                FiltreRegion="@filtreRegionApplique"
-                                FiltreSecteur="@filtreSecteurApplique"
-                                FiltreAgence="@filtreAgenceApplique" />
-
-    <!-- ═══════════════════════════════════════════════════════
-         ZONE 4 — VUE DÉTAILLÉE PAR AGENCE
-    ═══════════════════════════════════════════════════════ -->
-    <div class="dash-heatmap">
-
-        <div class="dash-section-title dash-heatmap-title">
-            <span>Vue détaillée par agence</span>
-            <div class="dash-hm-toolbar">
-                <span class="dash-section-hint">@_heatmap.Count @GetHeatmapUnit()</span>
-                <div class="dash-hm-search-wrap">
-                    <MudIcon Icon="@Icons.Material.Outlined.Search" Style="font-size:15px;color:#B0BAC5" />
-                    <input class="dash-hm-search" type="text" placeholder="Rechercher une agence…"
-                           @bind="_heatmapSearch" @bind:event="oninput" />
-                </div>
-            </div>
-        </div>
-
-        @{
-            var displayedHeatmap = SortedHeatmap.ToList();
-        }
-
-        @if (!_heatmap.Any())
-        {
-            <div class="dash-placeholder">Aucune donnée à afficher</div>
-        }
-        else if (!displayedHeatmap.Any())
-        {
-            <div class="dash-placeholder">Aucune agence ne correspond à "@_heatmapSearch"</div>
-        }
-        else
-        {
-            var maxClients = displayedHeatmap.Max(x => x.ClientsGeres);
-
-            <div class="dash-hm-scroll">
-                <!-- En-tête de colonnes (triable) -->
-                <div class="dash-hm-header">
-                    <div class="dash-hm-sortable" @onclick='() => SetSort("Nom")'>Agence @SortIcon("Nom")</div>
-                    <div class="dash-hm-sortable" @onclick='() => SetSort("ClientsGeres")'>Nombre de clients @SortIcon("ClientsGeres")</div>
-                    <div class="dash-hm-col-consei dash-hm-sortable" @onclick='() => SetSort("ConseillersActifs")'>Cons. existants @SortIcon("ConseillersActifs")</div>
-                    <div class="dash-hm-col-consei dash-hm-sortable" @onclick='() => SetSort("ConseillersCibles")'>Cons. cibles @SortIcon("ConseillersCibles")</div>
-                    <div class="dash-hm-col-etp dash-hm-sortable" @onclick='() => SetSort("EtpNecessaires")'>Charge ETP totale cible @SortIcon("EtpNecessaires")</div>
-                    <div class="dash-hm-col-couv dash-hm-sortable" @onclick='() => SetSort("TauxCouverture")'>Taux de remplissage @SortIcon("TauxCouverture")</div>
-                    <div class="dash-hm-col-conc dash-hm-sortable" @onclick='() => SetSort("Concordance")'>Taux de concordance @SortIcon("Concordance")</div>
-                    <div class="dash-hm-col-rot dash-hm-sortable" @onclick='() => SetSort("TauxRotation")'>Taux de rotation @SortIcon("TauxRotation")</div>
-                    <div class="dash-hm-col-transfert dash-hm-sortable" @onclick='() => SetSort("ChargeTransfereeBP")'>Charge transférée à la BP @SortIcon("ChargeTransfereeBP")</div>
-                    <div class="dash-hm-col-transfert dash-hm-sortable" @onclick='() => SetSort("ChargeTransfereeAgence")'>Charge transférée en agence @SortIcon("ChargeTransfereeAgence")</div>
-                    <div class="dash-hm-col-transfert dash-hm-sortable" @onclick='() => SetSort("ChargeTransfereeMutualise")'>Charge transférée en portefeuille mutualisé @SortIcon("ChargeTransfereeMutualise")</div>
-                </div>
-
-                <!-- Lignes agences -->
-                @foreach (var row in displayedHeatmap)
-                {
-                    var barWidth = maxClients > 0 ? row.ClientsGeres * 100.0 / maxClients : 0;
-                    var statusColor = GetStatusColor(row);
-
-                    <div class="dash-hm-row">
-                        <div class="dash-hm-col-nom">
-                            <span class="dash-hm-status-dot" style="background:@statusColor"></span>
-                            <span class="dash-hm-nom">@row.Nom</span>
-                        </div>
-
-                        <div class="dash-hm-col-volume">
-                            <div class="dash-hm-barwrap">
-                                <div class="dash-hm-bar" style="width:@(barWidth.ToString("F0"))%"></div>
-                            </div>
-                            <span class="dash-hm-barval">@row.ClientsGeres.ToString("N0")</span>
-                        </div>
-
-                        <div class="dash-hm-col-consei dash-hm-existant">@row.ConseillersActifs</div>
-                        <div class="dash-hm-col-consei dash-hm-cible">@row.ConseillersCibles</div>
-
-                        <div class="dash-hm-col-etp">@row.EtpNecessaires.ToString("F0")</div>
-
-                        <!-- Taux CIBLE : "—" si l'agence n'a pas encore été simulée -->
-                        <div class="dash-hm-col-couv">
-                            @if (row.ACibleSaisie)
-                            {
-                                <span class="dash-hm-pill @GetPillClassRemplissage(row.TauxCouverture)">
-                                    @row.TauxCouverture.ToString("F0")%
-                                </span>
-                            }
-                            else
-                            {
-                                <span class="dash-hm-pill" title="Agence non simulée">—</span>
-                            }
-                        </div>
-
-                        <div class="dash-hm-col-conc">
-                            @if (row.ACibleSaisie)
-                            {
-                                <span class="dash-hm-pill @GetPillClassConcordance(row.Concordance)">
-                                    @row.Concordance.ToString("F0")%
-                                </span>
-                            }
-                            else
-                            {
-                                <span class="dash-hm-pill" title="Agence non simulée">—</span>
-                            }
-                        </div>
-
-                        <div class="dash-hm-col-rot">
-                            @if (row.ACibleSaisie)
-                            {
-                                <span class="dash-hm-pill @GetPillClassRotation(row.TauxRotation)">
-                                    @row.TauxRotation.ToString("F0")%
-                                </span>
-                            }
-                            else
-                            {
-                                <span class="dash-hm-pill" title="Agence non simulée">—</span>
-                            }
-                        </div>
-
-                        <div class="dash-hm-col-transfert">@(row.ChargeTransfereeBP > 0 ? row.ChargeTransfereeBP.ToString("F2") : "—")</div>
-                        <div class="dash-hm-col-transfert">@(row.ChargeTransfereeAgence > 0 ? row.ChargeTransfereeAgence.ToString("F2") : "—")</div>
-                        <div class="dash-hm-col-transfert">@(row.ChargeTransfereeMutualise > 0 ? row.ChargeTransfereeMutualise.ToString("F2") : "—")</div>
-                    </div>
-                }
-            </div>
-
-            <!-- Ligne TOTAL (toujours visible, hors zone de scroll) -->
-            <!-- Comptages : somme de TOUTES les agences affichées (overview complet).
-                 Taux : ratio POOLÉ sur les seules agences simulées — pas une moyenne
-                 d'agences, et les agences non simulées (0 cible) n'impactent rien. -->
-            var rowsSim = displayedHeatmap.Where(r => r.ACibleSaisie).ToList();
-
-            var sumCibleTotal  = rowsSim.Sum(r => r.EtpCibleTotal);
-            var sumConcordant  = rowsSim.Sum(r => r.EtpCibleConcordant);
-            var sumGains       = rowsSim.Sum(r => r.GainsRotation);
-            var sumCapCible = rowsSim.Sum(r => r.CapaciteEtpCibleTotale);
-
-            var totalConc   = sumCibleTotal > 0 ? sumConcordant / sumCibleTotal * 100.0 : 0;
-            var totalRot    = sumCibleTotal > 0 ? sumGains / sumCibleTotal * 100.0 : 0;
-            // Remplissage poolé = Σ ETP cible affectée ÷ Σ capacité ETP cible (comme la page Portefeuille).
-            var totalCouv   = sumCapCible > 0 ? sumCibleTotal / sumCapCible * 100.0 : 0;
-            var totalACible = sumCibleTotal > 0;
-
-            var totalClientsAg = displayedHeatmap.Sum(r => r.ClientsGeres);
-            var totalExistAg   = displayedHeatmap.Sum(r => r.ConseillersActifs);
-            var totalCibleAg   = displayedHeatmap.Sum(r => r.ConseillersCibles);
-            var totalEtpAg     = displayedHeatmap.Sum(r => r.EtpNecessaires);
-
-            var totalChargeBP        = displayedHeatmap.Sum(r => r.ChargeTransfereeBP);
-            var totalChargeAgence    = displayedHeatmap.Sum(r => r.ChargeTransfereeAgence);
-            var totalChargeMutualise = displayedHeatmap.Sum(r => r.ChargeTransfereeMutualise);
-
-            <div class="dash-hm-row dash-hm-total-row">
-                <div class="dash-hm-col-nom">
-                    <span class="dash-hm-total-label">TOTAL</span>
-                </div>
-
-                <div class="dash-hm-col-volume">
-                    <span class="dash-hm-barval dash-hm-total-val">@totalClientsAg.ToString("N0")</span>
-                </div>
-
-                <div class="dash-hm-col-consei dash-hm-existant">@totalExistAg</div>
-                <div class="dash-hm-col-consei dash-hm-cible">@totalCibleAg</div>
-
-                <div class="dash-hm-col-etp">@totalEtpAg.ToString("F0")</div>
-
-                <div class="dash-hm-col-couv">
-                    @if (totalACible)
-                    {
-                        <span class="dash-hm-pill @GetPillClassRemplissage(totalCouv)">@totalCouv.ToString("F0")%</span>
-                    }
-                    else
-                    {
-                        <span class="dash-hm-pill">—</span>
-                    }
-                </div>
-
-                <div class="dash-hm-col-conc">
-                    @if (totalACible)
-                    {
-                        <span class="dash-hm-pill @GetPillClassConcordance(totalConc)">@totalConc.ToString("F0")%</span>
-                    }
-                    else
-                    {
-                        <span class="dash-hm-pill">—</span>
-                    }
-                </div>
-
-                <div class="dash-hm-col-rot">
-                    @if (totalACible)
-                    {
-                        <span class="dash-hm-pill @GetPillClassRotation(totalRot)">@totalRot.ToString("F0")%</span>
-                    }
-                    else
-                    {
-                        <span class="dash-hm-pill">—</span>
-                    }
-                </div>
-
-                <div class="dash-hm-col-transfert">@(totalChargeBP > 0 ? totalChargeBP.ToString("F2") : "—")</div>
-                <div class="dash-hm-col-transfert">@(totalChargeAgence > 0 ? totalChargeAgence.ToString("F2") : "—")</div>
-                <div class="dash-hm-col-transfert">@(totalChargeMutualise > 0 ? totalChargeMutualise.ToString("F2") : "—")</div>
-            </div>
-        }
-    </div>
-
-    <div class="dash-footer">
-        © 2026 CA Nord de France — Pilotage réseau
-    </div>
-</div>
-
-@code {
-
-    // ── État ────────────────────────────────────────
-    private bool _isLoading = false;
-    private DashboardKpis _kpis = new();
-    private List<TerritoireRow> _heatmap = new();
-    private List<SegmentationDistributiveData> _data = new();
-    private List<SegmentationDistributiveData> _dataFiltree = new();
-    private List<SegmentRepartition> _repartition = new();
-    private List<LigneMetierRepartition> _repartitionConseillers = new();
-    private List<DimensionnementPortefeuilleEtpAllCharge> _charges = new();
-    private List<DimensionnementPortefeuilleEtpAllLigne> _lignesEtp = new();
-
-    // ── Distribution géographique ───────────────────
-    private Dictionary<string, Dictionary<string, int>> _distributionGeo = new();
-    private List<string> _regionsGeo = new();
-
-    // ── Dimension d'affichage partagée par les 3 blocs du bas ──
-    private string _dimensionAffichage = "Region";
-
-    // ── Heatmap : recherche + tri ────────────────────
-    private string _heatmapSearch = "";
-    private string _hmSortColumn = "ClientsGeres";
-    private bool _hmSortAsc = false;
-
-    // ── Filtres ────────────────────────────────────
-    private string? filtreRegion, filtreSecteur, filtreAgence;
-    private string? filtreRegionApplique, filtreSecteurApplique, filtreAgenceApplique;
-
-    private List<string> allRegions = new();
-    private List<string> allSecteurs = new();
-    private List<string> allAgences = new();
-
-    private bool HasPendingFilterChanges =>
-        filtreRegion  != filtreRegionApplique ||
-        filtreSecteur != filtreSecteurApplique ||
-        filtreAgence  != filtreAgenceApplique;
-
-    /// <summary>
-    /// S'assure que les Règles & Hypothèses sont chargées depuis la base
-    /// avant que le Dashboard les utilise. Nécessaire quand l'utilisateur
-    /// arrive directement sur /dashboard sans être passé par
-    /// /regles-hypotheses ou /portefeuille au préalable.
-    /// </summary>
-    private async Task EnsureReglesLoadedAsync()
-    {
-        if (StateService.IsLoaded)
-            return;
-
-        try
-        {
-            var bundle = await ReglesService.LoadAllAsync();
-
-            var reglesModel = new ReglesHypothesesModel
-            {
-                HeuresParSemaine = bundle.Parametres?.HeuresParSemaine ?? 0,
-                NbSemainesParAn = bundle.Parametres?.NbSemainesParAn ?? 0,
-
-                SegmentsIntensite = bundle.Segments.Select(x => new SegmentIntensite
-                {
-                    LigneMetier = x.LigneMetier,
-                    Segment = x.Segment,
-                    NombreRdvParAn = x.NombreRdvParAn,
-                    DureeRdvHeures = x.DureeRdvHeures
-                }).ToList(),
-
-                ConseillersProfils = bundle.Profils.Select(x => new ConseillerTempsProfil
-                {
-                    LigneMetier = x.LigneMetier,
-                    Profil = x.Profil,
-                    PartTempsCommercialPct = x.PartTempsCommercialPct
-                }).ToList(),
-
-                ReglesAffectationSegments = bundle.Regles.Select(x => new RegleAffectationSegment
-                {
-                    Segment = x.Segment,
-                    ConseillerPrioritaire = x.ConseillerPrioritaire,
-                    ConseillerSecondaire = x.ConseillerSecondaire,
-                    ConseillerTertiaire = x.ConseillerTertiaire
-                }).ToList()
-            };
-
-            StateService.UpdateRegles(reglesModel);
-
-            Console.WriteLine(
-                $">>> Règles chargées depuis Dashboard : " +
-                $"{reglesModel.SegmentsIntensite.Count} segments, " +
-                $"{reglesModel.ConseillersProfils.Count} profils, " +
-                $"{reglesModel.ReglesAffectationSegments.Count} règles");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($">>> Erreur chargement Règles depuis Dashboard : {ex.Message}");
-        }
-    }
-
-    // ── Lifecycle ──────────────────────────────────
-    protected override async Task OnInitializedAsync()
-    {
-        _isLoading = true;
-        try
-        {
-            await EnsureReglesLoadedAsync();
-
-            _data = await Http.GetFromJsonAsync<List<SegmentationDistributiveData>>(
-                "api/SegmentationDistributive") ?? new();
-
-            var allDim = await DimensionnementEtpService.GetAllAsync();
-            _charges = allDim?.Charges ?? new();
-            _lignesEtp = allDim?.Lignes ?? new();
-
-            _dataFiltree = _data.ToList();
-
-            BuildFilterOptions();
-            RecomputeAll();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Erreur Dashboard : {ex.Message}");
-        }
-        finally
-        {
-            _isLoading = false;
-        }
-    }
-
-    // ── Recalcul global ────────────────────────────
-    private void RecomputeAll()
-    {
-        _kpis = DashboardService.ComputeGlobalKpis(_dataFiltree, StateService.Regles, _lignesEtp);
-
-        _heatmap = DashboardService.ComputeHeatmapAgences(
-            _dataFiltree, StateService.Regles, _lignesEtp, _charges);
-
-        _repartition = DashboardService.ComputeRepartitionParSegment(_dataFiltree, StateService.Regles);
-
-        _repartitionConseillers = DashboardService.ComputeRepartitionConseillers(
-            _dataFiltree, StateService.Regles, _lignesEtp);
-
-        var geoResult = DashboardService.ComputeDistributionGeographique(
-            _dataFiltree, _dimensionAffichage);
-        _distributionGeo = geoResult.Distribution;
-        _regionsGeo = geoResult.Colonnes;
-    }
-
-    // ── Changement de dimension pour la distribution géo ──
-    private void OnDimensionChanged(string dim)
-    {
-        _dimensionAffichage = dim;
-
-        var geoResult = DashboardService.ComputeDistributionGeographique(
-            _dataFiltree, _dimensionAffichage);
-        _distributionGeo = geoResult.Distribution;
-        _regionsGeo = geoResult.Colonnes;
-
-        StateHasChanged();
-    }
-
-    // ── Handlers de filtres ────────────────────────
-    private void OnRegionChanged(string? r)
-    {
-        filtreRegion = r;
-        filtreSecteur = null;
-        filtreAgence = null;
-        BuildFilterOptions();
-    }
-
-    private void OnSecteurChanged(string? s)
-    {
-        filtreSecteur = s;
-        filtreAgence = null;
-        BuildFilterOptions();
-    }
-
-    private void OnAgenceChanged(string? a)
-    {
-        filtreAgence = a;
-    }
-
-    private async Task ApplyFilters()
-    {
-        _isLoading = true;
-        StateHasChanged();
-        await Task.Delay(1);
-
-        try
-        {
-            _dataFiltree = _data
-                .Where(x => string.IsNullOrEmpty(filtreRegion)  || x.LibRegion  == filtreRegion)
-                .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
-                .Where(x => string.IsNullOrEmpty(filtreAgence)  || x.LibAgence  == filtreAgence)
-                .ToList();
-
-            filtreRegionApplique  = filtreRegion;
-            filtreSecteurApplique = filtreSecteur;
-            filtreAgenceApplique  = filtreAgence;
-
-            BuildFilterOptions();
-            RecomputeAll();
-        }
-        finally
-        {
-            _isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task ClearFilters()
-    {
-        filtreRegion = filtreSecteur = filtreAgence = null;
-        await ApplyFilters();
-    }
-
-    private void BuildFilterOptions()
-    {
-        allRegions = _data.Select(x => x.LibRegion)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
-            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
-
-        allSecteurs = _data
-            .Where(x => string.IsNullOrEmpty(filtreRegion) || x.LibRegion == filtreRegion)
-            .Select(x => x.LibSecteur)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
-            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
-
-        allAgences = _data
-            .Where(x => string.IsNullOrEmpty(filtreRegion)  || x.LibRegion  == filtreRegion)
-            .Where(x => string.IsNullOrEmpty(filtreSecteur) || x.LibSecteur == filtreSecteur)
-            .Select(x => x.LibAgence)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Where(x => !x.Trim().Equals("NON REPARTI", StringComparison.OrdinalIgnoreCase))
-            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
-    }
-
-    // ── Helpers UI KPIs ────────────────────────────
-    private string GetKpiClass(double value, double greenThreshold, double orangeThreshold)
-    {
-        if (value >= greenThreshold)  return "dash-kpi-good";
-        if (value >= orangeThreshold) return "dash-kpi-warn";
-        return "dash-kpi-critical";
-    }
-
-    private string GetKpiIconClass(double value, double greenThreshold, double orangeThreshold)
-    {
-        if (value >= greenThreshold)  return "dash-kpi-icon-good";
-        if (value >= orangeThreshold) return "dash-kpi-icon-warn";
-        return "dash-kpi-icon-critical";
-    }
-
-    /// <summary>
-    /// Code couleur du taux de rotation (KPI Dashboard) : logique inversée
-    /// (bas = bon), mêmes seuils que sur la page Portefeuille.
-    /// 0-20% vert · 20-50% orange · &gt;50% rouge
-    /// </summary>
-    private string GetKpiClassRotation(double value)
-    {
-        if (value <= 20) return "dash-kpi-good";
-        if (value <= 50) return "dash-kpi-warn";
-        return "dash-kpi-critical";
-    }
-
-    private string GetKpiIconClassRotation(double value)
-    {
-        if (value <= 20) return "dash-kpi-icon-good";
-        if (value <= 50) return "dash-kpi-icon-warn";
-        return "dash-kpi-icon-critical";
-    }
-
-    private string FormatCompact(int value)
-    {
-        if (value >= 1_000_000) return $"{value / 1_000_000.0:F1}M";
-        if (value >= 1_000)     return $"{value / 1_000.0:F0}K";
-        return value.ToString("N0");
-    }
-
-    // ── Helpers heatmap agences ────────────────────
-    private string GetHeatmapUnit() =>
-        _heatmap.Count > 1 ? "agences" : "agence";
-
-    private IEnumerable<TerritoireRow> FilteredHeatmap =>
-        string.IsNullOrWhiteSpace(_heatmapSearch)
-            ? _heatmap
-            : _heatmap.Where(r => r.Nom.Contains(_heatmapSearch, StringComparison.OrdinalIgnoreCase));
-
-    private IEnumerable<TerritoireRow> SortedHeatmap
-    {
-        get
-        {
-            var src = FilteredHeatmap;
-            Func<TerritoireRow, object> keySelector = _hmSortColumn switch
-            {
-                "Nom"               => r => r.Nom,
-                "ConseillersActifs" => r => r.ConseillersActifs,
-                "ConseillersCibles" => r => r.ConseillersCibles,
-                "EtpNecessaires"    => r => r.EtpNecessaires,
-                "TauxCouverture"    => r => r.TauxCouverture,
-                "Concordance"       => r => r.Concordance,
-                "TauxRotation"      => r => r.TauxRotation,
-                "ChargeTransfereeBP"        => r => r.ChargeTransfereeBP,
-                "ChargeTransfereeAgence"    => r => r.ChargeTransfereeAgence,
-                "ChargeTransfereeMutualise" => r => r.ChargeTransfereeMutualise,
-                _                   => r => r.ClientsGeres
-            };
-            return _hmSortAsc ? src.OrderBy(keySelector) : src.OrderByDescending(keySelector);
-        }
-    }
-
-    private void SetSort(string column)
-    {
-        if (_hmSortColumn == column) _hmSortAsc = !_hmSortAsc;
-        else { _hmSortColumn = column; _hmSortAsc = false; }
-    }
-
-    private string SortIcon(string column) =>
-        _hmSortColumn != column ? "" : (_hmSortAsc ? "▲" : "▼");
-
-    /// <summary>
-    /// Code couleur du taux de remplissage des portefeuilles.
-    /// Vert : 90-110% · Jaune : 70-90% ou 110-130% · Rouge : le reste
-    /// </summary>
-    private string GetPillClassRemplissage(double value)
-    {
-        if (value >= 90 && value <= 110) return "dash-hm-pill-good";
-        if ((value >= 70 && value < 90) || (value > 110 && value <= 130)) return "dash-hm-pill-warn";
-        return "dash-hm-pill-critical";
-    }
-
-    /// <summary>
-    /// Code couleur du taux de concordance des portefeuilles.
-    /// Vert : 80-100% · Jaune : 50-80% · Rouge : &lt;50%
-    /// </summary>
-    private string GetPillClassConcordance(double value)
-    {
-        if (value >= 80) return "dash-hm-pill-good";
-        if (value >= 50) return "dash-hm-pill-warn";
-        return "dash-hm-pill-critical";
-    }
-
-    /// <summary>
-    /// Code couleur du taux de rotation des clients : logique inversée
-    /// (bas = bon). Vert : 0-20% · Jaune : 20-50% · Rouge : &gt;50%
-    /// </summary>
-    private string GetPillClassRotation(double value)
-    {
-        if (value <= 20) return "dash-hm-pill-good";
-        if (value <= 50) return "dash-hm-pill-warn";
-        return "dash-hm-pill-critical";
-    }
-
-    private string GetStatusColor(TerritoireRow row)
-    {
-        if (row.Concordance >= 80 && row.TauxCouverture >= 100) return "#1B5E20";
-        if (row.Concordance >= 60 && row.TauxCouverture >= 90)  return "#E65100";
-        return "#C62828";
-    }
+using Segmentation.Client.Models;
+
+namespace Segmentation.Client.Services;
+
+/// <summary>
+/// Modèle de répartition automatique de la charge cible d'un conseiller retiré de la
+/// répartition cible, utilisé par la modale de retrait d'effectif de la page
+/// "Dimensionnement des Portefeuilles". Séparé de la page pour ne pas l'alourdir davantage.
+///
+/// Règles :
+///  - La charge est replacée en priorité sur les conseillers désignés dans les
+///    Règles &amp; Hypothèses (Prioritaire, puis Secondaire, puis Tertiaire) pour le
+///    segment concerné.
+///  - Si aucun conseiller prioritaire n'est disponible dans l'effectif (absent ou déjà
+///    au maximum), on redescend la liste de priorité du segment jusqu'au dernier
+///    recours (profils non désignés, triés alphabétiquement).
+///  - Aucun conseiller ne peut recevoir plus de 1 ETP de charge cible au total
+///    (toutes lignes/segments confondus).
+///  - Le calcul est refait pour chaque segment concerné par la charge à redistribuer.
+/// </summary>
+public class RepartitionAutomatiqueService
+{
+	public const double MaxEtpParConseiller = 1.0;
+
+	/// <summary>
+	/// Charge cible totale déjà portée par un conseiller, tous segments confondus.
+	/// </summary>
+	public double GetChargeCibleTotal(ConseillerSlot slot, List<DimMatrixRow> toutesLesLignes) =>
+		Math.Round(toutesLesLignes
+			.Where(r => !r.IsTotal)
+			.Sum(r => r.EtpCibleSaisieParProfil.GetValueOrDefault(slot.Id) ?? 0), 2);
+
+	/// <summary>Capacité restante avant d'atteindre le maximum de 1 ETP.</summary>
+	public double GetCapaciteDisponible(ConseillerSlot slot, List<DimMatrixRow> toutesLesLignes) =>
+		Math.Max(0, Math.Round(MaxEtpParConseiller - GetChargeCibleTotal(slot, toutesLesLignes), 2));
+
+	/// <summary>
+	/// Classe les conseillers éligibles pour un segment donné, du plus prioritaire
+	/// (désigné Prioritaire dans les R&amp;H) au moins prioritaire (profil non désigné).
+	/// </summary>
+	public List<ConseillerSlot> GetOrdrePrioritePourSegment(
+		string segment,
+		List<ConseillerSlot> slotsEligibles,
+		List<RegleAffectationSegment> regles)
+	{
+		var regle = regles.FirstOrDefault(r =>
+			r.Segment?.Trim().Equals(segment?.Trim(), StringComparison.OrdinalIgnoreCase) == true);
+
+		int NiveauPriorite(ConseillerSlot s)
+		{
+			if (regle == null || string.IsNullOrWhiteSpace(s.Profil)) return 4;
+			if (!string.IsNullOrWhiteSpace(regle.ConseillerPrioritaire) &&
+				regle.ConseillerPrioritaire.Trim().Equals(s.Profil.Trim(), StringComparison.OrdinalIgnoreCase)) return 1;
+			if (!string.IsNullOrWhiteSpace(regle.ConseillerSecondaire) &&
+				regle.ConseillerSecondaire.Trim().Equals(s.Profil.Trim(), StringComparison.OrdinalIgnoreCase)) return 2;
+			if (!string.IsNullOrWhiteSpace(regle.ConseillerTertiaire) &&
+				regle.ConseillerTertiaire.Trim().Equals(s.Profil.Trim(), StringComparison.OrdinalIgnoreCase)) return 3;
+			return 4; // hors liste R&H pour ce segment = dernier recours
+		}
+
+		return slotsEligibles
+			.OrderBy(NiveauPriorite)
+			.ThenBy(s => s.Profil, StringComparer.OrdinalIgnoreCase)
+			.ThenBy(s => s.Label, StringComparer.OrdinalIgnoreCase)
+			.ToList();
+	}
+
+	/// <summary>
+	/// Répartit automatiquement, segment par segment, la charge cible d'un conseiller
+	/// retiré sur les conseillers éligibles (mutation directe des lignes fournies).
+	/// </summary>
+	/// <param name="memeTypeUniquement">
+	/// Si vrai, seuls les conseillers du même profil que celui retiré sont éligibles
+	/// (option "type identique" de la modale). Sinon, tous les profils sont éligibles
+	/// suivant l'ordre de priorité du segment.
+	/// </param>
+	/// <returns>Le solde (ETP) n'ayant pas pu être replacé, par ligne/segment concerné.</returns>
+	public Dictionary<DimMatrixRow, double> RepartirAutomatiquement(
+		ConseillerSlot slotARetirer,
+		List<DimMatrixRow> segmentsAvecCharge,
+		List<DimMatrixRow> toutesLesLignes,
+		List<ConseillerSlot> tousLesSlots,
+		List<RegleAffectationSegment> regles,
+		bool memeTypeUniquement)
+	{
+		var solde = new Dictionary<DimMatrixRow, double>();
+
+		var candidats = tousLesSlots
+			.Where(s => s.Id != slotARetirer.Id && s.IsCible)
+			.Where(s => !memeTypeUniquement || s.Profil.Equals(slotARetirer.Profil, StringComparison.OrdinalIgnoreCase))
+			.ToList();
+
+		foreach (var row in segmentsAvecCharge)
+		{
+			var montant = Math.Round(row.EtpCibleSaisieParProfil.GetValueOrDefault(slotARetirer.Id) ?? 0, 2);
+			if (montant <= 0) continue;
+
+			var ordre = GetOrdrePrioritePourSegment(row.Segment, candidats, regles);
+			var restant = montant;
+
+			foreach (var candidat in ordre)
+			{
+				if (restant <= 0) break;
+
+				var capaciteDisponible = GetCapaciteDisponible(candidat, toutesLesLignes);
+				if (capaciteDisponible <= 0) continue;
+
+				var aPrendre = Math.Round(Math.Min(restant, capaciteDisponible), 2);
+				if (aPrendre <= 0) continue;
+
+				row.EtpCibleSaisieParProfil[candidat.Id] =
+					Math.Round((row.EtpCibleSaisieParProfil.GetValueOrDefault(candidat.Id) ?? 0) + aPrendre, 2);
+				restant = Math.Round(restant - aPrendre, 2);
+			}
+
+			row.EtpCibleSaisieParProfil[slotARetirer.Id] = restant > 0.001 ? restant : null;
+			if (restant > 0.001)
+				solde[row] = restant;
+		}
+
+		return solde;
+	}
+
+	/// <summary>
+	/// Distribue automatiquement la charge ETP ajustée par segment (existant ±
+	/// transferts BP/Agence/Mutualisé) sur les conseillers cibles, dans l'ordre
+	/// de priorité R&amp;H. Réinitialise toutes les valeurs cible existantes avant de
+	/// calculer. Chaque conseiller est capé à son EtpCible (fallback = MaxEtpParConseiller).
+	/// </summary>
+	/// <param name="getChargeAjustee">
+	/// Fournit, pour une ligne/segment donné, la charge ETP à distribuer — la
+	/// charge existante brute ajustée des transferts manuels (BP↔Agence,
+	/// vers Mutualisé), cohérente avec les colonnes "Charge Totale ETP par
+	/// segment" et "Aide à la répartition" affichées sur la page.
+	/// </param>
+	/// <returns>Nombre de segments dont la charge n'a pas pu être entièrement placée.</returns>
+	public int DistribuerAutomatiquement(
+		List<DimMatrixRow> toutesLesLignes,
+		List<ConseillerSlot> tousLesSlots,
+		List<RegleAffectationSegment> regles,
+		Func<DimMatrixRow, double> getChargeAjustee)
+	{
+		var candidats = tousLesSlots.Where(s => s.IsCible).ToList();
+		if (!candidats.Any()) return 0;
+
+		// Capacité max par conseiller : EtpCible s'il est > 0, sinon 1 ETP
+		var capacites = candidats.ToDictionary(s => s.Id,
+			s => s.EtpCible > 0 ? s.EtpCible : MaxEtpParConseiller);
+		// Suivi cumulatif de l'allocation au fil des segments
+		var alloues = candidats.ToDictionary(s => s.Id, _ => 0.0);
+
+		// Réinitialiser toutes les valeurs cible des conseillers actifs
+		foreach (var row in toutesLesLignes)
+			foreach (var slot in candidats)
+				row.EtpCibleSaisieParProfil[slot.Id] = null;
+
+		int segmentsIncomplets = 0;
+
+		foreach (var row in toutesLesLignes.Where(r => !r.IsTotal))
+		{
+			// Demande = charge ETP ajustée (existant ± transferts BP/Agence/Mutualisé)
+			// pour ce segment, et non plus l'existant brut — cohérent avec les
+			// colonnes "Charge Totale ETP par segment" et "Aide à la répartition".
+			var demande = Math.Round(getChargeAjustee(row), 4);
+			if (demande <= 0.001) continue;
+
+			var ordre = GetOrdrePrioritePourSegment(row.Segment, candidats, regles);
+			var restant = demande;
+
+			foreach (var candidat in ordre)
+			{
+				if (restant <= 0.001) break;
+				var capa = Math.Round(capacites[candidat.Id] - alloues[candidat.Id], 4);
+				if (capa <= 0.001) continue;
+				var aPrendre = Math.Round(Math.Min(restant, capa), 4);
+				row.EtpCibleSaisieParProfil[candidat.Id] =
+					Math.Round((row.EtpCibleSaisieParProfil.GetValueOrDefault(candidat.Id) ?? 0) + aPrendre, 4);
+				alloues[candidat.Id] = Math.Round(alloues[candidat.Id] + aPrendre, 4);
+				restant = Math.Round(restant - aPrendre, 4);
+			}
+
+			if (restant > 0.001) segmentsIncomplets++;
+		}
+
+		return segmentsIncomplets;
+	}
+
+	/// <summary>
+	/// Liste des conseillers disponibles (capacité &lt; 1 ETP) pour la répartition manuelle,
+	/// triés du profil le plus prioritaire (pour le segment) au moins prioritaire.
+	/// </summary>
+	public List<ConseillerSlot> GetConseillersDisponiblesPourSegment(
+		string segment,
+		ConseillerSlot slotARetirer,
+		List<ConseillerSlot> tousLesSlots,
+		List<DimMatrixRow> toutesLesLignes,
+		List<RegleAffectationSegment> regles,
+		bool memeTypeUniquement = false)
+	{
+		var eligibles = tousLesSlots
+			.Where(s => s.Id != slotARetirer.Id && s.IsCible)
+			.Where(s => !memeTypeUniquement || s.Profil.Equals(slotARetirer.Profil, StringComparison.OrdinalIgnoreCase))
+			.Where(s => GetCapaciteDisponible(s, toutesLesLignes) > 0.001)
+			.ToList();
+
+		return GetOrdrePrioritePourSegment(segment, eligibles, regles);
+	}
 }
