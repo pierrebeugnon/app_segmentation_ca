@@ -1,64 +1,122 @@
 @using Segmentation.Client.Services
 
-<MudPaper Elevation="0" Class="dash-dg-card">
+<MudPaper Elevation="0" Class="dash-rc-card">
 
     <div class="dash-section-title">
-        <span>Répartition géographique des clients par segment distributif</span>
+        <span>Effectif conseiller vs portefeuilles cible par ligne métier</span>
     </div>
 
-    <!-- ── Tag switcher ── -->
-    <div class="dash-dim-tags">
-        <button class="dash-dim-tag @(Dimension == "Region" ? "active" : "")"
-                @onclick="@(() => Switch("Region"))">
-            Région
-        </button>
-        <button class="dash-dim-tag @(Dimension == "Secteur" ? "active" : "")"
-                @onclick="@(() => Switch("Secteur"))">
-            Secteur
-        </button>
-        <button class="dash-dim-tag @(Dimension == "Agence" ? "active" : "")"
-                @onclick="@(() => Switch("Agence"))">
-            Agence
-        </button>
-    </div>
-
-    @if (Distribution == null || !Distribution.Any() || !Colonnes.Any())
+    @if (Repartition == null || !Repartition.Any())
     {
         <div class="dash-placeholder">Aucune donnée disponible</div>
     }
     else
     {
-        <div class="dash-dg-tablewrap">
-            <table class="dash-dg-table">
+        <div class="dash-rc-tablewrap">
+            <table class="dash-rc-table">
                 <thead>
-                    <tr>
-                        <th class="dash-dg-col-segment">Segments distributif</th>
-                        @foreach (var c in Colonnes)
-                        {
-                            <th class="dash-dg-col-region" title="@c">@Abrege(c)</th>
-                        }
-                        <th class="dash-dg-col-total">Total</th>
+                    <!-- Ligne 1 : groupes de colonnes -->
+                    <tr class="dash-rc-header-group">
+                        <th class="dash-rc-col-metier">&nbsp;</th>
+                        <th colspan="3" class="dash-rc-group-conseillers">
+                            Nombre de conseillers
+                        </th>
+                        <th colspan="3" class="dash-rc-group-taille">
+                            Taille moyenne du portefeuille
+                        </th>
+                    </tr>
+
+                    <!-- Ligne 2 : colonnes détaillées -->
+                    <tr class="dash-rc-header-cols">
+                        <th class="dash-rc-col-metier">Ligne métier</th>
+
+                        <th class="dash-rc-col-existant">Existant</th>
+                        <th class="dash-rc-col-cible">Cible</th>
+                        <th class="dash-rc-col-delta">Δ</th>
+
+                        <th class="dash-rc-col-existant dash-rc-taille">Existant</th>
+                        <th class="dash-rc-col-cible dash-rc-taille">Cible</th>
+                        <th class="dash-rc-col-delta dash-rc-taille">Δ</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var row in Distribution)
+                    @foreach (var l in Repartition)
                     {
-                        var total = row.Value.Values.Sum();
-                        var maxVal = row.Value.Values.DefaultIfEmpty(0).Max();
+                        var deltaConsClass = GetDeltaClass(l.DeltaConseillers);
+                        var deltaTailleClass = GetDeltaClass(l.DeltaTaillePortefeuille);
 
-                        <tr>
-                            <td class="dash-dg-col-segment dash-dg-seg-label">@row.Key</td>
-                            @foreach (var c in Colonnes)
-                            {
-                                var val = row.Value.GetValueOrDefault(c, 0);
-                                var intensity = maxVal > 0 ? val * 100.0 / maxVal : 0;
-                                <td class="dash-dg-cell" style="@GetCellStyle(intensity)">
-                                    @(val > 0 ? FormatCompact(val) : "—")
-                                </td>
-                            }
-                            <td class="dash-dg-col-total">@FormatCompact(total)</td>
+                        <!-- Row en-tête LIGNE MÉTIER (agrégé) -->
+                        <tr class="dash-rc-lm-row">
+                            <td class="dash-rc-col-metier dash-rc-lm-label">
+                                @l.LigneMetier.ToUpper()
+                            </td>
+
+                            <td class="dash-rc-val-existant">@l.ConseillersExistants</td>
+                            <td class="dash-rc-val-cible">@l.ConseillersCibles</td>
+                            <td class="@deltaConsClass">@FormatDelta(l.DeltaConseillers)</td>
+
+                            <td class="dash-rc-val-existant dash-rc-taille">
+                                @l.TaillePortefeuilleExistant.ToString("N0")
+                            </td>
+                            <td class="dash-rc-val-cible dash-rc-taille">
+                                @l.TaillePortefeuilleCible.ToString("N0")
+                            </td>
+                            <td class="dash-rc-taille @deltaTailleClass">
+                                @FormatDelta(l.DeltaTaillePortefeuille, "N0")
+                            </td>
                         </tr>
+
+                        <!-- Rows détail par profil -->
+                        @foreach (var p in l.Profils)
+                        {
+                            var deltaProfilClass = GetDeltaClass(p.DeltaConseillers);
+                            var deltaTailleProfil = p.TaillePortefeuilleCible - p.TaillePortefeuilleExistant;
+                            var deltaTailleProfilClass = GetDeltaClass(deltaTailleProfil);
+
+                            <tr class="dash-rc-profil-row">
+                                <td class="dash-rc-col-metier dash-rc-profil-label">
+                                    @p.Profil
+                                </td>
+
+                                <td class="dash-rc-val-existant dash-rc-profil-val">@p.ConseillersExistants</td>
+                                <td class="dash-rc-val-cible dash-rc-profil-val">@p.ConseillersCibles</td>
+                                <td class="dash-rc-profil-val @deltaProfilClass">
+                                    @FormatDelta(p.DeltaConseillers)
+                                </td>
+
+                                <td class="dash-rc-val-existant dash-rc-taille dash-rc-profil-val">
+                                    @(p.TaillePortefeuilleExistant > 0 ? p.TaillePortefeuilleExistant.ToString("N0") : "—")
+                                </td>
+                                <td class="dash-rc-val-cible dash-rc-taille dash-rc-profil-val">
+                                    @(p.TaillePortefeuilleCible > 0 ? p.TaillePortefeuilleCible.ToString("N0") : "—")
+                                </td>
+                                <td class="dash-rc-taille dash-rc-profil-val @deltaTailleProfilClass">
+                                    @(p.TaillePortefeuilleExistant > 0 || p.TaillePortefeuilleCible > 0 ? FormatDelta(deltaTailleProfil, "N0") : "—")
+                                </td>
+                            </tr>
+                        }
                     }
+
+                    <!-- Ligne TOTAL -->
+                    @{
+                        var totalExist = Repartition.Sum(l => l.ConseillersExistants);
+                        var totalCible = Repartition.Sum(l => l.ConseillersCibles);
+                        var totalDeltaCons = totalCible - totalExist;
+                        var deltaConsTotalClass = GetDeltaClass(totalDeltaCons);
+                    }
+
+                    <tr class="dash-rc-total-row">
+                        <td class="dash-rc-col-metier dash-rc-total-label">TOTAL</td>
+
+                        <td class="dash-rc-val-existant">@totalExist</td>
+                        <td class="dash-rc-val-cible">@totalCible</td>
+                        <td class="@deltaConsTotalClass">@FormatDelta(totalDeltaCons)</td>
+
+                        <!-- Taille portefeuille : non sommable (ratios différents) -->
+                        <td class="dash-rc-taille dash-rc-empty">—</td>
+                        <td class="dash-rc-taille dash-rc-empty">—</td>
+                        <td class="dash-rc-taille dash-rc-empty">—</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -66,187 +124,259 @@
 </MudPaper>
 
 <style>
-    .dash-dg-card {
+    .dash-rc-card {
         background: white;
         border-radius: 12px;
-        padding: 14px 18px;
+        padding: 20px 24px;
+        min-height: 300px;
         min-width: 0;
     }
 
-        .dash-dg-card .dash-section-title {
+        .dash-rc-card .dash-section-title {
             display: flex;
             align-items: baseline;
             justify-content: space-between;
-            margin-bottom: 10px;
+            margin-bottom: 16px;
         }
 
-            .dash-dg-card .dash-section-title span:first-child {
+            .dash-rc-card .dash-section-title span:first-child {
                 font-size: 15px;
                 font-weight: 700;
                 color: #1A4E6B;
             }
 
-        .dash-dg-card .dash-section-hint {
+        .dash-rc-card .dash-section-hint {
             font-size: 11px;
             color: #8A97A8;
             font-style: italic;
         }
 
-    /* ── Tag switcher ── */
-    .dash-dim-tags {
-        display: flex;
-        gap: 6px;
-        margin-bottom: 12px;
-    }
-
-    .dash-dim-tag {
-        background: #F0F3F7;
-        color: #6C7A89;
-        border: none;
-        padding: 4px 12px;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.6px;
-        text-transform: uppercase;
-        border-radius: 12px;
-        cursor: pointer;
-        transition: all 0.15s ease;
-    }
-
-        .dash-dim-tag:hover {
-            background: #E1E7EF;
-        }
-
-        .dash-dim-tag.active {
-            background: #1A4E6B;
-            color: white;
-        }
-
-    .dash-dg-tablewrap {
+    /* ── Tableau ── */
+    .dash-rc-tablewrap {
         overflow-x: auto;
     }
 
-    .dash-dg-table {
+    .dash-rc-table {
         width: 100%;
         border-collapse: collapse;
         font-family: 'Calibri', sans-serif;
     }
 
-        .dash-dg-table th {
-            font-size: 9px;
-            font-weight: 700;
-            color: #8A97A8;
-            letter-spacing: 0.6px;
-            text-transform: uppercase;
-            padding: 6px 4px;
-            border-bottom: 1px solid #EEF1F5;
-            text-align: center;
-            white-space: nowrap;
+    .dash-rc-header-group th {
+        font-size: 10px;
+        font-weight: 700;
+        color: #8A97A8;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        padding: 8px 6px;
+        text-align: center;
+    }
+
+    .dash-rc-group-conseillers {
+        border-bottom: 2px solid #E1E7EF;
+    }
+
+    .dash-rc-group-taille {
+        background: #F4F9FD;
+        border-bottom: 2px solid #D4E4F0;
+        border-radius: 6px 6px 0 0;
+    }
+
+    .dash-rc-header-cols th {
+        font-size: 10px;
+        font-weight: 700;
+        color: #6C7A89;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        padding: 8px 6px;
+        text-align: center;
+        border-bottom: 1px solid #EEF1F5;
+    }
+
+    .dash-rc-header-cols .dash-rc-col-metier {
+        text-align: left;
+        color: #8A97A8;
+    }
+
+    .dash-rc-col-existant {
+        color: #E65100;
+    }
+
+    .dash-rc-col-cible {
+        color: #1A4E6B;
+    }
+
+    .dash-rc-col-delta {
+        color: #6C7A89;
+    }
+
+    .dash-rc-taille {
+        background: #F7FBFE;
+    }
+
+    /* ── Row en-tête LIGNE MÉTIER ── */
+    .dash-rc-lm-row {
+        background: #EEF1F5;
+        border-top: 1px solid #DAE0E7;
+        border-bottom: 1px solid #DAE0E7;
+    }
+
+        .dash-rc-lm-row:hover {
+            background: #E5E9EF;
         }
 
-    .dash-dg-col-segment {
-        text-align: left !important;
-        padding-left: 4px !important;
-        position: sticky;
-        left: 0;
-        z-index: 2;
-        background: white;
-        box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.15);
+        .dash-rc-lm-row .dash-rc-taille {
+            background: #EAF2FA;
+        }
+
+        .dash-rc-lm-row:hover .dash-rc-taille {
+            background: #E0EBF5;
+        }
+
+    .dash-rc-lm-label {
+        font-size: 12px !important;
+        font-weight: 400 !important;
+        letter-spacing: 2px;
+        color: #1A4E6B;
+        text-transform: uppercase;
     }
 
-    .dash-dg-table thead .dash-dg-col-segment {
-        z-index: 3;
-    }
-
-    .dash-dg-col-total {
-        background: #F7FBFE;
+    .dash-rc-lm-row td {
+        padding: 8.3px 6px;
+        text-align: center;
+        font-size: 14px;
         font-weight: 700;
-        color: #1A4E6B !important;
     }
 
-    .dash-dg-table tbody tr {
-        border-bottom: 1px solid #F5F7FA;
-        transition: background 0.12s ease;
+    .dash-rc-lm-row .dash-rc-col-metier {
+        text-align: left;
+        padding-left: 10px;
     }
 
-        .dash-dg-table tbody tr:hover {
+    /* ── Row détail PROFIL ── */
+    .dash-rc-profil-row {
+        background: white;
+    }
+
+        .dash-rc-profil-row:hover {
             background: #FAFBFC;
         }
 
-            .dash-dg-table tbody tr:hover .dash-dg-col-segment {
-                background: #FAFBFC;
-            }
+        .dash-rc-profil-row .dash-rc-taille {
+            background: #F7FBFE;
+        }
 
-    .dash-dg-table tbody td {
-        padding: 9px 4px;
-        font-size: 11px;
-        text-align: center;
-        color: #2C3E50;
-    }
+        .dash-rc-profil-row:hover .dash-rc-taille {
+            background: #EDF4FA;
+        }
 
-    .dash-dg-seg-label {
+        .dash-rc-profil-row td {
+            padding: 19.5px 6px;
+            text-align: center;
+            font-size: 13px;
+        }
+
+    .dash-rc-profil-label {
         text-align: left !important;
-        font-weight: 600;
-        color: #1A4E6B;
-        font-size: 11px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        max-width: 140px;
+        padding-left: 26px !important;
+        color: #4A5568;
+        font-size: 12px;
+        font-weight: 500;
     }
 
-    .dash-dg-cell {
+    .dash-rc-profil-val {
         font-weight: 600;
-        border-radius: 3px;
     }
 
-    .dash-dg-card .dash-placeholder {
+    .dash-rc-empty {
+        color: #C5CBD3 !important;
+        font-weight: 400 !important;
+        font-style: italic;
+    }
+
+    /* ── Ligne TOTAL ── */
+    .dash-rc-total-row {
+        background: #DFE7F0 !important;
+        border-top: 2px solid #1A4E6B !important;
+    }
+
+        .dash-rc-total-row:hover {
+            background: #D5DEE8 !important;
+        }
+
+        .dash-rc-total-row td {
+            padding: 12px 6px !important;
+            font-size: 15px !important;
+            font-weight: 700 !important;
+        }
+
+    .dash-rc-total-label {
+        text-align: left !important;
+        padding-left: 10px !important;
+        color: #1A4E6B !important;
+        letter-spacing: 2px;
+        font-size: 13px !important;
+    }
+
+    .dash-rc-total-row .dash-rc-taille {
+        background: #C7D6E5 !important;
+    }
+
+    /* ── Delta colors ── */
+    .dash-delta-good {
+        color: #1B5E20;
+    }
+
+    .dash-delta-critical {
+        color: #C62828;
+    }
+
+    .dash-delta-neutral {
+        color: #6C7A89;
+    }
+
+    .dash-rc-card .dash-placeholder {
         color: #B0BAC5;
         text-align: center;
-        padding: 30px;
+        padding: 40px;
         font-style: italic;
-        font-size: 12px;
+        font-size: 13px;
     }
 </style>
 
 @code {
-    [Parameter] public Dictionary<string, Dictionary<string, int>>? Distribution { get; set; }
-    [Parameter] public List<string> Colonnes { get; set; } = new();
-    [Parameter] public string Dimension { get; set; } = "Region";
-    [Parameter] public EventCallback<string> DimensionChanged { get; set; }
+    /// <summary>
+    /// Répartition par ligne métier (BP / Retail) avec détail par type de conseiller.
+    /// </summary>
+    [Parameter]
+    public List<LigneMetierRepartition>? Repartition { get; set; }
 
-    private async Task Switch(string dim)
+    private string GetDeltaClass(int delta)
     {
-        if (dim == Dimension) return;
-        Dimension = dim;
-        await DimensionChanged.InvokeAsync(dim);
+        // delta = Cible − Existant : positif = sous-staffé (manque de
+        // conseillers) → rouge ; négatif = sur-staffé → vert.
+        if (delta > 0) return "dash-delta-critical";
+        if (delta < 0) return "dash-delta-good";
+        return "dash-delta-neutral";
     }
 
-    private string LabelDim() => Dimension switch
+    private string GetDeltaClass(double delta)
     {
-        "Secteur" => "secteur",
-        "Agence" => "agence",
-        _ => "région"
-    };
-
-    private string GetCellStyle(double intensity)
-    {
-        if (intensity <= 0) return "color:#C5CBD3";
-        var opacity = intensity / 100.0 * 0.7;
-        return $"background:rgba(74,128,181,{opacity.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)});color:{(intensity > 50 ? "#0A2540" : "#1A4E6B")}";
+        if (delta > 0) return "dash-delta-critical";
+        if (delta < 0) return "dash-delta-good";
+        return "dash-delta-neutral";
     }
 
-    private string Abrege(string nom)
+    private string FormatDelta(int delta)
     {
-        if (string.IsNullOrWhiteSpace(nom)) return "";
-        if (nom.Length <= 12) return nom;
-        return nom[..12] + "…";
+        if (delta == 0) return "0";
+        return delta > 0 ? $"+{delta}" : delta.ToString();
     }
 
-    private string FormatCompact(int value)
+    private string FormatDelta(double delta, string format = "N0")
     {
-        if (value >= 1_000_000) return $"{value / 1_000_000.0:F1}M";
-        if (value >= 1_000) return $"{value / 1_000.0:F0}K";
-        return value.ToString("N0");
+        if (delta == 0) return "0";
+        var v = delta.ToString(format);
+        return delta > 0 ? $"+{v}" : v;
     }
 }
